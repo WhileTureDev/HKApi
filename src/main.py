@@ -3,7 +3,7 @@ from fastapi import FastAPI, HTTPException
 import uvicorn
 from kubernetes.client import ApiException
 from namespace import create_namespace
-from db import create_namespace_record, delete_namespace_record
+from db import create_namespace_record, delete_namespace_record, get_all_namespaces
 import subprocess
 from kubernetes import config, client
 
@@ -50,6 +50,14 @@ async def delete_namespace(namespace: str):
         delete_namespace_record(namespace)
     except ApiException as e:
         raise HTTPException(status_code=e.status, detail=e.reason)
+
+
+@app.get("/namespaces")
+def get_namespaces():
+    namespaces = get_all_namespaces()
+    if not namespaces:
+        raise HTTPException(status_code=204, detail="No namespaces found.")
+    return namespaces
 
 
 if __name__ == "__main__":

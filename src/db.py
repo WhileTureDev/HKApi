@@ -4,11 +4,13 @@ from sqlalchemy.orm import sessionmaker
 import sqlite3
 from datetime import datetime
 
+DB_FILE = "db.sqlite3"
+
 # Connect to the database
-engine = create_engine('sqlite:///db.sqlite3')
+engine = create_engine(f'sqlite:///{DB_FILE}')
 # engine = create_engine('postgresql://username:password@host:port/database')
 Base = declarative_base()
-conn = sqlite3.connect("db.sqlite3", check_same_thread=False)
+conn = sqlite3.connect(DB_FILE, check_same_thread=False)
 cursor = conn.cursor()
 
 
@@ -33,7 +35,7 @@ db = Session()
 
 
 def get_connection():
-    return sqlite3.connect('db.sqlite3')
+    return sqlite3.connect(f'{DB_FILE}')
 
 
 def create_namespace_record(chart_name, chart_repo_url, namespace):
@@ -47,3 +49,15 @@ def create_namespace_record(chart_name, chart_repo_url, namespace):
 def delete_namespace_record(namespace):
     db.query(Namespace).filter_by(namespace=namespace).delete()
     db.commit()
+
+
+def get_all_namespaces():
+    namespaces = []
+    with sqlite3.connect(DB_FILE) as con:
+        cur = con.cursor()
+        cur.execute("SELECT namespace, chart_name, chart_repo_url, created_at FROM namespaces")
+        rows = cur.fetchall()
+        for row in rows:
+            namespaces.append(
+                {"namespace": row[0], "chart_name": row[1], "chart_repo_url": row[2], "created_at": row[3]})
+    return namespaces
