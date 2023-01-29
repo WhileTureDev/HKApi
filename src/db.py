@@ -1,8 +1,11 @@
-from sqlalchemy import create_engine, Column, String, Integer
+
+import string
+from sqlalchemy import create_engine, Column, String, DateTime, Integer, select
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import sqlite3
 from datetime import datetime
+import json
 
 DB_FILE = "db.sqlite3"
 
@@ -12,15 +15,18 @@ engine = create_engine(f'sqlite:///{DB_FILE}')
 Base = declarative_base()
 conn = sqlite3.connect(DB_FILE, check_same_thread=False)
 cursor = conn.cursor()
-
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base.metadata.create_all(bind=engine)
+db = SessionLocal()
 
 class Namespace(Base):
-    __tablename__ = 'namespaces'
+    __tablename__ = "namespaces"
+
     id = Column(Integer, primary_key=True, index=True)
+    chart_name = Column(String, index=True)
+    chart_repo_url = Column(String, index=True)
     namespace = Column(String, index=True)
-    chart_name = Column(String)
-    chart_repo_url = Column(String)
-    created_at = Column(String, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     def __init__(self, namespace: str, chart_name: str, chart_repo_url: str):
         self.namespace = namespace
@@ -29,9 +35,6 @@ class Namespace(Base):
         self.created_at = datetime.now()
 
 
-Base.metadata.create_all(bind=engine)
-Session = sessionmaker(bind=engine)
-db = Session()
 
 
 def get_connection():
@@ -61,3 +64,23 @@ def get_all_namespaces():
             namespaces.append(
                 {"namespace": row[0], "chart_name": row[1], "chart_repo_url": row[2], "created_at": row[3]})
     return namespaces
+
+
+def delete_all_namespaces_from_db():
+    c = conn.cursor()
+    c.execute("DELETE from namespaces")
+    conn.commit()
+    conn.close()
+
+
+def get_all_namespaces_from_db():
+    c = conn.cursor()
+    query = c.execute("SELECT namespace FROM namespaces")
+    namespaces = []
+    for ns in list(query):
+        for s in ns:
+            s.replace("()'", '')
+            namespaces.append(s)
+    namespaces = list(dict.fromkeys(namespaces))
+    return namespaces
+

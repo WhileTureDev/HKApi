@@ -79,6 +79,42 @@ kubectl apply -f k8s/service.yaml
 - [Uvicorn](https://www.uvicorn.org/) - ASGI server
 - [kubernetes-python-client](https://pypi.org/project/kubernetes-python-client/) - Python client for the Kubernetes API
 
+
+## Usage
+
+To deploy a chart to a namespace, send a POST request to the /deploy/{namespace} endpoint with a JSON payload containing the chart name and chart repository URL.
+
+Example payload:
+```json
+{
+    "charts": [
+        {
+            "chart_name": "jenkins",
+            "chart_repo_url": "https://charts.bitnami.com/bitnami",
+            "release_name": "jenkins-app",
+            "provider": "bitnami"
+        },
+        {
+            "chart_name": "wordpress",
+            "chart_repo_url": "https://charts.bitnami.com/bitnami",
+            "release_name": "wordpress-app",
+            "provider": "bitnami"
+        }
+    ]
+}
+```
+
+## Delete All Namespaces
+- Endpoint: `DELETE /namespaces/all`
+- Description: This endpoint deletes all namespaces that are in the database and also delete them from the cluster
+- Example:
+    ```
+    curl -X DELETE http://localhost:8000/namespaces/all
+    ```
+    ```json
+    {"message":"All namespaces have been deleted."}
+    ```
+
 ## Authors
 
 * **Your Name** - *Initial work* - [cradules](https://github.com/cradules)
