@@ -1,4 +1,3 @@
-
 import string
 from sqlalchemy import create_engine, Column, String, DateTime, Integer, select
 from sqlalchemy.ext.declarative import declarative_base
@@ -19,6 +18,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base.metadata.create_all(bind=engine)
 db = SessionLocal()
 
+
 class Namespace(Base):
     __tablename__ = "namespaces"
 
@@ -33,8 +33,6 @@ class Namespace(Base):
         self.chart_name = chart_name
         self.chart_repo_url = chart_repo_url
         self.created_at = datetime.now()
-
-
 
 
 def get_connection():
@@ -83,4 +81,3 @@ def get_all_namespaces_from_db():
             namespaces.append(s)
     namespaces = list(dict.fromkeys(namespaces))
     return namespaces
-
