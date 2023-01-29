@@ -5,3 +5,4 @@ namespace~=0.1.4
 kubernetes~=25.3.0
 setuptools==67.0.0
 peewee~=3.15.4
+starlette==0.23.1
