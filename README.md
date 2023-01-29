@@ -79,6 +79,30 @@ kubectl apply -f k8s/service.yaml
 - [Uvicorn](https://www.uvicorn.org/) - ASGI server
 - [kubernetes-python-client](https://pypi.org/project/kubernetes-python-client/) - Python client for the Kubernetes API
 
+
+## Usage
+
+To deploy a chart to a namespace, send a POST request to the /deploy/{namespace} endpoint with a JSON payload containing the chart name and chart repository URL.
+
+Example payload:
+```json
+{
+    "charts": [
+        {
+            "chart_name": "jenkins",
+            "chart_repo_url": "https://charts.bitnami.com/bitnami",
+            "release_name": "jenkins-app",
+            "provider": "bitnami"
+        },
+        {
+            "chart_name": "wordpress",
+            "chart_repo_url": "https://charts.bitnami.com/bitnami",
+            "release_name": "wordpress-app",
+            "provider": "bitnami"
+        }
+    ]
+}
+```
 ## Authors
 
 * **Your Name** - *Initial work* - [cradules](https://github.com/cradules)

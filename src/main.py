@@ -1,11 +1,14 @@
 import os
-from fastapi import FastAPI, HTTPException
-import uvicorn
-from kubernetes.client import ApiException
-from namespace import create_namespace
-from db import create_namespace_record, delete_namespace_record, get_all_namespaces
 import subprocess
+
+import uvicorn
+from fastapi import FastAPI, HTTPException, Request
 from kubernetes import config, client
+from kubernetes.client import ApiException
+
+from db import create_namespace_record, delete_namespace_record, get_all_namespaces
+from namespace import create_namespace, check_if_namespace_exist
+
 
 app = FastAPI()
 cluster_config = os.getenv('cluster_config')
@@ -27,19 +30,35 @@ else:
 
 
 @app.post("/deploy")
-def deploy(release_name: str, chart_name: str, chart_repo_url: str, provider: str):
-    try:
-        namespace = create_namespace()
-    except Exception as e:
-        return e
-    if namespace:
-        # Deploy the chart
-        subprocess.run(["helm", "repo", "add", provider, chart_repo_url])
+async def deploy(request: Request):
+    # Create namespace
+
+    # Deploy the chart
+    global status
+    data = await request.json()
+    for chart in data['charts']:
+        chart_name = chart.get("chart_name")
+        chart_repo_url = chart.get("chart_repo_url")
+        release_name = chart.get("release_name")
+        provider = chart.get("provider")
+        namespace = chart.get("namespace")
+        repo_output = subprocess.run(["helm", "repo", "list"], capture_output=True)
+
+        # Check if helm  repo dose not exists
+        if str(provider) in repo_output.stdout.decode():
+            print(f"{provider} already exists")
+        else:
+            subprocess.run(["helm", "repo", "add", provider, chart_repo_url])
+            print(f"{provider} added")
+
+        if not check_if_namespace_exist(namespace):
+            create_namespace(namespace)
         subprocess.check_output(
-            ["helm", "upgrade", release_name, provider + "/" + chart_name, "--install", "--namespace", namespace])
+            ["helm", "upgrade", "--install", release_name, provider + "/" + chart_name, "--namespace", namespace])
+        # Update database
         create_namespace_record(chart_name, chart_repo_url, namespace)
-        status = subprocess.run(["helm", "status", release_name])
-        return status
+        status = subprocess.run(["helm", "status", release_name, "--namespace", namespace ])
+    return status
 
 
 @app.delete("/namespace/{namespace}")
