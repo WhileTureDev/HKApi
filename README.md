@@ -103,6 +103,18 @@ Example payload:
     ]
 }
 ```
+
+## Delete All Namespaces
+- Endpoint: `DELETE /namespaces/all`
+- Description: This endpoint deletes all namespaces that are in the database and also delete them from the cluster
+- Example:
+    ```
+    curl -X DELETE http://localhost:8000/namespaces/all
+    ```
+    ```json
+    {"message":"All namespaces have been deleted."}
+    ```
+
 ## Authors
 
 * **Your Name** - *Initial work* - [cradules](https://github.com/cradules)

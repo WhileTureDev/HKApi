@@ -1,6 +1,6 @@
-import random
-import string
 from kubernetes import client
+from kubernetes.client import ApiException
+from fastapi import HTTPException
 
 
 def check_if_namespace_exist(namespace: str):
@@ -22,3 +22,11 @@ def create_namespace(namespace):
         return namespace
     except Exception as e:
         return e
+
+
+def delete_namespace_from_cluster(namespace_name: str):
+    v1 = client.CoreV1Api()
+    try:
+        v1.delete_namespace(namespace_name)
+    except ApiException as e:
+        raise HTTPException(status_code=e.status, detail=e.reason)
