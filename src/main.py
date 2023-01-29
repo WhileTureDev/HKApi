@@ -85,7 +85,6 @@ def delete_all_namespaces():
     if not namespaces:
         raise HTTPException(status_code=404, detail="No namespaces found in the database.")
     for namespace in namespaces:
-        print(namespace)
         delete_namespace_from_cluster(namespace)
     delete_all_namespaces_from_db()
     return {"message": "All namespaces have been deleted."}

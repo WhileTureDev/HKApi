@@ -1,5 +1,5 @@
-import json
 
+import string
 from sqlalchemy import create_engine, Column, String, DateTime, Integer, select
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -76,6 +76,11 @@ def delete_all_namespaces_from_db():
 def get_all_namespaces_from_db():
     c = conn.cursor()
     query = c.execute("SELECT namespace FROM namespaces")
+    namespaces = []
     for ns in list(query):
-        return ns
+        for s in ns:
+            s.replace("()'", '')
+            namespaces.append(s)
+    namespaces = list(dict.fromkeys(namespaces))
+    return namespaces
 
