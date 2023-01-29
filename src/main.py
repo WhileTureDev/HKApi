@@ -71,9 +71,10 @@ async def deploy(request: Request):
                  namespace],
                 capture_output=True)
             # Update the database with the new chart information
-            create_namespace_record(chart_name, chart_repo_url, namespace)
+
             release_status = subprocess.run(["helm", "status", release_name, "--namespace", namespace],
                                             capture_output=True)
+            create_namespace_record(chart_name, chart_repo_url, namespace)
             status.append({
                 "chart_name": chart_name,
                 "chart_repo_url": chart_repo_url,
@@ -111,7 +112,7 @@ def delete_all_namespaces():
         delete_all_namespaces_from_db()
     except Exception as e:
         return e
-    return {"message": "All namespaces have been deleted."}
+    return {"message": f"{namespaces} have been deleted."}
 
 
 if __name__ == "__main__":
