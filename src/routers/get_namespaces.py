@@ -4,7 +4,7 @@ from src.db import get_all_namespaces
 router = APIRouter()
 
 
-@router.get("/namespaces")
+@router.get("/api/deployments")
 def get_namespaces():
     namespaces = get_all_namespaces()
     if not namespaces:
