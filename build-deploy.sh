@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IMAGE="steerci/hkapi"
+IMAGE="steerci/hkapi:local"
 
 docker build -t  ${IMAGE} .
 docker push ${IMAGE}

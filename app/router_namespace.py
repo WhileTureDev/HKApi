@@ -1,27 +1,26 @@
 from fastapi import HTTPException, APIRouter
 from kubernetes import client
 
-from src.db import delete_namespace_record, delete_all_namespaces_from_db, \
+from .db import delete_namespace_record, delete_all_namespaces_from_db, \
     get_all_namespaces_from_db
-from src.namespace import delete_namespace_from_cluster
+from .def_namespace import delete_namespace_from_cluster
 
 router = APIRouter()
 
 
 @router.delete("/namespace/{namespace}")
-async def delete_namespace(namespace: str):
+async def delete_namespace_api(namespace: str):
     k8s_client = client.CoreV1Api()
-    status = []
     try:
         k8s_client.delete_namespace(name=namespace)
-        status = delete_namespace_record(namespace)
+        delete_namespace_record(namespace)
+        return f"Namespace {namespace} was deleted"
     except Exception as e:
-        status.append(e)
-    return status
+        return e
 
 
 @router.delete("/namespaces/all")
-def delete_all_namespaces():
+def delete_all_namespaces_api():
     try:
         namespaces = get_all_namespaces_from_db()
         if not namespaces:

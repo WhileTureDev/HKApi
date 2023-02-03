@@ -8,7 +8,7 @@ image:
   repository: "steerci/hkapi"
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+  tag: "local"
 
 imagePullSecrets:
   - name: regcred
@@ -39,7 +39,7 @@ securityContext: {}
 
 service:
   type: LoadBalancer
-  port: 80
+  port: 8000
 
 ingress:
   enabled: false

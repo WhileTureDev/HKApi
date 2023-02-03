@@ -5,9 +5,8 @@ router = APIRouter()
 
 
 @router.get("/cluster")
-def get_cluster_summary():
+def get_cluster_summary_api():
     try:
-        config.load_kube_config()
         v1 = client.CoreV1Api()
         nodes = v1.list_node()
         nodes_info = []
