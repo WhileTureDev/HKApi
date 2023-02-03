@@ -1,4 +1,3 @@
-import click
 from sqlalchemy import create_engine, Column, String, DateTime, Integer, inspect
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -19,7 +18,7 @@ db = SessionLocal()
 
 
 class Namespace(Base):
-    __tablename__ = "namespaces"
+    __tablename__ = "deployments"
 
     id = Column(Integer, primary_key=True, index=True)
     chart_name = Column(String, index=True)
@@ -83,7 +82,7 @@ def get_all_namespaces():
     namespaces = []
     with sqlite3.connect(DB_FILE) as con:
         cur = con.cursor()
-        cur.execute("SELECT namespace, chart_name, chart_repo_url, created_at FROM namespaces")
+        cur.execute("SELECT namespace, chart_name, chart_repo_url, created_at FROM deployments")
         rows = cur.fetchall()
         for row in rows:
             namespaces.append(
@@ -93,14 +92,14 @@ def get_all_namespaces():
 
 def delete_all_namespaces_from_db():
     c = conn.cursor()
-    c.execute("DELETE from namespaces")
+    c.execute("DELETE from deployments")
     conn.commit()
     # conn.close()
 
 
 def get_all_namespaces_from_db():
     c = conn.cursor()
-    query = c.execute("SELECT namespace FROM namespaces")
+    query = c.execute("SELECT namespace FROM deployments")
     namespaces = []
     for ns in list(query):
         for s in ns:
