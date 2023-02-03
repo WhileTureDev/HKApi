@@ -1,16 +1,25 @@
 import os
 import subprocess
-from fastapi import Request, APIRouter
+from fastapi import Request, APIRouter, HTTPException
 from starlette.responses import JSONResponse
 
-from src.db import create_namespace_record
-from src.namespace import create_namespace, check_if_namespace_exist
+from .db import create_namespace_record, get_deployments_db
+from .def_namespace import create_namespace, check_if_namespace_exist
 
 router = APIRouter()
 
 
+# Read all deployments from database
+@router.get("/api/deployments")
+def deployments_api():
+    deployments = get_deployments_db()
+    if not deployments:
+        raise HTTPException(status_code=204, detail="No namespaces found.")
+    return deployments
+
+
 @router.post("/deploy")
-async def deploy(request: Request):
+async def deploy_api(request: Request):
     status = []
     try:
         # Get the data from the request body in JSON format

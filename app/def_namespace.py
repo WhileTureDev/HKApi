@@ -28,5 +28,7 @@ def delete_namespace_from_cluster(namespace_name: str):
     v1 = client.CoreV1Api()
     try:
         v1.delete_namespace(namespace_name)
+        status = v1.read_namespace_status(namespace_name)
+        return status
     except ApiException as e:
-        raise HTTPException(status_code=e.status, detail=e.reason)
+        return HTTPException(status_code=e.status, detail=e.reason)

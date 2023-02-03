@@ -1,11 +1,9 @@
 import os
-import uvicorn
+
 from fastapi import FastAPI
 from kubernetes import config
-import routers.deploy as _deploy
-import routers.get_namespaces as _get_namespaces
-import routers.delete_namespace as _delete_namespace
-import routers.get_cluster_summary as _get_cluster_summary
+from app import router_deploy, router_namespace, router_cluster_summary
+
 app = FastAPI()
 cluster_config = os.getenv('cluster_config')
 
@@ -24,9 +22,7 @@ else:
     except Exception as e:
         print("Error loading in-cluster k8s config: {0}".format(e))
 
-if __name__ == "__main__":
-    app.include_router(_deploy.router)
-    app.include_router(_get_namespaces.router)
-    app.include_router(_delete_namespace.router)
-    app.include_router(_get_cluster_summary.router)
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# Include routers
+app.include_router(router_deploy.router)
+app.include_router(router_namespace.router)
+app.include_router(router_cluster_summary.router)
