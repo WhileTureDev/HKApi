@@ -4,8 +4,8 @@ from kubernetes import client
 router = APIRouter()
 
 
-@router.get("/api/all-pods")
-def get_all_pods_api():
+@router.get("/api/v1/all-pods")
+def get_all_pods_from_cluster_api():
     k8_client = client.CoreV1Api()
     pods = k8_client.list_pod_for_all_namespaces()
     results = []
@@ -20,8 +20,8 @@ def get_all_pods_api():
     return results
 
 
-@router.get("/api/pods/{namespace}")
-def get_pods_api(namespace):
+@router.get("/api/v1/pods/{namespace}")
+def get_pods_from_given_namespace_api(namespace):
     k8_client = client.CoreV1Api()
     pods = k8_client.list_namespaced_pod(namespace, watch=False)
     results = []

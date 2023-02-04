@@ -4,8 +4,8 @@ from kubernetes import client, config
 router = APIRouter()
 
 
-@router.get("/cluster")
-def get_cluster_summary_api():
+@router.get("/api/v1/cluster")
+def get_nodes_cluster_summary_api():
     try:
         v1 = client.CoreV1Api()
         nodes = v1.list_node()

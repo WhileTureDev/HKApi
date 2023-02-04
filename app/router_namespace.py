@@ -8,7 +8,7 @@ from .def_namespace import delete_namespace_from_cluster
 router = APIRouter()
 
 
-@router.delete("/namespace/{namespace}")
+@router.delete("/api/v1/namespace/{namespace}")
 async def delete_namespace_api(namespace: str):
     k8s_client = client.CoreV1Api()
     try:
@@ -19,8 +19,8 @@ async def delete_namespace_api(namespace: str):
         return e
 
 
-@router.delete("/namespaces/all")
-def delete_all_namespaces_api():
+@router.delete("/api/v1/namespaces/all")
+def delete_all_namespaces_from_cluster_api():
     try:
         namespaces = get_all_namespaces_from_db()
         if not namespaces:
