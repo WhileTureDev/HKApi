@@ -1,7 +1,9 @@
 import subprocess
 
-from fastapi import Request, APIRouter, HTTPException
+import yaml
+from fastapi import Request, APIRouter, HTTPException, UploadFile
 from kubernetes import client
+from kubernetes.client import ApiException, V1Namespace
 from starlette.responses import JSONResponse
 
 from .db import create_namespace_record, get_deployments_db
@@ -12,14 +14,14 @@ router = APIRouter()
 
 # Read all deployments from database
 @router.get("/api/list-db-deployments")
-def deployments_db_api():
+def get_deployments_db_api():
     deployments = get_deployments_db()
     if not deployments:
         raise HTTPException(status_code=204, detail="No namespaces found.")
     return deployments
 
 
-@router.get("/api/all-deployments")
+@router.get("/api/list-all-deployments")
 def get_all_deployments_api():
     k8s_client = client.AppsV1Api()
     deployments = k8s_client.list_deployment_for_all_namespaces(watch=False)
@@ -35,7 +37,7 @@ def get_all_deployments_api():
     return results
 
 
-@router.get("/api/deployments/{namespace}")
+@router.get("/api/list-deployments-by-namespace/{namespace}")
 def get_deployments_api(namespace):
     k8s_client = client.AppsV1Api()
     deployments = k8s_client.list_namespaced_deployment(namespace)
@@ -51,8 +53,8 @@ def get_deployments_api(namespace):
     return results
 
 
-@router.post("/deploy")
-async def deploy_api(request: Request):
+@router.post("/create-helm-releaset")
+async def create_helm_release_api(request: Request):
     status = []
     try:
         # Get the data from the request body in JSON format
@@ -99,3 +101,79 @@ async def deploy_api(request: Request):
     except subprocess.CalledProcessError as e:
         status.append(e.stderr)
     return JSONResponse(status, status_code=200)
+
+
+@router.post("/api/create-deployment-by-manifest")
+async def create_deployment_by_manifest(file: UploadFile):
+    core_v1_api = client.CoreV1Api()
+    app_v1_api = client.AppsV1Api()
+    yaml_file = file.file
+    try:
+        docs = yaml.full_load_all(yaml_file)
+        for doc in docs:
+            api_version = doc["apiVersion"]
+            kind = doc["kind"]
+            namespace = doc.get("metadata", {}).get("namespace")
+            if namespace:
+                try:
+                    core_v1_api.read_namespace(namespace)
+                except ApiException as e:
+                    if e.status != 404:
+                        raise
+                    core_v1_api.create_namespace(V1Namespace(metadata={"name": namespace}))
+            if kind == "Service":
+                core_v1_api.create_namespaced_service(namespace, doc)
+            elif kind == "Deployment":
+                app_v1_api.create_namespaced_deployment(namespace, doc)
+            elif kind == "ConfigMap":
+                core_v1_api.create_namespaced_config_map(namespace, doc)
+            elif kind == "Pod":
+                core_v1_api.create_namespaced_pod(namespace, doc)
+            elif kind == "PersistentVolumeClaim":
+                core_v1_api.create_namespaced_persistent_volume_claim(namespace, doc)
+            elif kind == "Secret":
+                core_v1_api.create_namespaced_secret(namespace, doc)
+            elif kind == "PersistentVolume":
+                core_v1_api.create_persistent_volume(doc)
+            elif kind == "ResourceQuota":
+                core_v1_api.create_namespaced_resource_quota(namespace, doc)
+            elif kind == "LimitRange":
+                core_v1_api.create_namespaced_limit_range(namespace, doc)
+            else:
+                raise Exception(f"Unsupported kind: {kind}")
+    except Exception as e:
+        return {"error": str(e)}
+    return {"message": "Deployment successful"}
+
+
+@router.post("/api/delete-deployment-by-manifest")
+async def delete_deployment_by_manifest(file: UploadFile):
+    core_v1_api = client.CoreV1Api()
+    app_v1_api = client.AppsV1Api()
+    yaml_file = file.file
+    try:
+        docs = yaml.full_load_all(yaml_file)
+        for doc in docs:
+            api_version = doc["apiVersion"]
+            kind = doc["kind"]
+            name = doc["metadata"]["name"]
+            namespace = doc["metadata"].get("namespace")
+            if kind == "Service":
+                core_v1_api.delete_namespaced_service(name, namespace, body={})
+            elif kind == "Deployment":
+                app_v1_api.delete_namespaced_deployment(name, namespace, body={})
+            elif kind == "ConfigMap":
+                core_v1_api.delete_namespaced_config_map(name, namespace, body={})
+            elif kind == "Pod":
+                core_v1_api.delete_namespaced_pod(name, namespace, body={})
+            elif kind == "PersistentVolumeClaim":
+                core_v1_api.delete_namespaced_persistent_volume_claim(name, namespace, body={})
+            elif kind == "ResourceQuota":
+                core_v1_api.delete_namespaced_resource_quota(name, namespace, body={})
+            elif kind == "LimitRange":
+                core_v1_api.delete_namespaced_limit_range(name, namespace, body={})
+            else:
+                raise Exception(f"Unsupported kind: {kind}")
+    except Exception as e:
+        return {"error": str(e)}
+    return {"message": "Deletion successful"}
