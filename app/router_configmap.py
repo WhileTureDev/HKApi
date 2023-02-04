@@ -1,4 +1,3 @@
-
 from typing import Dict
 from fastapi import HTTPException, APIRouter
 from kubernetes import client
@@ -125,5 +124,18 @@ async def edit_config_map_api(
         )
 
         return {"message": f"ConfigMap '{name}' updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/api/v1/delete/{namespace}/configmap/{name}")
+async def delete_configmap_from_given_namespace(
+        name: str,
+        namespace: str
+):
+    try:
+        v1_core_api = client.CoreV1Api()
+        v1_core_api.delete_namespaced_config_map(name=name, namespace=namespace)
+        return {"message": f"ConfigMap {name} successfully deleted form namespace  {namespace}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
