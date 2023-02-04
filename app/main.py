@@ -2,7 +2,8 @@ import os
 
 from fastapi import FastAPI
 from kubernetes import config
-from app import router_deployments, router_namespace, router_cluster_summary, router_pods, router_services
+from app import router_deployments, router_namespace, router_cluster_summary, router_pods, router_services, \
+                router_edit_object
 
 app = FastAPI()
 cluster_config = os.getenv('cluster_config')
@@ -28,3 +29,4 @@ app.include_router(router_namespace.router)
 app.include_router(router_cluster_summary.router)
 app.include_router(router_pods.router)
 app.include_router(router_services.router)
+app.include_router(router_edit_object.router)
