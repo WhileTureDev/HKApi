@@ -83,24 +83,6 @@ def get_configmap_from_given_namespace_api(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# @router.get("/api/v1/get-all-configmaps-in-cluster")
-# def get_all_from_cluster_api():
-#     v1_core_api = client.CoreV1Api()
-#     configmaps = v1_core_api.list_config_map_for_all_namespaces()
-#     results = []
-#     try:
-#         for configmap in configmaps.items:
-#             configmap_info = {
-#                 "name": configmap.metadata.name,
-#                 "namespace": configmap.metadata.namespace,
-#                 "data": configmap.data
-#             }
-#             results.append(configmap_info)
-#         return {"configmaps": results}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.put("/api/v1/edit/{namespace}/configmaps/{name}")
 async def edit_config_map_api(
         name: str,
