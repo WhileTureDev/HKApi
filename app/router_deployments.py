@@ -53,7 +53,7 @@ def get_deployments_api(namespace):
     return results
 
 
-@router.post("/create-helm-releaset")
+@router.post("/api/create-helm-releaset")
 async def create_helm_release_api(request: Request):
     status = []
     try:
@@ -228,3 +228,46 @@ async def update_deployment_by_manifest(file: UploadFile):
     except Exception as e:
         return {"error": str(e)}
     return {"message": "Deployment update successful"}
+
+
+@router.put("/api/v1/edit/{namespace}/deployments/{name}")
+async def edit_deployment_api(
+        name: str,
+        namespace: str,
+        replicas: int = None,
+        image: str = None
+):
+    try:
+        # Get the Deployment
+        app_v1_api = client.AppsV1Api()
+        deployment = app_v1_api.read_namespaced_deployment(name=name, namespace=namespace)
+
+        # Edit the Deployment
+        if replicas:
+            deployment.spec.replicas = replicas
+        if image:
+            deployment.spec.template.spec.containers[0].image = image
+
+        # Update the Deployment
+        app_v1_api.patch_namespaced_deployment(
+            name=name,
+            namespace=namespace,
+            body=deployment
+        )
+
+        return {"message": f"Deployment '{name}' updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/api/v1/delete/{namespace}/deployments/{name}")
+async def delete_deployment_api(
+        name: str,
+        namespace: str,
+):
+    try:
+        v1_app_api = client.AppsV1Api()
+        v1_app_api.delete_namespaced_deployment(name=name, namespace=namespace)
+        return {"message": f"Deployment {name} successfully deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

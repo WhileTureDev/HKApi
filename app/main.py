@@ -26,7 +26,7 @@ else:
 # Include routers
 app.include_router(router_deployments.router)
 app.include_router(router_namespace.router)
-app.include_router(router_cluster_summary.router)
 app.include_router(router_pods.router)
 app.include_router(router_services.router)
 app.include_router(router_edit_object.router)
+app.include_router(router_cluster_summary.router)
