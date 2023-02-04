@@ -31,28 +31,3 @@ async def edit_secret_api(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/api/v1/edit/{namespace}/configmaps/{name}")
-async def edit_config_map_api(
-        name: str,
-        namespace: str,
-        data: dict = None
-):
-    try:
-        # Get the ConfigMap
-        core_v1_api = client.CoreV1Api()
-        config_map = core_v1_api.read_namespaced_config_map(name=name, namespace=namespace)
-
-        # Edit the ConfigMap
-        if data:
-            config_map.data = data
-
-        # Update the ConfigMap
-        core_v1_api.patch_namespaced_config_map(
-            name=name,
-            namespace=namespace,
-            body=config_map
-        )
-
-        return {"message": f"ConfigMap '{name}' updated successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
