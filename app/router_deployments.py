@@ -1,13 +1,9 @@
-import subprocess
-
 import yaml
-from fastapi import Request, APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException, UploadFile
 from kubernetes import client
 from kubernetes.client import ApiException, V1Namespace
-from starlette.responses import JSONResponse
 
-from .db import create_namespace_record, get_deployments_db
-from .def_namespace import create_namespace, check_if_namespace_exist
+from .db import get_deployments_db
 
 router = APIRouter()
 
@@ -61,7 +57,7 @@ async def create_deployment_by_manifest(file: UploadFile):
     try:
         docs = yaml.full_load_all(yaml_file)
         for doc in docs:
-            api_version = doc["apiVersion"]
+            # api_version = doc["apiVersion"]
             kind = doc["kind"]
             namespace = doc.get("metadata", {}).get("namespace")
             if namespace:
@@ -104,7 +100,7 @@ async def delete_deployment_by_manifest(file: UploadFile):
     try:
         docs = yaml.full_load_all(yaml_file)
         for doc in docs:
-            api_version = doc["apiVersion"]
+            # api_version = doc["apiVersion"]
             kind = doc["kind"]
             name = doc["metadata"]["name"]
             namespace = doc["metadata"].get("namespace")
@@ -137,7 +133,7 @@ async def update_deployment_by_manifest(file: UploadFile):
     try:
         docs = yaml.full_load_all(yaml_file)
         for doc in docs:
-            api_version = doc["apiVersion"]
+            # api_version = doc["apiVersion"]
             kind = doc["kind"]
             namespace = doc.get("metadata", {}).get("namespace")
             if namespace:
@@ -157,7 +153,7 @@ async def update_deployment_by_manifest(file: UploadFile):
                 core_v1_api.patch_namespaced_config_map(name=config_name, namespace=namespace, body=doc)
             elif kind == "Pod":
                 pod_name = doc["metadata"]["name"]
-                core_v1_api.patch_namespaced_pod(pod_name=pod_name, namespace=namespace, body=doc)
+                core_v1_api.patch_namespaced_pod(name=pod_name, namespace=namespace, body=doc)
             elif kind == "PersistentVolumeClaim":
                 claim_name = doc["metadata"]["name"]
                 core_v1_api.patch_namespaced_persistent_volume_claim(name=claim_name, namespace=namespace, body=doc)
