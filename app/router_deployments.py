@@ -1,6 +1,7 @@
-import os
 import subprocess
+
 from fastapi import Request, APIRouter, HTTPException
+from kubernetes import client
 from starlette.responses import JSONResponse
 
 from .db import create_namespace_record, get_deployments_db
@@ -10,12 +11,44 @@ router = APIRouter()
 
 
 # Read all deployments from database
-@router.get("/api/deployments")
-def deployments_api():
+@router.get("/api/list-db-deployments")
+def deployments_db_api():
     deployments = get_deployments_db()
     if not deployments:
         raise HTTPException(status_code=204, detail="No namespaces found.")
     return deployments
+
+
+@router.get("/api/all-deployments")
+def get_all_deployments_api():
+    k8s_client = client.AppsV1Api()
+    deployments = k8s_client.list_deployment_for_all_namespaces(watch=False)
+    results = []
+    for deployment in deployments.items:
+        deployment_info = {
+            "name": deployment.metadata.name,
+            "namespace": deployment.metadata.namespace,
+            "replicas": deployment.spec.replicas,
+            "status": deployment.status.replicas,
+        }
+        results.append(deployment_info)
+    return results
+
+
+@router.get("/api/deployments/{namespace}")
+def get_deployments_api(namespace):
+    k8s_client = client.AppsV1Api()
+    deployments = k8s_client.list_namespaced_deployment(namespace)
+    results = []
+    for deployment in deployments.items:
+        deployment_info = {
+            "name": deployment.metadata.name,
+            "namespace": deployment.metadata.namespace,
+            "replicas": deployment.spec.replicas,
+            "status": deployment.status.replicas,
+        }
+        results.append(deployment_info)
+    return results
 
 
 @router.post("/deploy")

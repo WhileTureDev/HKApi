@@ -21,7 +21,7 @@ def get_services(namespace):
     return results
 
 
-@router.get("/api/services-all/")
+@router.get("/api/all-services/")
 def get_all_services():
     k8_client = client.CoreV1Api()
     services = k8_client.list_service_for_all_namespaces()
