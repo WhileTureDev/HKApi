@@ -4,7 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 # Install Helm
-RUN apt-get update && apt-get install -y curl gnupg
+RUN apt-get update && apt-get install -y curl gnupg dos2unix
 RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && \
     chmod 700 get_helm.sh && \
     ./get_helm.sh && \
@@ -20,12 +20,16 @@ COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 RUN pip install psycopg2-binary
-# Copy application code
-#COPY setup.py .
+
+
 COPY ./app /code/app
-#RUN python setup.py install
+
+
 EXPOSE 8000
+
 # Run the application
 COPY ./entrypoint.sh .
+RUN  chmod +x ./entrypoint.sh && \
+     dos2unix ./entrypoint.sh
 
 ENTRYPOINT ["./entrypoint.sh"]
