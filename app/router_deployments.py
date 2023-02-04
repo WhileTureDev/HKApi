@@ -177,3 +177,54 @@ async def delete_deployment_by_manifest(file: UploadFile):
     except Exception as e:
         return {"error": str(e)}
     return {"message": "Deletion successful"}
+
+
+@router.patch("/api/update-deployment-by-manifest/{deployment_name}")
+async def update_deployment_by_manifest(file: UploadFile):
+    core_v1_api = client.CoreV1Api()
+    app_v1_api = client.AppsV1Api()
+    yaml_file = file.file
+    try:
+        docs = yaml.full_load_all(yaml_file)
+        for doc in docs:
+            api_version = doc["apiVersion"]
+            kind = doc["kind"]
+            namespace = doc.get("metadata", {}).get("namespace")
+            if namespace:
+                try:
+                    core_v1_api.read_namespace(namespace)
+                except ApiException as e:
+                    if e.status == 404:
+                        return {"error": f"Namespace {namespace} not found"}
+            if kind == "Service":
+                service_name = doc["metadata"]["name"]
+                core_v1_api.patch_namespaced_service(name=service_name, namespace=namespace, body=doc)
+            elif kind == "Deployment":
+                deployment_name = doc["metadata"]["name"]
+                app_v1_api.patch_namespaced_deployment(name=deployment_name, namespace=namespace, body=doc)
+            elif kind == "ConfigMap":
+                config_name = doc["metadata"]["name"]
+                core_v1_api.patch_namespaced_config_map(name=config_name, namespace=namespace, body=doc)
+            elif kind == "Pod":
+                pod_name = doc["metadata"]["name"]
+                core_v1_api.patch_namespaced_pod(pod_name=pod_name, namespace=namespace, body=doc)
+            elif kind == "PersistentVolumeClaim":
+                claim_name = doc["metadata"]["name"]
+                core_v1_api.patch_namespaced_persistent_volume_claim(name=claim_name, namespace=namespace, body=doc)
+            elif kind == "Secret":
+                secret_name = doc["metadata"]["name"]
+                core_v1_api.patch_namespaced_secret(name=secret_name, namespace=namespace, body=doc)
+            elif kind == "PersistentVolume":
+                volume_name = doc["metadata"]["name"]
+                core_v1_api.patch_persistent_volume(name=volume_name, namespace=namespace, body=doc)
+            elif kind == "ResourceQuota":
+                name_quota = doc["metadata"]["name"]
+                core_v1_api.patch_namespaced_resource_quota(name=name_quota, namespace=namespace, body=doc)
+            elif kind == "LimitRange":
+                name_limit_range = doc["metadata"]["name"]
+                core_v1_api.patch_namespaced_limit_range(name=name_limit_range, namespace=namespace, body=doc)
+            else:
+                raise Exception(f"Unsupported kind: {kind}")
+    except Exception as e:
+        return {"error": str(e)}
+    return {"message": "Deployment update successful"}
