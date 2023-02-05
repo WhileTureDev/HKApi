@@ -49,3 +49,5 @@ def get_events_for_a_given_namespace_api(
             "time": event.last_timestamp
         })
     return {"events": events_info}
+
+
