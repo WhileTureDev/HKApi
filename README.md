@@ -115,6 +115,27 @@ Example payload:
     {"message":"All namespaces have been deleted."}
     ```
 
+## Create namespace json format or yaml
+```json
+{
+   "apiVersion":"v1",
+   "kind":"Namespace",
+   "metadata":{
+      "name":"new-namespace",
+      "labels":{
+         "app":"new-app"
+      }
+   }
+}
+```
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: new-namespace
+  labels:
+    app: new-app
+```
 ## Authors
 
 * **Your Name** - *Initial work* - [cradules](https://github.com/cradules)
