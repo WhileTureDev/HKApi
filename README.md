@@ -118,23 +118,24 @@ Example payload:
 ## Create namespace json format or yaml
 ```json
 {
-   "apiVersion":"v1",
-   "kind":"Namespace",
-   "metadata":{
-      "name":"new-namespace",
-      "labels":{
-         "app":"new-app"
-      }
-   }
+  "labels":{
+     "app":"new-app"
+  }
 }
+
 ```
-```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: new-namespace
-  labels:
-    app: new-app
+### Update namespace payload sample:
+```json
+{
+    "apiVersion": "v1",
+    "kind": "Namespace",
+    "metadata": {
+        "name": "test-namespace",
+        "labels": {
+            "app": "test-app"
+        }
+    }
+}
 ```
 ## Authors
 

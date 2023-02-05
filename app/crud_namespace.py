@@ -1,11 +1,14 @@
-from fastapi import HTTPException, APIRouter, Body
+from fastapi import APIRouter, Body
 from kubernetes import client
 
-from .db import delete_namespace_record, delete_all_namespaces_from_db, \
-    get_all_namespaces_from_db
-from .def_namespace import delete_namespace_from_cluster
+from .db import delete_namespace_record
+from pydantic import BaseModel
 
 router = APIRouter()
+
+
+class NamespacePayload(BaseModel):
+    labels: dict
 
 
 @router.post("/api/v1/create/namespaces")
@@ -32,6 +35,15 @@ def get_all_namespaces():
     return {"namespaces": namespaces_info}
 
 
+@router.patch("/api/v1/update-namespace/{namespace_name}")
+async def update_namespace(namespace_name: str, payload: NamespacePayload):
+    v1_core_api = client.CoreV1Api()
+    namespace = v1_core_api.read_namespace(name=namespace_name)
+    namespace.metadata.labels.update(payload.labels)
+    namespace = v1_core_api.patch_namespace(name=namespace_name, body=namespace)
+    return {"message": "Namespace updated successfully", "namespace": namespace.to_dict()}
+
+
 @router.delete("/api/v1/namespace/{namespace}")
 async def delete_namespace_api(namespace: str):
     k8s_client = client.CoreV1Api()
@@ -41,7 +53,6 @@ async def delete_namespace_api(namespace: str):
         return f"Namespace {namespace} was deleted"
     except Exception as e:
         return e
-
 
 # @router.delete("/api/v1/namespaces/all")
 # def delete_all_namespaces_from_cluster_api():
