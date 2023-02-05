@@ -6,6 +6,7 @@ from kubernetes import client
 router = APIRouter()
 
 
+# Create secret
 @router.post("/api/v1/secrets/{namespace}/secrets/{name}")
 async def create_secret_api(
         namespace: str,
@@ -38,6 +39,7 @@ async def create_secret_api(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Get secrets from a given namespace
 @router.get("/api/v1/list-secrets/{namespace}")
 def list_secrets_from_given_namespace_api(
         namespace: str
@@ -59,6 +61,7 @@ def list_secrets_from_given_namespace_api(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Read secret from a given namespace
 @router.get("/api/v1/get/{namespace}/secret/{name}")
 def get_secret_from_given_namespace_api(
         name: str,
@@ -80,6 +83,7 @@ def get_secret_from_given_namespace_api(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Update config map
 @router.put("/api/v1/edit/{namespace}/secret/{name}")
 async def edit_secret_in_the_given_namespace_api(
         name: str,

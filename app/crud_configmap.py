@@ -5,6 +5,7 @@ from kubernetes import client
 router = APIRouter()
 
 
+# Create config map
 @router.post("/api/v1/namespaces/{namespace}/configmaps")
 def create_configmap_in_given_namespace_api(
         namespace: str,
@@ -41,6 +42,7 @@ def create_configmap_in_given_namespace_api(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Read configmaps from a given namespace
 @router.get("/api/v1/list-configmaps/{namespace}")
 def list_configmap_from_given_namespace_api(
         namespace: str
@@ -62,6 +64,7 @@ def list_configmap_from_given_namespace_api(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Read configmap form a namespace
 @router.get("/api/v1/get/{namespace}/configmap/{name}")
 def get_configmap_from_given_namespace_api(
         name: str,
@@ -83,6 +86,7 @@ def get_configmap_from_given_namespace_api(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Update configmap
 @router.put("/api/v1/edit/{namespace}/configmaps/{name}")
 async def edit_config_map_api(
         name: str,

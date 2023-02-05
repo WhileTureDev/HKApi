@@ -8,47 +8,22 @@ from .db import get_deployments_db
 router = APIRouter()
 
 
-# Read all deployments from database
-@router.get("/api/v1/list-db-deployments")
-def get_deployments_from_database_api():
-    deployments = get_deployments_db()
-    if not deployments:
-        raise HTTPException(status_code=204, detail="No namespaces found.")
-    return deployments
+# @router.get("/api/v1/list-all-deployments")
+# def get_all_deployments_from_cluster_api():
+#     k8s_client = client.AppsV1Api()
+#     deployments = k8s_client.list_deployment_for_all_namespaces(watch=False)
+#     results = []
+#     for deployment in deployments.items:
+#         deployment_info = {
+#             "name": deployment.metadata.name,
+#             "namespace": deployment.metadata.namespace,
+#             "replicas": deployment.spec.replicas,
+#             "status": deployment.status.replicas,
+#         }
+#         results.append(deployment_info)
+#     return results
 
-
-@router.get("/api/v1/list-all-deployments")
-def get_all_deployments_from_cluster_api():
-    k8s_client = client.AppsV1Api()
-    deployments = k8s_client.list_deployment_for_all_namespaces(watch=False)
-    results = []
-    for deployment in deployments.items:
-        deployment_info = {
-            "name": deployment.metadata.name,
-            "namespace": deployment.metadata.namespace,
-            "replicas": deployment.spec.replicas,
-            "status": deployment.status.replicas,
-        }
-        results.append(deployment_info)
-    return results
-
-
-@router.get("/api/v1/list-deployments-by-namespace/{namespace}")
-def get_deployments_from_given_namespace_api(namespace):
-    k8s_client = client.AppsV1Api()
-    deployments = k8s_client.list_namespaced_deployment(namespace)
-    results = []
-    for deployment in deployments.items:
-        deployment_info = {
-            "name": deployment.metadata.name,
-            "namespace": deployment.metadata.namespace,
-            "replicas": deployment.spec.replicas,
-            "status": deployment.status.replicas,
-        }
-        results.append(deployment_info)
-    return results
-
-
+# Create deployment by manifest yaml
 @router.post("/api/v1/create-deployment-by-manifest")
 async def create_deployment_by_manifest(file: UploadFile):
     core_v1_api = client.CoreV1Api()
@@ -92,39 +67,43 @@ async def create_deployment_by_manifest(file: UploadFile):
     return {"message": "Deployment successful"}
 
 
-@router.post("/api/delete-deployment-by-manifest")
-async def delete_deployment_by_manifest(file: UploadFile):
-    core_v1_api = client.CoreV1Api()
-    app_v1_api = client.AppsV1Api()
-    yaml_file = file.file
-    try:
-        docs = yaml.full_load_all(yaml_file)
-        for doc in docs:
-            # api_version = doc["apiVersion"]
-            kind = doc["kind"]
-            name = doc["metadata"]["name"]
-            namespace = doc["metadata"].get("namespace")
-            if kind == "Service":
-                core_v1_api.delete_namespaced_service(name, namespace, body={})
-            elif kind == "Deployment":
-                app_v1_api.delete_namespaced_deployment(name, namespace, body={})
-            elif kind == "ConfigMap":
-                core_v1_api.delete_namespaced_config_map(name, namespace, body={})
-            elif kind == "Pod":
-                core_v1_api.delete_namespaced_pod(name, namespace, body={})
-            elif kind == "PersistentVolumeClaim":
-                core_v1_api.delete_namespaced_persistent_volume_claim(name, namespace, body={})
-            elif kind == "ResourceQuota":
-                core_v1_api.delete_namespaced_resource_quota(name, namespace, body={})
-            elif kind == "LimitRange":
-                core_v1_api.delete_namespaced_limit_range(name, namespace, body={})
-            else:
-                raise Exception(f"Unsupported kind: {kind}")
-    except Exception as e:
-        return {"error": str(e)}
-    return {"message": "Deletion successful"}
+# Read deployments from a given namespace
+@router.get("/api/v1/list-deployments-from-namespace/{namespace}")
+def list_deployments_from_given_namespace_api(namespace):
+    k8s_client = client.AppsV1Api()
+    deployments = k8s_client.list_namespaced_deployment(namespace)
+    results = []
+    for deployment in deployments.items:
+        deployment_info = {
+            "name": deployment.metadata.name,
+            "namespace": deployment.metadata.namespace,
+            "replicas": deployment.spec.replicas,
+            "status": deployment.status.replicas,
+        }
+        results.append(deployment_info)
+    return results
 
 
+# Read deployment from a given namespace
+@router.get("/api/v1/list-deployment/{namespace}/deployment/{name}")
+def get_deployment_from_a_given_namespace_api(
+        name: str,
+        namespace: str
+):
+    v1_app_api = client.AppsV1Api()
+    deployment = v1_app_api.read_namespaced_deployment(name=name, namespace=namespace)
+    result = []
+    deployment_info = {
+        "name": deployment.metadata.name,
+        "namespace": deployment.metadata.namespace,
+        "replicas": deployment.spec.replicas,
+        "status": deployment.status.replicas
+    }
+    result.append(deployment_info)
+    return result
+
+
+# Update deployment by manifest yaml
 @router.patch("/api/update-deployment-by-manifest/{deployment_name}")
 async def update_deployment_by_manifest(file: UploadFile):
     core_v1_api = client.CoreV1Api()
@@ -176,6 +155,7 @@ async def update_deployment_by_manifest(file: UploadFile):
     return {"message": "Deployment update successful"}
 
 
+# Update/Edit deployment
 @router.put("/api/v1/edit/{namespace}/deployments/{name}")
 async def edit_deployment_api(
         name: str,
@@ -206,6 +186,7 @@ async def edit_deployment_api(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Delete deployment
 @router.delete("/api/v1/delete/{namespace}/deployments/{name}")
 async def delete_deployment_api(
         name: str,
@@ -217,3 +198,37 @@ async def delete_deployment_api(
         return {"message": f"Deployment {name} successfully deleted"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Delete deployment by manifest
+@router.post("/api/delete-deployment-by-manifest")
+async def delete_deployment_by_manifest(file: UploadFile):
+    core_v1_api = client.CoreV1Api()
+    app_v1_api = client.AppsV1Api()
+    yaml_file = file.file
+    try:
+        docs = yaml.full_load_all(yaml_file)
+        for doc in docs:
+            # api_version = doc["apiVersion"]
+            kind = doc["kind"]
+            name = doc["metadata"]["name"]
+            namespace = doc["metadata"].get("namespace")
+            if kind == "Service":
+                core_v1_api.delete_namespaced_service(name, namespace, body={})
+            elif kind == "Deployment":
+                app_v1_api.delete_namespaced_deployment(name, namespace, body={})
+            elif kind == "ConfigMap":
+                core_v1_api.delete_namespaced_config_map(name, namespace, body={})
+            elif kind == "Pod":
+                core_v1_api.delete_namespaced_pod(name, namespace, body={})
+            elif kind == "PersistentVolumeClaim":
+                core_v1_api.delete_namespaced_persistent_volume_claim(name, namespace, body={})
+            elif kind == "ResourceQuota":
+                core_v1_api.delete_namespaced_resource_quota(name, namespace, body={})
+            elif kind == "LimitRange":
+                core_v1_api.delete_namespaced_limit_range(name, namespace, body={})
+            else:
+                raise Exception(f"Unsupported kind: {kind}")
+    except Exception as e:
+        return {"error": str(e)}
+    return {"message": "Deletion successful"}
