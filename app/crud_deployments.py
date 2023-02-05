@@ -93,9 +93,13 @@ def get_deployment_from_a_given_namespace_api(
     v1_app_api = client.AppsV1Api()
     deployment = v1_app_api.read_namespaced_deployment(name=name, namespace=namespace)
     result = []
+    images = []
+    for container in deployment.spec.template.spec.containers:
+        images.append(container.image)
     deployment_info = {
         "name": deployment.metadata.name,
         "namespace": deployment.metadata.namespace,
+        "image": images,
         "replicas": deployment.spec.replicas,
         "status": deployment.status.replicas
     }
