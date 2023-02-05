@@ -123,5 +123,9 @@ Example payload:
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
+### Documentation
+[ kubernetes-python-client](https://k8s-python.readthedocs.io/en/latest/)
+https://readthedocs.org/
+
 
 
