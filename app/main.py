@@ -2,7 +2,7 @@ import os
 
 from fastapi import FastAPI
 from kubernetes import config
-from app import crud_deployments, crud_namespace, router_cluster_summary, router_pods, crud_services, \
+from app import crud_deployments, crud_namespace, router_cluster_summary, router_pods, rd_services, \
                  crud_helm, crud_configmap, crud_secretes, crud_database, monitoring
 
 app = FastAPI()
@@ -28,7 +28,7 @@ app.include_router(crud_helm.router)
 app.include_router(crud_deployments.router)
 app.include_router(crud_namespace.router)
 app.include_router(router_pods.router)
-app.include_router(crud_services.router)
+app.include_router(rd_services.router)
 app.include_router(crud_configmap.router)
 app.include_router(crud_secretes.router)
 app.include_router(router_cluster_summary.router)
