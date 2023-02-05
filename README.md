@@ -137,6 +137,69 @@ Example payload:
     }
 }
 ```
+
+### Create ingress payload:
+```json
+{
+    "apiVersion": "extensions/v1beta1",
+    "kind": "Ingress",
+    "metadata": {
+        "name": "example-ingress",
+        "namespace": "default"
+    },
+    "spec": {
+        "rules": [
+            {
+                "host": "example.com",
+                "http": {
+                    "paths": [
+                        {
+                            "path": "/",
+                            "pathType": "Prefix",
+                            "backend": {
+                                "service": {
+                                    "name": "example-service",
+                                    "port": {
+                                        "name": "http"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
+```
+
+### Update ingress payload
+```json
+{
+    "spec": {
+        "rules": [
+            {
+                "host": "www.example.com",
+                "http": {
+                    "paths": [
+                        {
+                            "path": "/api/users",
+                            "backend": {
+                                "service": {
+                                    "name": "user-service",
+                                    "port": {
+                                        "name": "http"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
+```
 ## Authors
 
 * **Your Name** - *Initial work* - [cradules](https://github.com/cradules)
