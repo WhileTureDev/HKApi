@@ -2,7 +2,8 @@ import os
 
 from fastapi import FastAPI
 from kubernetes import config
-from app import router_deploy, router_namespace, router_cluster_summary, router_pods, router_services
+from app import crud_deployments, crud_namespace, router_cluster_summary, router_pods, rd_services, \
+                 crud_helm, crud_configmap, crud_secretes, crud_database, monitoring, r_nodes, crd_ingress
 
 app = FastAPI()
 cluster_config = os.getenv('cluster_config')
@@ -23,8 +24,15 @@ else:
         print("Error loading in-cluster k8s config: {0}".format(e))
 
 # Include routers
-app.include_router(router_deploy.router)
-app.include_router(router_namespace.router)
-app.include_router(router_cluster_summary.router)
+app.include_router(crud_helm.router)
+app.include_router(crud_deployments.router)
+app.include_router(crud_namespace.router)
 app.include_router(router_pods.router)
-app.include_router(router_services.router)
+app.include_router(rd_services.router)
+app.include_router(crud_configmap.router)
+app.include_router(crud_secretes.router)
+app.include_router(router_cluster_summary.router)
+app.include_router(crud_database.router)
+app.include_router(monitoring.router)
+app.include_router(r_nodes.router)
+app.include_router(crd_ingress.router)

@@ -1,25 +1,16 @@
-import os
 import subprocess
+
 from fastapi import Request, APIRouter, HTTPException
 from starlette.responses import JSONResponse
 
-from .db import create_namespace_record, get_deployments_db
+from .db import create_namespace_record
 from .def_namespace import create_namespace, check_if_namespace_exist
 
 router = APIRouter()
 
 
-# Read all deployments from database
-@router.get("/api/deployments")
-def deployments_api():
-    deployments = get_deployments_db()
-    if not deployments:
-        raise HTTPException(status_code=204, detail="No namespaces found.")
-    return deployments
-
-
-@router.post("/deploy")
-async def deploy_api(request: Request):
+@router.post("/api/v1/create-helm-release")
+async def create_helm_release_api(request: Request):
     status = []
     try:
         # Get the data from the request body in JSON format
@@ -66,3 +57,15 @@ async def deploy_api(request: Request):
     except subprocess.CalledProcessError as e:
         status.append(e.stderr)
     return JSONResponse(status, status_code=200)
+
+
+@router.delete("/api/v1/delete/{namespace}/helm/{name}")
+async def delete_helm_release_from_given_namespace(
+        name: str,
+        namespace: str
+):
+    try:
+        subprocess.run(["helm", "delete", f"{name}", "--namespace", f"{namespace}"], capture_output=True)
+        return {"message": f"Helm release {name} deleted"}
+    except Exception as e:
+        return HTTPException(status_code=500, detail=str(e))

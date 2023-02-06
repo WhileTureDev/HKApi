@@ -5,3 +5,5 @@ kubernetes~=25.3.0
 setuptools==67.1.0
 peewee~=3.15.4
 starlette==0.22.0
+PyYAML~=6.0
+pydantic~=1.10.4

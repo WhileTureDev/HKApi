@@ -115,6 +115,91 @@ Example payload:
     {"message":"All namespaces have been deleted."}
     ```
 
+## Create namespace json format or yaml
+```json
+{
+  "labels":{
+     "app":"new-app"
+  }
+}
+
+```
+### Update namespace payload sample:
+```json
+{
+    "apiVersion": "v1",
+    "kind": "Namespace",
+    "metadata": {
+        "name": "test-namespace",
+        "labels": {
+            "app": "test-app"
+        }
+    }
+}
+```
+
+### Create ingress payload:
+```json
+{
+    "apiVersion": "extensions/v1beta1",
+    "kind": "Ingress",
+    "metadata": {
+        "name": "example-ingress",
+        "namespace": "default"
+    },
+    "spec": {
+        "rules": [
+            {
+                "host": "example.com",
+                "http": {
+                    "paths": [
+                        {
+                            "path": "/",
+                            "pathType": "Prefix",
+                            "backend": {
+                                "service": {
+                                    "name": "example-service",
+                                    "port": {
+                                        "name": "http"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
+```
+
+### Update ingress payload
+```json
+{
+    "spec": {
+        "rules": [
+            {
+                "host": "www.example.com",
+                "http": {
+                    "paths": [
+                        {
+                            "path": "/api/users",
+                            "backend": {
+                                "service": {
+                                    "name": "user-service",
+                                    "port": {
+                                        "name": "http"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
+```
 ## Authors
 
 * **Your Name** - *Initial work* - [cradules](https://github.com/cradules)
@@ -122,6 +207,10 @@ Example payload:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+
+### Documentation
+[ kubernetes-python-client](https://k8s-python.readthedocs.io/en/latest/)
+https://readthedocs.org/
 
 
 
