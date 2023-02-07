@@ -11,6 +11,34 @@ router = APIRouter()
 
 @router.post("/api/v1/create-helm-release")
 async def create_helm_release_api(request: Request):
+    """
+    Create Helm Release API
+
+    This API is used to install/upgrade Helm charts from a chart repository and create/update the record in the database.
+
+    Request Body:
+    A list of dictionaries, where each dictionary contains information about a chart and its release.
+    The required keys for each dictionary are:
+    - chart_name: The name of the chart to be installed/upgraded
+    - chart_repo_url: The URL of the chart repository
+    - release_name: The name of the release
+    - provider: The name of the chart repository provider
+    - namespace: The name of the namespace to install/upgrade the chart to
+
+    Response Body:
+    A list of dictionaries, where each dictionary contains information about a chart installation/upgrade status.
+    The keys in each dictionary are:
+    - chart_name: The name of the chart installed/upgraded
+    - chart_repo_url: The URL of the chart repository
+    - release_name: The name of the release
+    - provider: The name of the chart repository provider
+    - namespace: The name of the namespace the chart was installed/upgraded to
+    - repo_output: The output of the 'helm repo list' command
+    - release_status: The output of the 'helm status' command
+
+    Raises:
+    HTTPException: If there is an error in the installation/upgrade process.
+    """
     status = []
     try:
         # Get the data from the request body in JSON format
@@ -64,6 +92,19 @@ async def delete_helm_release_from_given_namespace(
         name: str,
         namespace: str
 ):
+    """
+    Delete the Helm release from a given namespace.
+
+    Args:
+    name (str): The name of the Helm release to delete.
+    namespace (str): The namespace the Helm release is in.
+
+    Returns:
+    dict: JSON response with a message indicating success or failure.
+
+    Raises:
+    HTTPException: When the operation fails, an HTTPException with a status code of 500 and the error message is raised.
+    """
     try:
         subprocess.run(["helm", "delete", f"{name}", "--namespace", f"{namespace}"], capture_output=True)
         return {"message": f"Helm release {name} deleted"}
