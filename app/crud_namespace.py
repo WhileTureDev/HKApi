@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, HTTPException
 from kubernetes import client
 
 from .db import delete_namespace_record
@@ -11,58 +11,103 @@ class NamespacePayload(BaseModel):
     labels: dict
 
 
+"""
+NamespacePayload: Model for the namespace creation request payload
+
+Attributes:
+labels (dict): Key-value pairs of labels to be applied to the namespace
+"""
+
+
 @router.post("/api/v1/create/namespaces")
 async def create_namespace(namespace_spec: dict = Body(..., embed=False)):
+    """Create a namespace in the cluster.
+
+    Route to create a namespace in the cluster, given a namespace specification.
+
+    Parameters:
+    namespace_spec (dict, optional): The specification for the namespace to be created.
+    The default is a required JSON body with embed=False.
+
+    Raises:
+    HTTPException: If an error occurs while creating the namespace.
+
+    Returns:
+    str: A message indicating that the namespace was created.
+    """
     try:
         v1_core_api = client.CoreV1Api()
         namespace = client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace_spec['metadata']['name']))
         v1_core_api.create_namespace(body=namespace)
         return "Namespace was created "
     except Exception as e:
-        return {"message": "Error creating namespace", "details": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/api/v1/list-all-namespaces")
 def get_all_namespaces():
-    v1_core_api = client.CoreV1Api()
-    namespaces = v1_core_api.list_namespace().items
-    namespaces_info = []
-    for namespace in namespaces:
-        namespaces_info.append({
-            "name": namespace.metadata.name,
-            "status": namespace.status.phase
-        })
-    return {"namespaces": namespaces_info}
+    """
+    Get a list of all namespaces in the cluster.
+
+    Returns:
+    JSON object containing a list of all namespaces with their names and statuses.
+
+    Raises:
+    HTTPException: If there is an error retrieving the namespaces from the cluster.
+    """
+    try:
+        v1_core_api = client.CoreV1Api()
+        namespaces = v1_core_api.list_namespace().items
+        namespaces_info = []
+        for namespace in namespaces:
+            namespaces_info.append({
+                "name": namespace.metadata.name,
+                "status": namespace.status.phase
+            })
+        return {"namespaces": namespaces_info}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.patch("/api/v1/update-namespace/{namespace_name}")
 async def update_namespace(namespace_name: str, payload: NamespacePayload):
-    v1_core_api = client.CoreV1Api()
-    namespace = v1_core_api.read_namespace(name=namespace_name)
-    namespace.metadata.labels.update(payload.labels)
-    namespace = v1_core_api.patch_namespace(name=namespace_name, body=namespace)
-    return {"message": "Namespace updated successfully", "namespace": namespace.to_dict()}
+    """
+    This function updates the labels of an existing namespace in the Kubernetes cluster.
+
+    :param namespace_name: Name of the namespace to be updated.
+    :type namespace_name: str
+    :param payload: A NamespacePayload object containing the labels to be updated.
+    :type payload: NamespacePayload
+    :return: A dictionary containing the message of success and the updated namespace's information.
+    :rtype: Dict[str, Union[str, Dict]]
+    :raises HTTPException: If there is an error updating the namespace, a 500 HTTP error is raised with details.
+    """
+    try:
+        v1_core_api = client.CoreV1Api()
+        namespace = v1_core_api.read_namespace(name=namespace_name)
+        namespace.metadata.labels.update(payload.labels)
+        namespace = v1_core_api.patch_namespace(name=namespace_name, body=namespace)
+        return {"message": "Namespace updated successfully", "namespace": namespace.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/api/v1/namespace/{namespace}")
 async def delete_namespace_api(namespace: str):
+    """
+    This function deletes a namespace from the Kubernetes cluster.
+
+    :param namespace: The name of the namespace to delete.
+    :type namespace: str
+    :return: A message indicating the namespace was deleted.
+    :rtype: str
+    :raises HTTPException: If an error occurs while deleting the namespace, an HTTPException is raised with a status code of 500 and a detail message indicating the error.
+    """
+
     k8s_client = client.CoreV1Api()
     try:
         k8s_client.delete_namespace(name=namespace)
         delete_namespace_record(namespace)
         return f"Namespace {namespace} was deleted"
     except Exception as e:
-        return e
-
-# @router.delete("/api/v1/namespaces/all")
-# def delete_all_namespaces_from_cluster_api():
-#     try:
-#         namespaces = get_all_namespaces_from_db()
-#         if not namespaces:
-#             raise HTTPException(status_code=404, detail="No namespaces found in the database.")
-#         for namespace in namespaces:
-#             delete_namespace_from_cluster(namespace)
-#         delete_all_namespaces_from_db()
-#     except Exception as e:
-#         return e
-#     return {"message": f"Namespaces {namespaces} have been deleted."}
+        raise HTTPException(status_code=500, detail=str(e))

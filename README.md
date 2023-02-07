@@ -1,83 +1,175 @@
-# Deploy Helm Charts API
+# HKAPI - Helm&Kubernetes API
 
-This API allows for the deployment of Helm charts to a Kubernetes cluster. Each environment is isolated by namespaces, and the Helm charts are taken from a given Helm chart repository. The API supports Helm 3.
+## Introduction
 
-## Architecture
+The purpose of this project is to empower developers to take control of their own infrastructure by providing them with a powerful API that allows them to deploy and manage services in their own cluster. With this API, 
+developers have the ability to deploy services either through Helm charts, Kubernetes manifests, or by direct JSON payloads. 
+The API also provides a comprehensive set of features that allow developers to manage their deployments with ease and confidence, ensuring that their services are always up and running as they should be. 
+Whether you're just starting out with Kubernetes or are an experienced user, this API is the perfect tool for you to take control of your own infrastructure and get the most out of your deployments.
 
-The API consists of the following components:
 
-- A Python script that handles the deployment of Helm charts using the Kubernetes Python client and the subprocess library.
-- A SQLite database that stores the namespaces and deploy names for each deployment.
-- FastAPI for creating the API endpoints.
-- Uvicorn for running the server.
+## Prerequisites
 
-The API has the following endpoints:
+In order to run this application, you'll need the following prerequisites:
+- A functioning kubernetes cluster
+- Helm client installed on your local machine
+- Kubectl installed and configured to interact with the kubernetes cluster
 
-- `/deploy`: Deploys a Helm chart to a namespace. The endpoint takes the following parameters:
-    - `chart_name`: The name of the chart to deploy.
-    - `chart_repo`: The chart repository from which to retrieve the chart.
-    - `namespace`: The namespace to deploy the chart to. If not specified, a random namespace will be generated.
-    - `values`: Values to pass to the chart during deployment.
+This application provides a Helm chart that can be easily installed on a kubernetes cluster, allowing you to effortlessly manage and deploy services within your cluster.
+With the help of Helm and kubectl, this application provides an efficient and flexible way to manage your kubernetes cluster.
 
-- `/list`: List all the deployments
+## Installation
+1. Make sure you have a running kubernetes cluster.
+2. Install the Helm client on your machine
+3. Install kubectl.
+4. Clone the repository containing the API solution and the Helm chart.
+5. Navigate to the folder containing the Helm chart.
+6. Use the following command to install the chart in your kubernetes cluster:
+  ```shell
+  helm install <release_name> .
+  ```
+7. Wait for the chart to be deployed in the cluster.
+8. Verify the installation by checking the pods running in the namespace specified during the installation.
 
-## Getting Started
+These steps will get you up and running with the API solution in no time. With the API and the UI, you will be able to deploy your services directly in the kubernetes cluster with ease.
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
 
-### Prerequisites
+### API Endpoints
+- ###### GET /api/v1/namespaces/{namespace_name}/ingresses
+  - Description: This endpoint retrieves the information about ingresses in a specific namespace. The response includes the name, namespace, and the host and path information for each ingress.
+  - Path parameter: 
+    - namespace_name (str): The name of the namespace to retrieve the ingresses from.
+  - Response: A list of dictionaries, where each dictionary represents an ingress and its information. Each dictionary contains the following key-value pairs:
+    - name (str): The name of the ingress.
+    - namespace (str): The namespace the ingress belongs to.
+    - rules (list of dictionaries): A list of dictionaries, where each dictionary represents a rule in the ingress. Each rule dictionary contains the following key-value pairs:
+      - host (str): The host for the rule.
+      - paths (list of dictionaries): A list of dictionaries, where each dictionary represents a path in the rule. Each path dictionary contains the following key-value pairs:
+        - path (str): The path for the path.
+        - service_name (str): The name of the service the path routes to.
+Example response:
+```json
+[{"name": "ingress-1",        
+  "namespace": "default",        
+  "rules": [            
+    {                
+      "host": "example.com",                
+      "paths": [                    
+        {                        
+          "path": "/api",                        
+          "service_name": "service-1"
+        },                    
+        {                        
+          "path": "/dashboard",                        
+          "service_name": "service-2"
+        }]
+            }
+        ]
+    },
+    {
+        "name": "ingress-2",
+        "namespace": "default",
+        "rules": [
+            {
+                "host": "example.org",
+                "paths": [
+                    {
+                        "path": "/",
+                        "service_name": "service-3"
+                    }
+                ]
+            }
+        ]
+    }
+]
 
-- Docker
-- Kubernetes cluster
-
-### Installing
-
-- Clone the repository:
-```shell
-git clone https://github.com/steerCI/HKApi.git
 ```
+#### Endpoint: GET /api/v1/list-configmaps/{namespace}
+- Description: This endpoint returns a list of all configmaps present in a specific namespace in the cluster.
+- Input:
+  - namespace: str: The name of the namespace for which the configmaps will be listed.
+- Output: configmap: list: A list of dictionaries containing information about each configmap. The information includes:
+  - name: str: The name of the configmap.
+  - namespace: str: The namespace the configmap belongs to
 
-- Build the Docker image:
-```shell
-docker build -t helm-charts-api 
+#### Endpoint: GET /api/v1/get/{namespace}/configmap/{name}
+- Parameters:
+  - name (str): The name of the ConfigMap
+  - namespace (str): The namespace in which the ConfigMap is stored.
+- Return:
+    - A dictionary containing the following key-value pairs:
+      - configmap (List of dictionaries): A list of dictionaries containing information about each ConfigMap that matches the specified name and namespace. Each dictionary contains the following key-value pairs:
+        - name (str): The name of the ConfigMap.
+        - namespace (str): The namespace in which the ConfigMap is stored.
+        - data (Dictionary): A dictionary of key-value pairs representing the data stored in the ConfigMap.
+-Exception:
+        - Raises a HTTPException with a status code of 500 and a detail message containing the error message if an exception occurs.
+
+#### Endpoint: GET /api/v1/list-db-deployments
+- Description: This endpoint retrieves the information of all deployments stored in the database.
+- Request: GET /api/v1/list-db-deployments
+- Response:
+  - On Success:
+```text
+HTTP Status Code: 200 OK
+Content-Type: application/json
+
+{
+    "deployments": [
+        {
+            ...
+        },
+        ...
+    ]
+}
+
 ```
+  - On Failure:
+```text
+HTTP Status Code: 204 No Content
+Content-Type: application/json
 
-- Run the container:
+{
+    "detail": "No namespaces found."
+}
 
-```shell
-docker run -p 8000:8000 helm-charts-api
 ```
-
-- Test the API by sending a POST request to `http://localhost:8000/deploy` with the required parameters.
-
-## Deployment
-
-To deploy the API to a Kubernetes cluster, you can use the provided Kubernetes manifests in the `k8s` directory.
-
-1. Create the ConfigMap:
-```shell
-kubectl apply -f k8s/configmap.yaml
+#### Endpoint: GET /api/v1/list-all-deployments
+- This endpoint returns a list of all deployments in the Kubernetes cluster.
+- Method: GET
+- URL: /api/v1/list-all-deployments
+- Request: None
+- Response:
+```text
+200 (OK)
+- Body: List of deployment dictionaries, with each dictionary containing:
+    - name: deployment name
+    - namespace: deployment namespace
+    - replicas: number of replicas specified in deployment
+    - status: number of replicas in the current deployment status
+- 500 (Internal Server Error)
+    - Body:
+        - Details: a string describing the error encountered
 ```
-
-2. Create the Deployment:
-
-```shell
-kubectl apply -f k8s/deployment.yaml
-```
-- Create the Service:
-```shell
-kubectl apply -f k8s/service.yaml
-```
+#### Endpoint: POST /api/v1/create-deployment-by-manifest
+- Description: This endpoint creates a deployment using a YAML file.
+- Parameters:
+  - file: a YAML file representing the deployment manifest
+- Returns: A JSON object representing the status of the deployment creation.
 
 
-4. Access the API via the Service's external IP or NodePort.
 
-## Built With
 
-- [FastAPI](https://fastapi.tiangolo.com/) - The web framework used
-- [SQLite](https://www.sqlite.org/index.html) - Database
-- [Uvicorn](https://www.uvicorn.org/) - ASGI server
-- [kubernetes-python-client](https://pypi.org/project/kubernetes-python-client/) - Python client for the Kubernetes API
+
+
+
+
+
+
+
+
+
+## Usage
 
 
 ## Usage
