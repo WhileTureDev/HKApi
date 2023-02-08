@@ -2,8 +2,10 @@ import os
 
 from fastapi import FastAPI
 from kubernetes import config
+from starlette.staticfiles import StaticFiles
+
 from app import crud_deployments, crud_namespace, router_cluster_summary, router_pods, rd_services, \
-                 crud_helm, crud_configmap, crud_secretes, crud_database, monitoring, r_nodes, crd_ingress
+    crud_helm, crud_configmap, crud_secretes, crud_database, monitoring, r_nodes, crd_ingress
 
 app = FastAPI()
 cluster_config = os.getenv('cluster_config')
@@ -60,3 +62,4 @@ app.include_router(crud_database.router)
 app.include_router(monitoring.router)
 app.include_router(r_nodes.router)
 app.include_router(crd_ingress.router)
+app.mount("/", StaticFiles(directory="html", html=True), name="wiki")

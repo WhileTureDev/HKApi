@@ -22,6 +22,7 @@ async def list_all_nodes_in_cluster():
     - type: The type of the condition.
     - status: The status of the condition.
     """
+
     v1_core_api = client.CoreV1Api()
     nodes = v1_core_api.list_node()
     results = []

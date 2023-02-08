@@ -17,6 +17,7 @@ def get_nodes_cluster_summary_api():
         Returns:
             list: List of dictionaries, where each dictionary represents the summary of a node in the cluster.
     """
+
     try:
         v1 = client.CoreV1Api()
         nodes = v1.list_node()

@@ -14,9 +14,10 @@ def get_deployments_from_database_api():
     Returns:
         JSON response containing the list of deployments.
 
-    Raises:
-        HTTPException: with status code 204 if no deployments found in the database, and with status code 500 in case of any unexpected error.
+    Raises: HTTPException: with status code 204 if no deployments found in the database, and with status code 500 in
+    case of any unexpected error.
     """
+
     deployments = get_deployments_db()
     if not deployments:
         raise HTTPException(status_code=204, detail="No namespaces found.")

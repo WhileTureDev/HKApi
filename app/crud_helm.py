@@ -39,6 +39,7 @@ async def create_helm_release_api(request: Request):
     Raises:
     HTTPException: If there is an error in the installation/upgrade process.
     """
+
     status = []
     try:
         # Get the data from the request body in JSON format
@@ -105,6 +106,7 @@ async def delete_helm_release_from_given_namespace(
     Raises:
     HTTPException: When the operation fails, an HTTPException with a status code of 500 and the error message is raised.
     """
+
     try:
         subprocess.run(["helm", "delete", f"{name}", "--namespace", f"{namespace}"], capture_output=True)
         return {"message": f"Helm release {name} deleted"}

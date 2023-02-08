@@ -16,6 +16,7 @@ def get_all_pods_from_cluster_api():
     - status: the current status of the pod (e.g. "Running").
     - ip: the IP address of the pod.
     """
+
     k8_client = client.CoreV1Api()
     pods = k8_client.list_pod_for_all_namespaces()
     results = []
@@ -44,6 +45,7 @@ def get_pods_from_given_namespace_api(namespace):
     Raises:
     HTTPException: If there is an error in retrieving the pods from the given namespace.
     """
+
     k8_client = client.CoreV1Api()
     pods = k8_client.list_namespaced_pod(namespace, watch=False)
     results = []

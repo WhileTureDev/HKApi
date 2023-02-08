@@ -25,6 +25,7 @@ RUN pip install psycopg2-binary && \
 
 
 COPY ./app /code/app
+COPY ./docs/_build/html /code/html
 
 
 EXPOSE 8000

@@ -20,6 +20,7 @@ def get_all_services_in_a_namespace(namespace):
     - external_ip (list): A list of external IP addresses of the service.
     :rtype: list of dictionaries
     """
+
     k8_client = client.CoreV1Api()
     services = k8_client.list_namespaced_service(namespace, watch=False)
     results = []
@@ -48,6 +49,7 @@ def get_all_services_from_cluster():
         - internal_ip (str): internal IP of the service
         - external_ip (List[str]): list of external IPs of the service
     """
+
     k8_client = client.CoreV1Api()
     services = k8_client.list_service_for_all_namespaces()
     results = []
@@ -81,6 +83,7 @@ async def delete_service_api(
     :rtype: dict
     :raises HTTPException: If an error occurs during the deletion of the Service, an exception is raised with a status code of 500. The detail field contains the error message.
     """
+
     try:
         v1_core_api = client.CoreV1Api()
         v1_core_api.delete_namespaced_service(name=name, namespace=namespace)

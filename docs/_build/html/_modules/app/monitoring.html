@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>app.monitoring &mdash; HKAPI - Helm &amp; Kubernetes API 1.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            HKAPI - Helm & Kubernetes API
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">app</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">HKAPI - Helm & Kubernetes API</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">app.monitoring</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for app.monitoring</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">Request</span><span class="p">,</span> <span class="n">APIRouter</span><span class="p">,</span> <span class="n">HTTPException</span>
+<span class="kn">from</span> <span class="nn">kubernetes</span> <span class="kn">import</span> <span class="n">client</span><span class="p">,</span> <span class="n">config</span>
+
+<span class="n">router</span> <span class="o">=</span> <span class="n">APIRouter</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="get_pods_logs_from_given_namespace_api"><a class="viewcode-back" href="../../app.html#app.monitoring.get_pods_logs_from_given_namespace_api">[docs]</a><span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/v1/logs/</span><span class="si">{namespace}</span><span class="s2">/pod/</span><span class="si">{name}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">get_pods_logs_from_given_namespace_api</span><span class="p">(</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get logs of a pod in a given namespace.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">    name (str): name of the pod.</span>
+<span class="sd">    namespace (str): namespace the pod is in.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">    Dict: A dictionary containing the logs of the pod, with the key &#39;logs&#39;.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">    Exception: If any error occurs during the process, it will raise the exception with a detail of the error.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">v1_core_api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CoreV1Api</span><span class="p">()</span>
+    <span class="n">logs</span> <span class="o">=</span> <span class="n">v1_core_api</span><span class="o">.</span><span class="n">read_namespaced_pod_log</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;logs&quot;</span><span class="p">:</span> <span class="n">logs</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="get_events_for_the_all_namespaces_in_cluster"><a class="viewcode-back" href="../../app.html#app.monitoring.get_events_for_the_all_namespaces_in_cluster">[docs]</a><span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/v1/all-events&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">get_events_for_the_all_namespaces_in_cluster</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get events for all namespaces.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A dictionary containing a key `events` with a list of dictionaries, each representing</span>
+<span class="sd">        an event with the following keys:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">events</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">v1_core_api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CoreV1Api</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">v1_core_api</span><span class="o">.</span><span class="n">list_event_for_all_namespaces</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">:</span>
+        <span class="n">events</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+            <span class="s2">&quot;event_name&quot;</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s2">&quot;namespace&quot;</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span>
+            <span class="s2">&quot;event_type&quot;</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+            <span class="s2">&quot;object&quot;</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">involved_object</span><span class="o">.</span><span class="n">kind</span><span class="p">,</span>
+            <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+            <span class="s2">&quot;reason&quot;</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">reason</span><span class="p">,</span>
+            <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">last_timestamp</span>
+        <span class="p">})</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;events&quot;</span><span class="p">:</span> <span class="n">events</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="get_events_for_a_given_namespace_api"><a class="viewcode-back" href="../../app.html#app.monitoring.get_events_for_a_given_namespace_api">[docs]</a><span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/v1/events/</span><span class="si">{namespace}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">get_events_for_a_given_namespace_api</span><span class="p">(</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Retrieve events for a given namespace from the Kubernetes cluster.</span>
+
+<span class="sd">    :param namespace: The namespace for which to retrieve events.</span>
+<span class="sd">    :type namespace: str</span>
+
+<span class="sd">    :return: A dictionary containing a list of events for the given namespace. Each event is represented as a dictionary with the following keys:</span>
+
+<span class="sd">    &quot;name&quot;: the name of the event</span>
+<span class="sd">    &quot;namespace&quot;: the namespace in which the event occurred</span>
+<span class="sd">    &quot;event_type&quot;: the type of the event</span>
+<span class="sd">    &quot;object&quot;: the kind of object involved in the event</span>
+<span class="sd">    &quot;message&quot;: the message of the event</span>
+<span class="sd">    &quot;reason&quot;: the reason for the event</span>
+<span class="sd">    &quot;time&quot;: the last timestamp of the event</span>
+<span class="sd">    :rtype: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">v1_core_api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CoreV1Api</span><span class="p">()</span>
+    <span class="n">events</span> <span class="o">=</span> <span class="n">v1_core_api</span><span class="o">.</span><span class="n">list_namespaced_event</span><span class="p">(</span><span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">)</span>
+    <span class="n">events_info</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">events</span><span class="o">.</span><span class="n">items</span><span class="p">:</span>
+        <span class="n">events_info</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s2">&quot;namespace&quot;</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span>
+            <span class="s2">&quot;event_type&quot;</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+            <span class="s2">&quot;object&quot;</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">involved_object</span><span class="o">.</span><span class="n">kind</span><span class="p">,</span>
+            <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">message</span><span class="p">,</span>
+            <span class="s2">&quot;reason&quot;</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">reason</span><span class="p">,</span>
+            <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">last_timestamp</span>
+        <span class="p">})</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;events&quot;</span><span class="p">:</span> <span class="n">events_info</span><span class="p">}</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, WhileTrue.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

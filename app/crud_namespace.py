@@ -55,6 +55,7 @@ def get_all_namespaces():
     Raises:
     HTTPException: If there is an error retrieving the namespaces from the cluster.
     """
+
     try:
         v1_core_api = client.CoreV1Api()
         namespaces = v1_core_api.list_namespace().items
@@ -82,6 +83,7 @@ async def update_namespace(namespace_name: str, payload: NamespacePayload):
     :rtype: Dict[str, Union[str, Dict]]
     :raises HTTPException: If there is an error updating the namespace, a 500 HTTP error is raised with details.
     """
+
     try:
         v1_core_api = client.CoreV1Api()
         namespace = v1_core_api.read_namespace(name=namespace_name)

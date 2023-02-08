@@ -72,6 +72,7 @@ def get_events_for_a_given_namespace_api(
     "time": the last timestamp of the event
     :rtype: dict
     """
+
     v1_core_api = client.CoreV1Api()
     events = v1_core_api.list_namespaced_event(namespace=namespace)
     events_info = []
@@ -86,5 +87,3 @@ def get_events_for_a_given_namespace_api(
             "time": event.last_timestamp
         })
     return {"events": events_info}
-
-
