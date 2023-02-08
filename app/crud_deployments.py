@@ -10,23 +10,20 @@ router = APIRouter()
 
 @router.post("/api/v1/create-deployment-by-manifest")
 async def create_deployment_by_manifest(file: UploadFile):
-    """
-    Create a Kubernetes deployment from a YAML manifest file.
 
-    Args:
-        file (UploadFile): A file object containing the YAML manifest for the deployment.
+    """Create a Kubernetes deployment from a YAML manifest file.
 
-    Returns:
-        dict: Returns a dictionary with the message key and the value as "Deployment successful" if the deployment was created successfully.
-        dict: Returns a dictionary with the error key and the value as the error message if there was an error during the deployment process.
+    :parameter file: A file object containing the YAML manifest for the deployment.
+    :return: Returns a dictionary with the message key and the value as "Deployment successful" if the deployment was created successfully.
+    :raise: HTTPException: If there is an error updating the deployment, raises an exception with status code 500.
     """
+
     core_v1_api = client.CoreV1Api()
     app_v1_api = client.AppsV1Api()
     yaml_file = file.file
     try:
         docs = yaml.full_load_all(yaml_file)
         for doc in docs:
-            # api_version = doc["apiVersion"]
             kind = doc["kind"]
             namespace = doc.get("metadata", {}).get("namespace")
             if namespace:
@@ -57,7 +54,7 @@ async def create_deployment_by_manifest(file: UploadFile):
             else:
                 raise Exception(f"Unsupported kind: {kind}")
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
     return {"message": "Deployment successful"}
 
 
@@ -184,7 +181,6 @@ async def update_deployment_by_manifest(file: UploadFile):
     return {"message": "Deployment update successful"}
 
 
-
 @router.put("/api/v1/edit/{namespace}/deployments/{name}")
 async def edit_deployment_api(
         name: str,
@@ -240,20 +236,25 @@ async def delete_deployment_api(
         namespace: str,
 ):
     """
+
     Delete a Deployment in a specified namespace.
 
-    The function deletes the Deployment in the specified namespace using the given name. If the operation is successful, a message indicating that the Deployment has been successfully deleted is returned. In case of an error, an HTTPException with status code 500 and the error detail is raised.
+    The function deletes the Deployment in the specified namespace using the given name. If the operation is
+    successful, a message indicating that the Deployment has been successfully deleted is returned. In case of an
+    error, an HTTPException with status code 500 and the error detail is raised.
 
     Parameters:
     name (str): The name of the Deployment to be deleted.
     namespace (str): The namespace in which the Deployment is located.
 
-    Returns:
-    dict: A dictionary with a single key-value pair, where the key is "message" and the value is a string indicating that the Deployment was deleted successfully.
+    Returns: dict: A dictionary with a single key-value pair, where the key is "message" and the value is a string
+    indicating that the Deployment was deleted successfully.
 
-    Raises:
-    HTTPException: If there is an error during the deletion process, an HTTPException with status code 500 and the error detail is raised.
+    Raises: HTTPException: If there is an error during the deletion process, an HTTPException with status code 500
+    and the error detail is raised.
+
     """
+
     try:
         v1_app_api = client.AppsV1Api()
         v1_app_api.delete_namespaced_deployment(name=name, namespace=namespace)

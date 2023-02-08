@@ -33,7 +33,9 @@ async def create_secret_api(
 
     HTTPException: If an error occurs during the creation of the secret.
     The status_code will be 500 and the detail will contain the error message.
+
     """
+
     # Encode the secret data to base64
     encoded_data = {}
     for key, value in data.items():
@@ -66,28 +68,27 @@ def list_secrets_from_given_namespace_api(
         namespace: str
 ):
     """
-       This endpoint returns a list of secrets for the given namespace.
+    This endpoint returns a list of secrets for the given namespace.
 
-       Args:
-           namespace (str): The name of the namespace to retrieve secrets from.
+   Args:
+       namespace (str): The name of the namespace to retrieve secrets from.
+   Returns:
+       dict: A dictionary containing the secrets from the given namespace. The dictionary has the following structure:
+       {
+           "secrets": [
+               {
+                   "name": str,
+                   "namespace": str,
+                   "data": dict
+               },
+               ...
+           ]
+       }
+   Raises:
+       HTTPException: In case of any error while retrieving secrets from the namespace, it raises an HTTPException with
+       status code 500 and a detail message explaining the error.
+    """
 
-       Returns:
-           dict: A dictionary containing the secrets from the given namespace. The dictionary has the following structure:
-           {
-               "secrets": [
-                   {
-                       "name": str,
-                       "namespace": str,
-                       "data": dict
-                   },
-                   ...
-               ]
-           }
-
-       Raises:
-           HTTPException: In case of any error while retrieving secrets from the namespace, it raises an HTTPException with
-           status code 500 and a detail message explaining the error.
-       """
     v1_core_api = client.CoreV1Api()
 
     try:
@@ -114,14 +115,14 @@ def get_secret_from_given_namespace_api(
     """
     Get the information of a specific secret from a given namespace.
 
-    :param name: The name of the secret to retrieve.
-    :type name: str
-    :param namespace: The name of the namespace where the secret is located.
-    :type namespace: str
-    :return: A dictionary containing the information of the secret. The dictionary includes the name, namespace, and data of the secret.
-    :rtype: Dict[str, Union[str, Dict[str, str]]]
-    :raises HTTPException: If there is an error while retrieving the secret information. The status code of the exception is set to 500 and the detail message of the exception is the error message.
+    :param name: The name of the secret to retrieve. :type name: str :param namespace: The name of the namespace
+    where the secret is located. :type namespace: str :return: A dictionary containing the information of the secret.
+    The dictionary includes the name, namespace, and data of the secret. :rtype: Dict[str, Union[str, Dict[str,
+    str]]] :raises HTTPException: If there is an error while retrieving the secret information. The status code of
+    the exception is set to 500 and the detail message of the exception is the error message.
+
     """
+
     v1_core_api = client.CoreV1Api()
 
     try:
@@ -153,7 +154,9 @@ async def edit_secret_in_the_given_namespace_api(
     :param data: The data to update the secret with.
     :return: The updated secret information, including name, namespace and data.
     :raises: HTTPException with status code 500 if an error occurs.
+
     """
+
     try:
         # Get the Secret
         v1_core_api = client.CoreV1Api()
@@ -187,6 +190,7 @@ async def delete_secret_from_given_namespace(
         namespace: str
 ):
     """
+
     Delete a Secret from the given Namespace.
 
     Args:
@@ -198,8 +202,10 @@ async def delete_secret_from_given_namespace(
 
     Raises:
         HTTPException: If an error occurs while deleting the Secret, an HTTPException with a status code of 500 and
-                      a detail message describing the error is raised.
+        a detail message describing the error is raised.
+
     """
+
     try:
         v1_core_api = client.CoreV1Api()
         v1_core_api.delete_namespaced_secret(name=name, namespace=namespace)

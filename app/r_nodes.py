@@ -6,6 +6,23 @@ router = APIRouter()
 
 @router.get("/api/v1/list-all/nodes")
 async def list_all_nodes_in_cluster():
+    """
+    get_all_nodes_in_cluster
+
+    Returns the list of all nodes in the Kubernetes cluster, including their name, IP, CPU usage, memory usage, number of pods, and node conditions.
+
+    Returns:
+    A list of dictionaries containing information about each node. Each dictionary has the following keys:
+    - name: The name of the node.
+    - IP: The IP address of the node.
+    - cpu_usage: The CPU usage of the node.
+    - memory_usage: The memory usage of the node.
+    - pods: The number of pods in the node.
+    - node_conditions: A list of dictionaries, each containing information about a node condition. Each dictionary has the following keys:
+    - type: The type of the condition.
+    - status: The status of the condition.
+    """
+
     v1_core_api = client.CoreV1Api()
     nodes = v1_core_api.list_node()
     results = []
