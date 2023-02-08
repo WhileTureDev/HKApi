@@ -6,6 +6,17 @@ router = APIRouter()
 
 @router.get("/api/v1/cluster")
 def get_nodes_cluster_summary_api():
+    """
+        Returns the summary of nodes in the cluster, including the node name, status,
+        allocatable memory, allocatable CPU, and allocatable pods.
+
+        Raises:
+            HTTPException: If an error occurs during the API call, an HTTPException
+                with status code 500 and a detail message will be raised.
+
+        Returns:
+            list: List of dictionaries, where each dictionary represents the summary of a node in the cluster.
+    """
     try:
         v1 = client.CoreV1Api()
         nodes = v1.list_node()
