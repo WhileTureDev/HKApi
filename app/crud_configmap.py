@@ -64,10 +64,10 @@ def create_configmap_in_given_namespace_api(
 @router.get("/api/v1/list-configmaps/{namespace}")
 def list_configmap_from_given_namespace_api(namespace: str):
     """
-    List all ConfigMaps in a given namespace.
-    :param namespace:
-    :return: dict: A dictionary containing all ConfigMaps in the namespace. The dictionary has a key "configmap" that maps to a list of dictionaries, where each dictionary represents a ConfigMap and has keys "name", "namespace", and "data".
-    :raise: HTTPException: If an error occurs while listing the ConfigMaps, this exception is raised with a status code of 500 and detail message.
+    List all ConfigMaps in a given namespace. :param namespace: :return: dict: A dictionary containing all ConfigMaps
+    in the namespace. The dictionary has a key "configmap" that maps to a list of dictionaries, where each dictionary
+    represents a ConfigMap and has keys "name", "namespace", and "data". :raise: HTTPException: If an error occurs
+    while listing the ConfigMaps, this exception is raised with a status code of 500 and detail message.
     """
 
     v1_core_api = client.CoreV1Api()

@@ -1,11 +1,12 @@
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from fastapi.security import OAuth2PasswordBearer
 from kubernetes import config
 from starlette.staticfiles import StaticFiles
 
 from app import crud_deployments, crud_namespace, router_cluster_summary, router_pods, rd_services, \
-    crud_helm, crud_configmap, crud_secretes, crud_database, monitoring, r_nodes, crd_ingress
+    crud_helm, crud_configmap, crud_secretes, crud_database, monitoring, r_nodes, crd_ingress, crud_user
 
 app = FastAPI()
 cluster_config = os.getenv('cluster_config')
@@ -50,6 +51,7 @@ monitoring
 r_nodes
 crd_ingress
 """
+app.include_router(crud_user.router)
 app.include_router(crud_helm.router)
 app.include_router(crud_deployments.router)
 app.include_router(crud_namespace.router)

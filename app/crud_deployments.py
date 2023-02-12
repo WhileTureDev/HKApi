@@ -3,7 +3,6 @@ from fastapi import APIRouter, HTTPException, UploadFile
 from kubernetes import client
 from kubernetes.client import ApiException, V1Namespace
 
-from .db import get_deployments_db
 
 router = APIRouter()
 
@@ -13,9 +12,10 @@ async def create_deployment_by_manifest(file: UploadFile):
 
     """Create a Kubernetes deployment from a YAML manifest file.
 
-    :parameter file: A file object containing the YAML manifest for the deployment.
-    :return: Returns a dictionary with the message key and the value as "Deployment successful" if the deployment was created successfully.
-    :raise: HTTPException: If there is an error updating the deployment, raises an exception with status code 500.
+    :parameter file: A file object containing the YAML manifest for the deployment. :return: Returns a dictionary
+    with the message key and the value as "Deployment successful" if the deployment was created successfully. :raise:
+    HTTPException: If there is an error updating the deployment, raises an exception with status code 500.
+
     """
 
     core_v1_api = client.CoreV1Api()
@@ -67,8 +67,8 @@ def list_deployments_from_given_namespace_api(namespace):
     :param namespace: The namespace to retrieve deployments from.
     :type namespace: str
 
-    :return: List of deployment information dictionaries. Each dictionary contains the deployment name, namespace, number of replicas, and the status.
-    :rtype: List[Dict[str, Union[str, int]]]
+    :return: List of deployment information dictionaries. Each dictionary contains the deployment name, namespace,
+    number of replicas, and the status. :rtype: List[Dict[str, Union[str, int]]]
     """
     k8s_client = client.AppsV1Api()
     deployments = k8s_client.list_namespaced_deployment(namespace)
@@ -99,8 +99,8 @@ def get_deployment_from_a_given_namespace_api(
     :param namespace: The namespace to retrieve deployments from.
     :type namespace: str
 
-    :return: List of deployment information dictionaries. Each dictionary contains the deployment name, namespace, number of replicas, and the status.
-    :rtype: List[Dict[str, Union[str, int]]]
+    :return: List of deployment information dictionaries. Each dictionary contains the deployment name, namespace,
+    number of replicas, and the status. :rtype: List[Dict[str, Union[str, int]]]
     """
     v1_app_api = client.AppsV1Api()
     deployment = v1_app_api.read_namespaced_deployment(name=name, namespace=namespace)
@@ -269,7 +269,9 @@ async def delete_deployment_by_manifest(file: UploadFile):
     """
     Delete Kubernetes objects specified in a YAML manifest file.
 
-    This API endpoint allows the user to delete one or multiple Kubernetes objects such as Deployment, Service, ConfigMap, Pod, PersistentVolumeClaim, ResourceQuota and LimitRange by specifying the details in a YAML file. The API accepts a YAML file in the form of a file object, processes it and deletes the specified objects.
+    This API endpoint allows the user to delete one or multiple Kubernetes objects such as Deployment, Service,
+    ConfigMap, Pod, PersistentVolumeClaim, ResourceQuota and LimitRange by specifying the details in a YAML file. The
+    API accepts a YAML file in the form of a file object, processes it and deletes the specified objects.
 
     :param file: The YAML file containing the specifications for the Kubernetes objects to be deleted.
     :type file: UploadFile

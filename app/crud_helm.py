@@ -3,7 +3,6 @@ import subprocess
 from fastapi import Request, APIRouter, HTTPException
 from starlette.responses import JSONResponse
 
-from .db import create_namespace_record
 from .def_namespace import create_namespace, check_if_namespace_exist
 
 router = APIRouter()
@@ -73,7 +72,6 @@ async def create_helm_release_api(request: Request):
 
             release_status = subprocess.run(["helm", "status", release_name, "--namespace", namespace],
                                             capture_output=True)
-            create_namespace_record(chart_name, chart_repo_url, namespace)
             status.append({
                 "chart_name": chart_name,
                 "chart_repo_url": chart_repo_url,
