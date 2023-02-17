@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from kubernetes import client
 
 router = APIRouter()
@@ -39,8 +39,8 @@ def get_pods_from_given_namespace_api(namespace):
     Args:
     namespace (str): The namespace from which to retrieve the pods.
 
-    Returns:
-    list: A list of dictionaries containing information about each pod, including its name, namespace, status, and IP address.
+    Returns: list: A list of dictionaries containing information about each pod, including its name, namespace,
+    status, and IP address.
 
     Raises:
     HTTPException: If there is an error in retrieving the pods from the given namespace.

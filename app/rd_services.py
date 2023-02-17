@@ -75,13 +75,11 @@ async def delete_service_api(
 
     This endpoint allows to delete a specified Service in a Namespace.
 
-    :param name: The name of the Service.
-    :type name: str
-    :param namespace: The name of the Namespace.
-    :type namespace: str
-    :return: A JSON object containing the message indicating the result of the operation.
-    :rtype: dict
-    :raises HTTPException: If an error occurs during the deletion of the Service, an exception is raised with a status code of 500. The detail field contains the error message.
+    :type namespace: str  :param namespace: The name of the Namespace.
+    :type name: str :param namespace: The name of the Service.
+    namespace: str :return: A JSON object containing the message indicating the result of the operation. :rtype: dict
+    :raises HTTPException: If an error occurs during the deletion of the Service, an exception is raised with a
+    status code of 500. The detail field contains the error message.
     """
 
     try:

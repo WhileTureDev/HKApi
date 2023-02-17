@@ -115,8 +115,9 @@ def get_secret_from_given_namespace_api(
     """
     Get the information of a specific secret from a given namespace.
 
+    :param namespace: The name of the namespace to retrieve secrets from.
     :param name: The name of the secret to retrieve. :type name: str :param namespace: The name of the namespace
-    where the secret is located. :type namespace: str :return: A dictionary containing the information of the secret.
+    where the secret is located. type namespace: str :return: A dictionary containing the information of the secret.
     The dictionary includes the name, namespace, and data of the secret. :rtype: Dict[str, Union[str, Dict[str,
     str]]] :raises HTTPException: If there is an error while retrieving the secret information. The status code of
     the exception is set to 500 and the detail message of the exception is the error message.
