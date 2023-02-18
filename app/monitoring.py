@@ -1,10 +1,12 @@
-from fastapi import Request, APIRouter, HTTPException
-from kubernetes import client, config
+from fastapi import APIRouter, Depends
+from kubernetes import client
+
+from .crud_user import get_current_active_user
 
 router = APIRouter()
 
 
-@router.get("/api/v1/logs/{namespace}/pod/{name}")
+@router.get("/api/v1/logs/{namespace}/pod/{name}", dependencies=[Depends(get_current_active_user)])
 def get_pods_logs_from_given_namespace_api(
         name: str,
         namespace: str
@@ -51,7 +53,7 @@ def get_events_for_the_all_namespaces_in_cluster():
     return {"events": events}
 
 
-@router.get("/api/v1/events/{namespace}")
+@router.get("/api/v1/events/{namespace}", dependencies=[Depends(get_current_active_user)])
 def get_events_for_a_given_namespace_api(
         namespace: str
 ):

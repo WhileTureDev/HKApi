@@ -1,10 +1,12 @@
-from fastapi import Request, APIRouter, HTTPException
-from kubernetes import client, config
+from fastapi import APIRouter, Depends
+from kubernetes import client
+
+from .crud_user import get_current_active_user
 
 router = APIRouter()
 
 
-@router.get("/api/v1/list-all/nodes")
+@router.get("/api/v1/list-all/nodes", dependencies=[Depends(get_current_active_user)])
 async def list_all_nodes_in_cluster():
     """
     get_all_nodes_in_cluster

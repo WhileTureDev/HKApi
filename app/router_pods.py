@@ -1,10 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from kubernetes import client
-
+from .crud_user import get_current_active_user
 router = APIRouter()
 
 
-@router.get("/api/v1/all-pods")
+@router.get("/api/v1/all-pods", dependencies=[Depends(get_current_active_user)])
 def get_all_pods_from_cluster_api():
     """
     Get information about all the pods in a cluster.
@@ -31,7 +31,7 @@ def get_all_pods_from_cluster_api():
     return results
 
 
-@router.get("/api/v1/pods/{namespace}")
+@router.get("/api/v1/pods/{namespace}", dependencies=[Depends(get_current_active_user)])
 def get_pods_from_given_namespace_api(namespace):
     """
     Get the pods from a given namespace in the Kubernetes cluster.

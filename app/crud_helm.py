@@ -1,14 +1,14 @@
 import subprocess
 
-from fastapi import Request, APIRouter, HTTPException
+from fastapi import Request, APIRouter, HTTPException, Depends
 from starlette.responses import JSONResponse
 
 from .def_namespace import create_namespace, check_if_namespace_exist
-
+from .crud_user import get_current_active_user
 router = APIRouter()
 
 
-@router.post("/api/v1/create-helm-release")
+@router.post("/api/v1/create-helm-release", dependencies=[Depends(get_current_active_user)])
 async def create_helm_release_api(request: Request):
     """
     Create Helm Release API
@@ -86,7 +86,7 @@ async def create_helm_release_api(request: Request):
     return JSONResponse(status, status_code=200)
 
 
-@router.delete("/api/v1/delete/{namespace}/helm/{name}")
+@router.delete("/api/v1/delete/{namespace}/helm/{name}", dependencies=[Depends(get_current_active_user)])
 async def delete_helm_release_from_given_namespace(
         name: str,
         namespace: str
