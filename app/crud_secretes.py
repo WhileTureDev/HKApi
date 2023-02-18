@@ -1,13 +1,14 @@
 import base64
 from typing import Dict
-from fastapi import HTTPException, APIRouter
+from fastapi import HTTPException, APIRouter, Depends
 from kubernetes import client
+from .crud_user import get_current_active_user
 
 router = APIRouter()
 
 
 # Create secret
-@router.post("/api/v1/secrets/{namespace}/secrets/{name}")
+@router.post("/api/v1/secrets/{namespace}/secrets/{name}", dependencies=[Depends(get_current_active_user)])
 async def create_secret_api(
         namespace: str,
         name: str,
@@ -63,7 +64,7 @@ async def create_secret_api(
 
 
 # Get secrets from a given namespace
-@router.get("/api/v1/list-secrets/{namespace}")
+@router.get("/api/v1/list-secrets/{namespace}", dependencies=[Depends(get_current_active_user)])
 def list_secrets_from_given_namespace_api(
         namespace: str
 ):
@@ -87,6 +88,7 @@ def list_secrets_from_given_namespace_api(
    Raises:
        HTTPException: In case of any error while retrieving secrets from the namespace, it raises an HTTPException with
        status code 500 and a detail message explaining the error.
+       :param namespace:
     """
 
     v1_core_api = client.CoreV1Api()
@@ -107,7 +109,7 @@ def list_secrets_from_given_namespace_api(
 
 
 # Read secret from a given namespace
-@router.get("/api/v1/get/{namespace}/secret/{name}")
+@router.get("/api/v1/get/{namespace}/secret/{name}", dependencies=[Depends(get_current_active_user)])
 def get_secret_from_given_namespace_api(
         name: str,
         namespace: str
@@ -141,7 +143,7 @@ def get_secret_from_given_namespace_api(
 
 
 # Update config map
-@router.put("/api/v1/edit/{namespace}/secret/{name}")
+@router.put("/api/v1/edit/{namespace}/secret/{name}", dependencies=[Depends(get_current_active_user)])
 async def edit_secret_in_the_given_namespace_api(
         name: str,
         namespace: str,
@@ -185,7 +187,7 @@ async def edit_secret_in_the_given_namespace_api(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/api/v1/delete/{namespace}/secret/{name}")
+@router.delete("/api/v1/delete/{namespace}/secret/{name}", dependencies=[Depends(get_current_active_user)])
 async def delete_secret_from_given_namespace(
         name: str,
         namespace: str

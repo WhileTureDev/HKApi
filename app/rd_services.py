@@ -1,10 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from kubernetes import client
-
+from .crud_user import get_current_active_user
 router = APIRouter()
 
 
-@router.get("/api/v1/get/services/{namespace}")
+@router.get("/api/v1/get/services/{namespace}", dependencies=[Depends(get_current_active_user)])
 def get_all_services_in_a_namespace(namespace):
     """
     This function returns the list of all services in the specified namespace.
@@ -36,7 +36,7 @@ def get_all_services_in_a_namespace(namespace):
     return results
 
 
-@router.get("/api/v1/get/all-services/")
+@router.get("/api/v1/get/all-services/", dependencies=[Depends(get_current_active_user)])
 def get_all_services_from_cluster():
     """
     Get all services in the cluster.
@@ -65,7 +65,7 @@ def get_all_services_from_cluster():
     return results
 
 
-@router.delete("/api/v1/delete/{namespace}/service/name")
+@router.delete("/api/v1/delete/{namespace}/service/name", dependencies=[Depends(get_current_active_user)])
 async def delete_service_api(
         name: str,
         namespace: str

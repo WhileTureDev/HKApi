@@ -1,13 +1,14 @@
 from typing import List, Dict, Any
 
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
 from kubernetes import client
 from pydantic import BaseModel
+from .crud_user import get_current_active_user
 
 router = APIRouter()
 
 
-@router.get("/api/v1/namespaces/{namespace_name}/ingresses")
+@router.get("/api/v1/namespaces/{namespace_name}/ingresses", dependencies=[Depends(get_current_active_user)])
 async def list_ingresses_by_namespace(namespace_name: str):
     """
 
@@ -58,7 +59,7 @@ async def list_ingresses_by_namespace(namespace_name: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/api/v1/create/ingresses")
+@router.post("/api/v1/create/ingresses", dependencies=[Depends(get_current_active_user)])
 async def create_ingress(ingress_spec: dict = Body(..., embed=False)):
     """
 
@@ -96,7 +97,8 @@ class UpdateIngressResponse(BaseModel):
     """
 
 
-@router.delete("/api/v1/delete/namespaces/{namespace_name}/ingresses/{ingress_name}")
+@router.delete("/api/v1/delete/namespaces/{namespace_name}/ingresses/{ingress_name}",
+               dependencies=[Depends(get_current_active_user)])
 def delete_ingress_from_a_given_namespace(
         name: str,
         namespace: str

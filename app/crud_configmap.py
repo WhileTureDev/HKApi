@@ -1,12 +1,13 @@
 from typing import Dict
-from fastapi import HTTPException, APIRouter
+from fastapi import HTTPException, APIRouter, Depends
 from kubernetes import client
+from .crud_user import get_current_active_user
 
 router = APIRouter()
 
 
 # Create config map
-@router.post("/api/v1/namespaces/{namespace}/configmaps")
+@router.post("/api/v1/namespaces/{namespace}/configmaps", dependencies=[Depends(get_current_active_user)])
 def create_configmap_in_given_namespace_api(
         namespace: str,
         name: str,
@@ -61,7 +62,7 @@ def create_configmap_in_given_namespace_api(
 
 
 # Read configmaps from a given namespace
-@router.get("/api/v1/list-configmaps/{namespace}")
+@router.get("/api/v1/list-configmaps/{namespace}", dependencies=[Depends(get_current_active_user)])
 def list_configmap_from_given_namespace_api(namespace: str):
     """
     List all ConfigMaps in a given namespace. :param namespace: :return: dict: A dictionary containing all ConfigMaps
@@ -88,7 +89,7 @@ def list_configmap_from_given_namespace_api(namespace: str):
 
 
 # Read configmap form a namespace
-@router.get("/api/v1/get/{namespace}/configmap/{name}")
+@router.get("/api/v1/get/{namespace}/configmap/{name}", dependencies=[Depends(get_current_active_user)])
 def get_configmap_from_given_namespace_api(name: str, namespace: str):
 
     """
@@ -122,7 +123,7 @@ def get_configmap_from_given_namespace_api(name: str, namespace: str):
 
 
 # Update configmap
-@router.put("/api/v1/edit/{namespace}/configmaps/{name}")
+@router.put("/api/v1/edit/{namespace}/configmaps/{name}", dependencies=[Depends(get_current_active_user)])
 async def edit_config_map_api(
         name: str,
         namespace: str,
@@ -161,7 +162,7 @@ async def edit_config_map_api(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/api/v1/delete/{namespace}/configmap/{name}")
+@router.delete("/api/v1/delete/{namespace}/configmap/{name}", dependencies=[Depends(get_current_active_user)])
 async def delete_configmap_from_given_namespace(
         name: str,
         namespace: str

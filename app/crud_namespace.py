@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Depends
 from kubernetes import client
 
 from .db import delete_namespace_record
 from pydantic import BaseModel
-
+from .crud_user import get_current_active_user
 router = APIRouter()
 
 
@@ -19,7 +19,7 @@ labels (dict): Key-value pairs of labels to be applied to the namespace
 """
 
 
-@router.post("/api/v1/create/namespaces")
+@router.post("/api/v1/create/namespaces", dependencies=[Depends(get_current_active_user)])
 async def create_namespace(namespace_spec: dict = Body(..., embed=False)):
     """Create a namespace in the cluster.
 
@@ -44,7 +44,7 @@ async def create_namespace(namespace_spec: dict = Body(..., embed=False)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/api/v1/list-all-namespaces")
+@router.get("/api/v1/list-all-namespaces", dependencies=[Depends(get_current_active_user)])
 def get_all_namespaces():
     """
     Get a list of all namespaces in the cluster.
@@ -70,7 +70,7 @@ def get_all_namespaces():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.patch("/api/v1/update-namespace/{namespace_name}")
+@router.patch("/api/v1/update-namespace/{namespace_name}", dependencies=[Depends(get_current_active_user)])
 async def update_namespace(namespace_name: str, payload: NamespacePayload):
     """
     This function updates the labels of an existing namespace in the Kubernetes cluster.
@@ -94,7 +94,7 @@ async def update_namespace(namespace_name: str, payload: NamespacePayload):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/api/v1/namespace/{namespace}")
+@router.delete("/api/v1/namespace/{namespace}", dependencies=[Depends(get_current_active_user)])
 async def delete_namespace_api(namespace: str):
     """
     This function deletes a namespace from the Kubernetes cluster.

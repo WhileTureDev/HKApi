@@ -1,25 +1,4 @@
-from datetime import datetime
-from typing import Optional
-
 from pydantic import BaseModel
-
-
-class UserBase(BaseModel):
-    username: str
-    full_name: str
-    email: str
-
-
-class UserCreate(UserBase):
-    password: str
-
-
-class User(UserBase):
-    id: int
-    created_at: datetime
-
-    class Config:
-        orm_mode = True
 
 
 class Token(BaseModel):
@@ -27,6 +6,19 @@ class Token(BaseModel):
     token_type: str
 
 
-class TokenPayload(BaseModel):
+class TokenData(BaseModel):
+    username: str
+
+
+class User(BaseModel):
+    username: str
+    full_name: str
     email: str
-    expires: Optional[int]
+
+
+class UserCreate(User):
+    password: str
+
+
+class UserInDB(User):
+    password: str

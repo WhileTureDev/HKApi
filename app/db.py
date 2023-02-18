@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 
-from sqlalchemy import create_engine, Column, String, DateTime, Integer
+from sqlalchemy import create_engine, Column, String, DateTime, Integer, ForeignKey, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import sqlalchemy.orm as _orm
@@ -21,10 +21,11 @@ class Deployment(Base):
     namespace = Column(String, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
-    owner = _orm.relationship("User", back_populates="deployments")
+    owner_id = Column(Integer, ForeignKey('users.id'))
+    owner = _orm.relationship("Users", back_populates="deployments")
 
 
-class User(Base):
+class Users(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
     username = Column(String)
@@ -33,6 +34,7 @@ class User(Base):
     password = Column(String)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
+    disabled = Column(Boolean, default=False)
     deployments = _orm.relationship("Deployment", back_populates="owner")
 
 
