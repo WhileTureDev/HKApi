@@ -84,36 +84,21 @@ async def get_current_active_user(current_user: Users = Depends(get_current_user
 # Create a new user
 @router.post("/register", response_model=User)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    db_user = db.query(Users).filter(Users.email == user.email).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    password = pwd_context.hash(user.password)
-    created_at = datetime.utcnow()
-    db_user = Users(username=user.username, full_name=user.full_name, email=user.email, password=password,
-                    created_at=created_at)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return User(username=db_user.username, full_name=db_user.full_name, email=db_user.email)
+    try:
+        db_user = db.query(Users).filter(Users.email == user.email).first()
+        if db_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        password = pwd_context.hash(user.password)
+        created_at = datetime.utcnow()
+        db_user = Users(username=user.username, full_name=user.full_name, email=user.email, password=password,
+                        created_at=created_at)
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        return User(username=db_user.username, full_name=db_user.full_name, email=db_user.email)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
-
-# Authenticate user and return access token
-# @router.post("/login", response_model=Token)
-# def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-#     db_user = db.query(User).filter(User.email == form_data.username).first()
-#     if not db_user:
-#         raise HTTPException(status_code=400, detail="Incorrect email or password")
-#     if not pwd_context.verify(form_data.password, db_user.password):
-#         raise HTTPException(status_code=400, detail="Incorrect email or password")
-#
-#     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-#     access_token_payload = {
-#         "sub": db_user.email,
-#         "exp": datetime.utcnow() + access_token_expires
-#     }
-#     access_token = jwt.encode(access_token_payload, SECRET_KEY, algorithm=ALGORITHM)
-#
-#     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):

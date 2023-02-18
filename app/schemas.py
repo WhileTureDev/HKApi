@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from fastapi import Form
 
 
 class Token(BaseModel):
@@ -11,13 +12,16 @@ class TokenData(BaseModel):
 
 
 class User(BaseModel):
-    username: str
-    full_name: str
-    email: str
+    username: str = Form(...)
+    full_name: str = Form(...)
+    email: str = Form(...)
 
 
 class UserCreate(User):
     password: str
+
+    class Config:
+        validate_assignment = True
 
 
 class UserInDB(User):
