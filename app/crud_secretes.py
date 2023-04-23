@@ -2,7 +2,7 @@ import base64
 from typing import Dict
 from fastapi import HTTPException, APIRouter
 from kubernetes import client
-
+from fastapi.responses import JSONResponse
 router = APIRouter()
 
 
@@ -57,7 +57,7 @@ async def create_secret_api(
             "data": secret.data
         }
         results.append(secret_info)
-        return results
+        return JSONResponse(content=results, status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -101,7 +101,7 @@ def list_secrets_from_given_namespace_api(
                 "data": secret.data
             }
             results.append(secret_info)
-        return {"secret": results}
+        return JSONResponse(content=results, status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -135,7 +135,7 @@ def get_secret_from_given_namespace_api(
             "data": secret.data
         }
         results.append(secret_info)
-        return {"secret": results}
+        return JSONResponse(content=results, status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -180,7 +180,7 @@ async def edit_secret_in_the_given_namespace_api(
             "data": secret.data
         }
         results.append(secret_info)
-        return results
+        return JSONResponse(content=results, status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
