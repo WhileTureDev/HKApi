@@ -2,7 +2,7 @@
 
 IMAGE="steerci/hkapi:local"
 
-docker build -t  ${IMAGE} .
+docker build -t  ${IMAGE} . --progress=plain
 docker push ${IMAGE}
 
 helm del hkapi
