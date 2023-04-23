@@ -59,7 +59,7 @@ async def create_secret_api(
             "data": secret.data
         }
         results.append(secret_info)
-        return results
+        return JSONResponse(status_code=200, content=results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -104,7 +104,7 @@ def list_secrets_from_given_namespace_api(
                 "data": secret.data
             }
             results.append(secret_info)
-        return {"secret": results}
+        return JSONResponse(status_code=200, content=results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -138,7 +138,7 @@ def get_secret_from_given_namespace_api(
             "data": secret.data
         }
         results.append(secret_info)
-        return {"secret": results}
+        return JSONResponse(status_code=200, content=results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -183,7 +183,7 @@ async def edit_secret_in_the_given_namespace_api(
             "data": secret.data
         }
         results.append(secret_info)
-        return results
+        return JSONResponse(status_code=200, content=results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
