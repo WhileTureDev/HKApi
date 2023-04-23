@@ -1,15 +1,25 @@
 import os
-
-from fastapi import FastAPI, Depends
-from fastapi.security import OAuth2PasswordBearer
 from kubernetes import config
+
+from fastapi import FastAPI
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 from app import crud_deployments, crud_namespace, router_cluster_summary, router_pods, rd_services, \
     crud_helm, crud_configmap, crud_secretes, crud_database, monitoring, r_nodes, crd_ingress, crud_user
 
 app = FastAPI()
 cluster_config = os.getenv('cluster_config')
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 """
 Authenticate against the Kubernetes cluster based on the cluster_config flag.

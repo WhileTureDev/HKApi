@@ -1,10 +1,12 @@
-from fastapi import HTTPException, APIRouter
-from kubernetes import client, config
+from fastapi import HTTPException, APIRouter, Depends
+from kubernetes import client
+
+from .crud_user import get_current_active_user
 
 router = APIRouter()
 
 
-@router.get("/api/v1/cluster")
+@router.get("/api/v1/cluster", dependencies=[Depends(get_current_active_user)])
 def get_nodes_cluster_summary_api():
     """
         Returns the summary of nodes in the cluster, including the node name, status,

@@ -1,13 +1,13 @@
 import yaml
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException, UploadFile, Depends
 from kubernetes import client
 from kubernetes.client import ApiException, V1Namespace
-
+from .crud_user import get_current_active_user
 
 router = APIRouter()
 
 
-@router.post("/api/v1/create-deployment-by-manifest")
+@router.post("/api/v1/create-deployment-by-manifest", dependencies=[Depends(get_current_active_user)])
 async def create_deployment_by_manifest(file: UploadFile):
 
     """Create a Kubernetes deployment from a YAML manifest file.
@@ -59,7 +59,7 @@ async def create_deployment_by_manifest(file: UploadFile):
 
 
 # Read deployments from a given namespace
-@router.get("/api/v1/list-deployments-from-namespace/{namespace}")
+@router.get("/api/v1/list-deployments-from-namespace/{namespace}", dependencies=[Depends(get_current_active_user)])
 def list_deployments_from_given_namespace_api(namespace):
     """
     Get a list of deployments from a specific namespace in the Kubernetes cluster.
@@ -85,7 +85,7 @@ def list_deployments_from_given_namespace_api(namespace):
 
 
 # Read deployment from a given namespace
-@router.get("/api/v1/list-deployment/{namespace}/deployment/{name}")
+@router.get("/api/v1/list-deployment/{namespace}/deployment/{name}", dependencies=[Depends(get_current_active_user)])
 def get_deployment_from_a_given_namespace_api(
 
         name: str,
@@ -120,7 +120,7 @@ def get_deployment_from_a_given_namespace_api(
 
 
 # Update deployment by manifest yaml
-@router.patch("/api/update-deployment-by-manifest/{deployment_name}")
+@router.patch("/api/update-deployment-by-manifest/{deployment_name}", dependencies=[Depends(get_current_active_user)])
 async def update_deployment_by_manifest(file: UploadFile):
     """
     Update a deployment in the Kubernetes cluster by providing a YAML file. The file should contain the updated
@@ -181,7 +181,7 @@ async def update_deployment_by_manifest(file: UploadFile):
     return {"message": "Deployment update successful"}
 
 
-@router.put("/api/v1/edit/{namespace}/deployments/{name}")
+@router.put("/api/v1/edit/{namespace}/deployments/{name}", dependencies=[Depends(get_current_active_user)])
 async def edit_deployment_api(
         name: str,
         namespace: str,
@@ -230,7 +230,7 @@ async def edit_deployment_api(
 
 
 # Delete deployment
-@router.delete("/api/v1/delete/{namespace}/deployments/{name}")
+@router.delete("/api/v1/delete/{namespace}/deployments/{name}", dependencies=[Depends(get_current_active_user)])
 async def delete_deployment_api(
         name: str,
         namespace: str,
@@ -264,7 +264,7 @@ async def delete_deployment_api(
 
 
 # Delete deployment by manifest
-@router.post("/api/delete-object-by-manifest")
+@router.post("/api/delete-object-by-manifest", dependencies=[Depends(get_current_active_user)])
 async def delete_deployment_by_manifest(file: UploadFile):
     """
     Delete Kubernetes objects specified in a YAML manifest file.
