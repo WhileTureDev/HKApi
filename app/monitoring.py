@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from kubernetes import client
+from fastapi.responses import JSONResponse
 
 from .crud_user import get_current_active_user
 
@@ -26,7 +27,7 @@ def get_pods_logs_from_given_namespace_api(
     """
     v1_core_api = client.CoreV1Api()
     logs = v1_core_api.read_namespaced_pod_log(name=name, namespace=namespace)
-    return {"logs": logs}
+    return JSONResponse(status_code=200, content=logs)
 
 
 @router.get("/api/v1/all-events")
@@ -50,7 +51,7 @@ def get_events_for_the_all_namespaces_in_cluster():
             "reason": event.reason,
             "time": event.last_timestamp
         })
-    return {"events": events}
+    return JSONResponse(status_code=200, content=events)
 
 
 @router.get("/api/v1/events/{namespace}", dependencies=[Depends(get_current_active_user)])
@@ -88,4 +89,4 @@ def get_events_for_a_given_namespace_api(
             "reason": event.reason,
             "time": event.last_timestamp
         })
-    return {"events": events_info}
+    return JSONResponse(status_code=200, content=events_info)

@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Body, HTTPException, Depends
 from kubernetes import client
+from fastapi.responses import JSONResponse
+
 
 from .db import delete_namespace_record
 from pydantic import BaseModel
@@ -59,13 +61,13 @@ def get_all_namespaces():
     try:
         v1_core_api = client.CoreV1Api()
         namespaces = v1_core_api.list_namespace().items
-        namespaces_info = []
+        results = []
         for namespace in namespaces:
-            namespaces_info.append({
+            results.append({
                 "name": namespace.metadata.name,
                 "status": namespace.status.phase
             })
-        return {"namespaces": namespaces_info}
+        return JSONResponse(status_code=200, content=results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

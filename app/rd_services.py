@@ -1,6 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
 from kubernetes import client
+from fastapi.responses import JSONResponse
+
 from .crud_user import get_current_active_user
+
+
 router = APIRouter()
 
 
@@ -33,7 +37,7 @@ def get_all_services_in_a_namespace(namespace):
             "external_ip": service.spec.external_i_ps
         }
         results.append(result)
-    return results
+    return JSONResponse(status_code=200, content=results)
 
 
 @router.get("/api/v1/get/all-services/", dependencies=[Depends(get_current_active_user)])
@@ -62,7 +66,7 @@ def get_all_services_from_cluster():
             "external_ip": service.spec.external_i_ps
         }
         results.append(result)
-    return results
+    return JSONResponse(status_code=200, content=results)
 
 
 @router.delete("/api/v1/delete/{namespace}/service/name", dependencies=[Depends(get_current_active_user)])

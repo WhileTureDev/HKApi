@@ -1,4 +1,5 @@
 from typing import List, Dict, Any
+from fastapi.responses import JSONResponse
 
 from fastapi import APIRouter, HTTPException, Body, Depends
 from kubernetes import client
@@ -54,7 +55,7 @@ async def list_ingresses_by_namespace(namespace_name: str):
                 ]
             }
             results.append(ingress_info)
-        return results
+        return JSONResponse(status_code=200, content=results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from kubernetes import client
+from fastapi.responses import JSONResponse
 
 from .crud_user import get_current_active_user
 
@@ -43,4 +44,4 @@ async def list_all_nodes_in_cluster():
             ]
         }
         results.append(nodes_info)
-    return results
+    return JSONResponse(status_code=200, content=results)

@@ -1,5 +1,6 @@
 from fastapi import HTTPException, APIRouter, Depends
 from kubernetes import client
+from fastapi.responses import JSONResponse
 
 from .crud_user import get_current_active_user
 
@@ -23,15 +24,15 @@ def get_nodes_cluster_summary_api():
     try:
         v1 = client.CoreV1Api()
         nodes = v1.list_node()
-        nodes_info = []
+        results = []
         for node in nodes.items:
-            nodes_info.append({
+            results.append({
                 "name": node.metadata.name,
                 "status": node.status.conditions[-1].status,
                 "memory": node.status.allocatable["memory"],
                 "cpu": node.status.allocatable["cpu"],
                 "pods": node.status.allocatable["pods"],
             })
-        return nodes_info
+        return JSONResponse(status_code=200, content=results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

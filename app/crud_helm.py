@@ -83,7 +83,7 @@ async def create_helm_release_api(request: Request):
             })
     except subprocess.CalledProcessError as e:
         status.append(e.stderr)
-    return JSONResponse(status, status_code=200)
+    return JSONResponse(status_code=200, content=status)
 
 
 @router.delete("/api/v1/delete/{namespace}/helm/{name}", dependencies=[Depends(get_current_active_user)])

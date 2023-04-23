@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends
 from kubernetes import client
+from fastapi.responses import JSONResponse
+
 from .crud_user import get_current_active_user
 router = APIRouter()
 
@@ -28,7 +30,7 @@ def get_all_pods_from_cluster_api():
             "ip": pod.status.pod_ip,
         }
         results.append(pod_info)
-    return results
+    return JSONResponse(status_code=200, content=results)
 
 
 @router.get("/api/v1/pods/{namespace}", dependencies=[Depends(get_current_active_user)])
@@ -57,4 +59,4 @@ def get_pods_from_given_namespace_api(namespace):
             "ip": pod.status.pod_ip,
         }
         results.append(pod_info)
-    return results
+    return JSONResponse(status_code=200, content=results)

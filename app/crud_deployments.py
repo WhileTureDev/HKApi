@@ -1,5 +1,6 @@
 import yaml
 from fastapi import APIRouter, HTTPException, UploadFile, Depends
+from fastapi.responses import JSONResponse
 from kubernetes import client
 from kubernetes.client import ApiException, V1Namespace
 from .crud_user import get_current_active_user
@@ -81,7 +82,7 @@ def list_deployments_from_given_namespace_api(namespace):
             "status": deployment.status.replicas,
         }
         results.append(deployment_info)
-    return results
+    return JSONResponse(status_code=200, content=results)
 
 
 # Read deployment from a given namespace
@@ -116,7 +117,7 @@ def get_deployment_from_a_given_namespace_api(
         "status": deployment.status.replicas
     }
     result.append(deployment_info)
-    return result
+    return JSONResponse(status_code=200, content=result)
 
 
 # Update deployment by manifest yaml
