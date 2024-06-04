@@ -8,7 +8,7 @@ image:
   repository: "steerci/hkapi"
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "local"
+  tag: "0.0.1"
 
 imagePullSecrets:
   - name: regcred

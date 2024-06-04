@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IMAGE="steerci/hkapi:local"
+IMAGE="steerci/hkapi:0.0.1"
 
 docker build -t  ${IMAGE} . --progress=plain
 docker push ${IMAGE}

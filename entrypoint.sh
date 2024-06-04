@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Read postgres password and export it
-POSTGRES_PASSWORD=$(kubectl get secret --namespace default postgress-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)
+POSTGRES_PASSWORD=$(kubectl get secret --namespace default postgres-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)
 export POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 echo "Database password is ${POSTGRES_PASSWORD}"
 

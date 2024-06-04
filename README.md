@@ -193,7 +193,7 @@ Example payload:
             "provider": "bitnami"
         }
     ]
-    ]
+    
 }
 ```
 

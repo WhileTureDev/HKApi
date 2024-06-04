@@ -39,7 +39,7 @@ class Users(Base):
 
 
 # Connect to the database
-engine = create_engine(f'postgresql://postgres:{psq_pass}@postgress-postgresql:5432')
+engine = create_engine(f'postgresql://postgres:{psq_pass}@postgres-postgresql:5432')
 Base.metadata.create_all(bind=engine)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
