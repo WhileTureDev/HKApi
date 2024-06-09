@@ -14,7 +14,7 @@ cluster_config = os.getenv('cluster_config')
 
 # Configure CORS
 app.add_middleware(
-    CORSMiddleware,
+    middleware_class=CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],

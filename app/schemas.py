@@ -26,3 +26,12 @@ class UserCreate(User):
 
 class UserInDB(User):
     password: str
+
+
+class ReleaseInfo(BaseModel):
+    name: str
+    namespace: str
+    chart_name: str
+    chart_repo_url: str
+    release_name: str
+    provider: str
