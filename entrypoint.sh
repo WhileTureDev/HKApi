@@ -8,4 +8,4 @@ echo "Database password is ${POSTGRES_PASSWORD}"
 
 # Start uvicorn server
 
-uvicorn app.main:app --proxy-headers --host 0.0.0.0 --port 8000  --log-level info  --workers 4
+uvicorn app.main:app --proxy-headers --host 0.0.0.0 --port 80  --log-level info  --workers 4
