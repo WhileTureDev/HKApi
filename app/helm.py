@@ -2,10 +2,10 @@ import subprocess
 
 from fastapi import Request, APIRouter, HTTPException, Depends
 from starlette.responses import JSONResponse
-
+import json
 from .def_namespace import create_namespace, check_if_namespace_exist
 from .crud_user import get_current_active_user
-from .schemas import CreateHelmReleaseInfo, DeleteHelmReleaseInfo
+from .schemas import BaseHelmReleaseInfo, CreateHelmReleaseInfo, DeleteHelmReleaseInfo
 import subprocess
 import logging
 
@@ -15,6 +15,7 @@ router = APIRouter()
 logging.basicConfig(level=logging.INFO)
 
 
+# Create helm release endpoint
 @router.post("/api/v1/helm/create", dependencies=[Depends(get_current_active_user)])
 async def create_helm_release_api(release_info: CreateHelmReleaseInfo):
     """
@@ -94,12 +95,13 @@ async def create_helm_release_api(release_info: CreateHelmReleaseInfo):
                     "namespace": namespace,
                     "repo_output": repo_output.stdout.decode(),
                     "release_status": release_status.stdout.decode()
-                    })
+                })
     except subprocess.CalledProcessError as e:
         status.append(e.stderr)
     return JSONResponse(status_code=200, content=status)
 
 
+# Delete helm release endpoint
 @router.delete("/api/v1/helm/delete", dependencies=[Depends(get_current_active_user)])
 async def delete_helm_release(release_info: DeleteHelmReleaseInfo):  # Use a data model
     """
@@ -127,5 +129,36 @@ async def delete_helm_release(release_info: DeleteHelmReleaseInfo):  # Use a dat
         else:
             return {"message": f"Helm release {release_info.name} deleted"}
 
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Status helm release
+@router.get("/api/v1/helm/status", dependencies=[Depends(get_current_active_user)])
+async def status_helm_release(release_info: BaseHelmReleaseInfo):
+    try:
+        result = subprocess.run(
+            ["helm", "status", release_info.name, "--namespace", release_info.namespace],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode == 0:
+            # Parse Helm output into a dictionary
+            status_lines = result.stdout.strip().split("\n")
+            status_dict = {}
+            for line in status_lines:
+                if ":" in line:  # Add check if ":" exists in line.
+                    key, value = line.split(":", 1)
+                    status_dict[key.strip()] = value.strip()
+                else:
+                    logging.warning(f"Unexpected line in Helm status output: {line}")  # Log the unexpected line
+            return {"Name": release_info.name, "Namespace": release_info.namespace, "Info": status_dict}
+        else:
+            error_message = result.stderr.strip()
+            if "not found" in error_message.lower():
+                return {
+                    "message": f"Helm release {release_info.name} does not exist in namespace {release_info.namespace}"}
+            else:
+                raise HTTPException(status_code=500, detail=f"Error getting Helm status: {error_message}")
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=str(e))
