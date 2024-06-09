@@ -24,17 +24,15 @@ RUN pip install psycopg2-binary && \
     pip install pyyaml
 
 
-COPY backend /code/app
-COPY ./docs/_build/html /code/html
-
-RUN ls -al /code/backend
+COPY app /code/app
+COPY docs/_build/html /code/html
 
 EXPOSE 8000
 
 # Run the application
-COPY ./entrypoint.sh .
+COPY entrypoint.sh .
 RUN  chmod +x ./entrypoint.sh && \
      dos2unix ./entrypoint.sh && \
-     dos2unix /code/backend/*
+     dos2unix /code/*
 
 CMD ["./entrypoint.sh"]

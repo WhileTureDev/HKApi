@@ -2,12 +2,11 @@ import os
 from kubernetes import config
 
 from fastapi import FastAPI
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend import crud_deployments, crud_namespace, router_cluster_summary, router_pods, rd_services, \
-    helm, crud_configmap, crud_secretes, crud_database, monitoring, r_nodes, crd_ingress, crud_user
+from app import r_nodes, crud_secretes, router_cluster_summary, crud_configmap, crud_database, crud_deployments, \
+    crud_user, crud_namespace, monitoring, rd_services, router_pods, crd_ingress, helm
 
 app = FastAPI()
 cluster_config = os.getenv('cluster_config')
