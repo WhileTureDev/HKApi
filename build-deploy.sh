@@ -6,7 +6,7 @@ docker build -t  ${IMAGE} . --progress=plain
 docker push ${IMAGE}
 
 helm del hkapi
-helm upgrade --install hkapi helm-hkapi
+helm upgrade --install hkapi helm-hkapi -f helm-hkapi/values.yaml
 
 sleep 4
 
