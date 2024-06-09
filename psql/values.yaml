@@ -578,7 +578,7 @@ primary:
   service:
     ## @param primary.service.type Kubernetes Service type
     ##
-    type: ClusterIP
+    type: LoadBalancer
     ## @param primary.service.ports.postgresql PostgreSQL service port
     ##
     ports:
@@ -597,7 +597,8 @@ primary:
     clusterIP: ""
     ## @param primary.service.annotations Annotations for PostgreSQL primary service
     ##
-    annotations: {}
+    annotations:
+      metallb.universe.tf/address-pool: local
     ## @param primary.service.loadBalancerIP Load balancer IP if service type is `LoadBalancer`
     ## Set the LoadBalancer service type to internal only
     ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#internal-load-balancer

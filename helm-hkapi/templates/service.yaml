@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "helm-hkapi.fullname" . }}
-  {{- if .Values.metalLB.enabled }}
+  {{- if .Values.metalLB.enabled}}
   annotations:
     metallb.universe.tf/address-pool: local
   {{- end }}
@@ -10,9 +10,9 @@ metadata:
     {{- include "helm-hkapi.labels" . | nindent 4 }}
 spec:
   {{- if .Values.metalLB.enabled }}
-    type: {{ .Values.metalLB.type }}
+  type: {{ .Values.metalLB.type }}
   {{- else }}
-    type: {{ .Values.service.type }}
+  type: {{ .Values.service.type }}
   {{- end }}
   ports:
     - port: {{ .Values.service.port }}
