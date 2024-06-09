@@ -1739,7 +1739,7 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         - name: METALLB_ML_LABELS
-          value: app=metallb,component=speaker
+          value: backend=metallb,component=speaker
         - name: METALLB_ML_SECRET_KEY_PATH
           value: /etc/ml_secret_key
         image: quay.io/metallb/speaker:v0.14.5

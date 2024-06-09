@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>app.crud_deployments &mdash; HKAPI - Helm &amp; Kubernetes API 1.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+    <![endif]-->
+  
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            HKAPI - Helm & Kubernetes API
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">app</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">HKAPI - Helm & Kubernetes API</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">app.crud_deployments</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for app.crud_deployments</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">yaml</span>
+<span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">APIRouter</span><span class="p">,</span> <span class="n">HTTPException</span><span class="p">,</span> <span class="n">UploadFile</span>
+<span class="kn">from</span> <span class="nn">kubernetes</span> <span class="kn">import</span> <span class="n">client</span>
+<span class="kn">from</span> <span class="nn">kubernetes.client</span> <span class="kn">import</span> <span class="n">ApiException</span><span class="p">,</span> <span class="n">V1Namespace</span>
+
+<span class="kn">from</span> <span class="nn">.db</span> <span class="kn">import</span> <span class="n">get_deployments_db</span>
+
+<span class="n">router</span> <span class="o">=</span> <span class="n">APIRouter</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="create_deployment_by_manifest"><a class="viewcode-back" href="../../app.html#app.crud_deployments.create_deployment_by_manifest">[docs]</a><span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/v1/create-deployment-by-manifest&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">create_deployment_by_manifest</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">UploadFile</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a Kubernetes deployment from a YAML manifest file.</span>
+
+<span class="sd">    :parameter file: A file object containing the YAML manifest for the deployment.</span>
+<span class="sd">    :return: Returns a dictionary with the message key and the value as &quot;Deployment successful&quot; if the deployment was created successfully.</span>
+<span class="sd">    :raise: HTTPException: If there is an error updating the deployment, raises an exception with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">core_v1_api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CoreV1Api</span><span class="p">()</span>
+    <span class="n">app_v1_api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">AppsV1Api</span><span class="p">()</span>
+    <span class="n">yaml_file</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">file</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">docs</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">full_load_all</span><span class="p">(</span><span class="n">yaml_file</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">doc</span> <span class="ow">in</span> <span class="n">docs</span><span class="p">:</span>
+            <span class="n">kind</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">]</span>
+            <span class="n">namespace</span> <span class="o">=</span> <span class="n">doc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;metadata&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;namespace&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">namespace</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">core_v1_api</span><span class="o">.</span><span class="n">read_namespace</span><span class="p">(</span><span class="n">namespace</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="mi">404</span><span class="p">:</span>
+                        <span class="k">raise</span>
+                    <span class="n">core_v1_api</span><span class="o">.</span><span class="n">create_namespace</span><span class="p">(</span><span class="n">V1Namespace</span><span class="p">(</span><span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">namespace</span><span class="p">}))</span>
+            <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;Service&quot;</span><span class="p">:</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">create_namespaced_service</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;Deployment&quot;</span><span class="p">:</span>
+                <span class="n">app_v1_api</span><span class="o">.</span><span class="n">create_namespaced_deployment</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;ConfigMap&quot;</span><span class="p">:</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">create_namespaced_config_map</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;Pod&quot;</span><span class="p">:</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">create_namespaced_pod</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;PersistentVolumeClaim&quot;</span><span class="p">:</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">create_namespaced_persistent_volume_claim</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;Secret&quot;</span><span class="p">:</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">create_namespaced_secret</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;PersistentVolume&quot;</span><span class="p">:</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">create_persistent_volume</span><span class="p">(</span><span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;ResourceQuota&quot;</span><span class="p">:</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">create_namespaced_resource_quota</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;LimitRange&quot;</span><span class="p">:</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">create_namespaced_limit_range</span><span class="p">(</span><span class="n">namespace</span><span class="p">,</span> <span class="n">doc</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported kind: </span><span class="si">{</span><span class="n">kind</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Deployment successful&quot;</span><span class="p">}</span></div>
+
+
+<span class="c1"># Read deployments from a given namespace</span>
+<div class="viewcode-block" id="list_deployments_from_given_namespace_api"><a class="viewcode-back" href="../../app.html#app.crud_deployments.list_deployments_from_given_namespace_api">[docs]</a><span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/v1/list-deployments-from-namespace/</span><span class="si">{namespace}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">list_deployments_from_given_namespace_api</span><span class="p">(</span><span class="n">namespace</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get a list of deployments from a specific namespace in the Kubernetes cluster.</span>
+
+<span class="sd">    :param namespace: The namespace to retrieve deployments from.</span>
+<span class="sd">    :type namespace: str</span>
+
+<span class="sd">    :return: List of deployment information dictionaries. Each dictionary contains the deployment name, namespace, number of replicas, and the status.</span>
+<span class="sd">    :rtype: List[Dict[str, Union[str, int]]]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">k8s_client</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">AppsV1Api</span><span class="p">()</span>
+    <span class="n">deployments</span> <span class="o">=</span> <span class="n">k8s_client</span><span class="o">.</span><span class="n">list_namespaced_deployment</span><span class="p">(</span><span class="n">namespace</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">deployment</span> <span class="ow">in</span> <span class="n">deployments</span><span class="o">.</span><span class="n">items</span><span class="p">:</span>
+        <span class="n">deployment_info</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">deployment</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s2">&quot;namespace&quot;</span><span class="p">:</span> <span class="n">deployment</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span>
+            <span class="s2">&quot;replicas&quot;</span><span class="p">:</span> <span class="n">deployment</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">replicas</span><span class="p">,</span>
+            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">deployment</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">replicas</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">deployment_info</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">results</span></div>
+
+
+<span class="c1"># Read deployment from a given namespace</span>
+<div class="viewcode-block" id="get_deployment_from_a_given_namespace_api"><a class="viewcode-back" href="../../app.html#app.crud_deployments.get_deployment_from_a_given_namespace_api">[docs]</a><span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/v1/list-deployment/</span><span class="si">{namespace}</span><span class="s2">/deployment/</span><span class="si">{name}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">get_deployment_from_a_given_namespace_api</span><span class="p">(</span>
+
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get a list of deployments from a specific namespace in the Kubernetes cluster.</span>
+
+<span class="sd">    :param name:</span>
+<span class="sd">    :type name: str</span>
+<span class="sd">    :param namespace: The namespace to retrieve deployments from.</span>
+<span class="sd">    :type namespace: str</span>
+
+<span class="sd">    :return: List of deployment information dictionaries. Each dictionary contains the deployment name, namespace, number of replicas, and the status.</span>
+<span class="sd">    :rtype: List[Dict[str, Union[str, int]]]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">v1_app_api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">AppsV1Api</span><span class="p">()</span>
+    <span class="n">deployment</span> <span class="o">=</span> <span class="n">v1_app_api</span><span class="o">.</span><span class="n">read_namespaced_deployment</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">images</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">container</span> <span class="ow">in</span> <span class="n">deployment</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">template</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">containers</span><span class="p">:</span>
+        <span class="n">images</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">container</span><span class="o">.</span><span class="n">image</span><span class="p">)</span>
+    <span class="n">deployment_info</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">deployment</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+        <span class="s2">&quot;namespace&quot;</span><span class="p">:</span> <span class="n">deployment</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">namespace</span><span class="p">,</span>
+        <span class="s2">&quot;image&quot;</span><span class="p">:</span> <span class="n">images</span><span class="p">,</span>
+        <span class="s2">&quot;replicas&quot;</span><span class="p">:</span> <span class="n">deployment</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">replicas</span><span class="p">,</span>
+        <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">deployment</span><span class="o">.</span><span class="n">status</span><span class="o">.</span><span class="n">replicas</span>
+    <span class="p">}</span>
+    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">deployment_info</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+<span class="c1"># Update deployment by manifest yaml</span>
+<div class="viewcode-block" id="update_deployment_by_manifest"><a class="viewcode-back" href="../../app.html#app.crud_deployments.update_deployment_by_manifest">[docs]</a><span class="nd">@router</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span><span class="s2">&quot;/api/update-deployment-by-manifest/</span><span class="si">{deployment_name}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">update_deployment_by_manifest</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">UploadFile</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Update a deployment in the Kubernetes cluster by providing a YAML file. The file should contain the updated</span>
+<span class="sd">    deployment information in the form of a Kubernetes resource manifest.</span>
+
+<span class="sd">    :param file: The uploaded YAML file containing the updated deployment information.</span>
+<span class="sd">    :type file: UploadFile</span>
+
+<span class="sd">    :return: A dictionary containing the status of the deployment update. Returns {&quot;message&quot;: &quot;Deployment update</span>
+<span class="sd">    successful&quot;} if the update was successful, otherwise returns {&quot;error&quot;: error_message}. :rtype: Dict[str, str]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">core_v1_api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CoreV1Api</span><span class="p">()</span>
+    <span class="n">app_v1_api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">AppsV1Api</span><span class="p">()</span>
+    <span class="n">yaml_file</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">file</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">docs</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">full_load_all</span><span class="p">(</span><span class="n">yaml_file</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">doc</span> <span class="ow">in</span> <span class="n">docs</span><span class="p">:</span>
+            <span class="c1"># api_version = doc[&quot;apiVersion&quot;]</span>
+            <span class="n">kind</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">]</span>
+            <span class="n">namespace</span> <span class="o">=</span> <span class="n">doc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;metadata&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;namespace&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">namespace</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">core_v1_api</span><span class="o">.</span><span class="n">read_namespace</span><span class="p">(</span><span class="n">namespace</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">ApiException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Namespace </span><span class="si">{</span><span class="n">namespace</span><span class="si">}</span><span class="s2"> not found&quot;</span><span class="p">}</span>
+            <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;Service&quot;</span><span class="p">:</span>
+                <span class="n">service_name</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">patch_namespaced_service</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">service_name</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;Deployment&quot;</span><span class="p">:</span>
+                <span class="n">deployment_name</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+                <span class="n">app_v1_api</span><span class="o">.</span><span class="n">patch_namespaced_deployment</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">deployment_name</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;ConfigMap&quot;</span><span class="p">:</span>
+                <span class="n">config_name</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">patch_namespaced_config_map</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">config_name</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;Pod&quot;</span><span class="p">:</span>
+                <span class="n">pod_name</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">patch_namespaced_pod</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">pod_name</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;PersistentVolumeClaim&quot;</span><span class="p">:</span>
+                <span class="n">claim_name</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">patch_namespaced_persistent_volume_claim</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">claim_name</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;Secret&quot;</span><span class="p">:</span>
+                <span class="n">secret_name</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">patch_namespaced_secret</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">secret_name</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;PersistentVolume&quot;</span><span class="p">:</span>
+                <span class="n">volume_name</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">patch_persistent_volume</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">volume_name</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;ResourceQuota&quot;</span><span class="p">:</span>
+                <span class="n">name_quota</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">patch_namespaced_resource_quota</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name_quota</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">doc</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;LimitRange&quot;</span><span class="p">:</span>
+                <span class="n">name_limit_range</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">patch_namespaced_limit_range</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name_limit_range</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">doc</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported kind: </span><span class="si">{</span><span class="n">kind</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)}</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Deployment update successful&quot;</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="edit_deployment_api"><a class="viewcode-back" href="../../app.html#app.crud_deployments.edit_deployment_api">[docs]</a><span class="nd">@router</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;/api/v1/edit/</span><span class="si">{namespace}</span><span class="s2">/deployments/</span><span class="si">{name}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">edit_deployment_api</span><span class="p">(</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">replicas</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">image</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Edit deployment details</span>
+
+<span class="sd">    Endpoint for updating a deployment with specified name and namespace.</span>
+
+<span class="sd">    Route: /api/v1/edit/{namespace}/deployments/{name}</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">    name (str): Name of the deployment</span>
+<span class="sd">    namespace (str): Namespace the deployment belongs to</span>
+<span class="sd">    replicas (int, optional): Number of replicas for the deployment. Defaults to None.</span>
+<span class="sd">    image (str, optional): New image for the deployment. Defaults to None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">    dict: A dictionary containing a success message, with key &quot;message&quot;.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">    HTTPException: If there is an error updating the deployment, raises an exception with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c1"># Get the Deployment</span>
+        <span class="n">app_v1_api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">AppsV1Api</span><span class="p">()</span>
+        <span class="n">deployment</span> <span class="o">=</span> <span class="n">app_v1_api</span><span class="o">.</span><span class="n">read_namespaced_deployment</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">)</span>
+
+        <span class="c1"># Edit the Deployment</span>
+        <span class="k">if</span> <span class="n">replicas</span><span class="p">:</span>
+            <span class="n">deployment</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">replicas</span> <span class="o">=</span> <span class="n">replicas</span>
+        <span class="k">if</span> <span class="n">image</span><span class="p">:</span>
+            <span class="n">deployment</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">template</span><span class="o">.</span><span class="n">spec</span><span class="o">.</span><span class="n">containers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">image</span> <span class="o">=</span> <span class="n">image</span>
+
+        <span class="c1"># Update the Deployment</span>
+        <span class="n">app_v1_api</span><span class="o">.</span><span class="n">patch_namespaced_deployment</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">,</span>
+            <span class="n">body</span><span class="o">=</span><span class="n">deployment</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Deployment &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; updated successfully&quot;</span><span class="p">}</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span></div>
+
+
+<span class="c1"># Delete deployment</span>
+<div class="viewcode-block" id="delete_deployment_api"><a class="viewcode-back" href="../../app.html#app.crud_deployments.delete_deployment_api">[docs]</a><span class="nd">@router</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">&quot;/api/v1/delete/</span><span class="si">{namespace}</span><span class="s2">/deployments/</span><span class="si">{name}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">delete_deployment_api</span><span class="p">(</span>
+        <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">namespace</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">    Delete a Deployment in a specified namespace.</span>
+
+<span class="sd">    The function deletes the Deployment in the specified namespace using the given name. If the operation is</span>
+<span class="sd">    successful, a message indicating that the Deployment has been successfully deleted is returned. In case of an</span>
+<span class="sd">    error, an HTTPException with status code 500 and the error detail is raised.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">    name (str): The name of the Deployment to be deleted.</span>
+<span class="sd">    namespace (str): The namespace in which the Deployment is located.</span>
+
+<span class="sd">    Returns: dict: A dictionary with a single key-value pair, where the key is &quot;message&quot; and the value is a string</span>
+<span class="sd">    indicating that the Deployment was deleted successfully.</span>
+
+<span class="sd">    Raises: HTTPException: If there is an error during the deletion process, an HTTPException with status code 500</span>
+<span class="sd">    and the error detail is raised.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">v1_app_api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">AppsV1Api</span><span class="p">()</span>
+        <span class="n">v1_app_api</span><span class="o">.</span><span class="n">delete_namespaced_deployment</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="o">=</span><span class="n">namespace</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Deployment </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> successfully deleted&quot;</span><span class="p">}</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span></div>
+
+
+<span class="c1"># Delete deployment by manifest</span>
+<div class="viewcode-block" id="delete_deployment_by_manifest"><a class="viewcode-back" href="../../app.html#app.crud_deployments.delete_deployment_by_manifest">[docs]</a><span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/delete-object-by-manifest&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">delete_deployment_by_manifest</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">UploadFile</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Delete Kubernetes objects specified in a YAML manifest file.</span>
+
+<span class="sd">    This API endpoint allows the user to delete one or multiple Kubernetes objects such as Deployment, Service, ConfigMap, Pod, PersistentVolumeClaim, ResourceQuota and LimitRange by specifying the details in a YAML file. The API accepts a YAML file in the form of a file object, processes it and deletes the specified objects.</span>
+
+<span class="sd">    :param file: The YAML file containing the specifications for the Kubernetes objects to be deleted.</span>
+<span class="sd">    :type file: UploadFile</span>
+<span class="sd">    :return: A JSON response indicating the result of the operation, including an error message if the operation failed.</span>
+<span class="sd">    :rtype: Dict[str, str]</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">    Exception: If the specified &quot;kind&quot; in the YAML file is not supported by this API endpoint.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">core_v1_api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">CoreV1Api</span><span class="p">()</span>
+    <span class="n">app_v1_api</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">AppsV1Api</span><span class="p">()</span>
+    <span class="n">yaml_file</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">file</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">docs</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">full_load_all</span><span class="p">(</span><span class="n">yaml_file</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">doc</span> <span class="ow">in</span> <span class="n">docs</span><span class="p">:</span>
+            <span class="c1"># api_version = doc[&quot;apiVersion&quot;]</span>
+            <span class="n">kind</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">]</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+            <span class="n">namespace</span> <span class="o">=</span> <span class="n">doc</span><span class="p">[</span><span class="s2">&quot;metadata&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;namespace&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;Service&quot;</span><span class="p">:</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">delete_namespaced_service</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="p">{})</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;Deployment&quot;</span><span class="p">:</span>
+                <span class="n">app_v1_api</span><span class="o">.</span><span class="n">delete_namespaced_deployment</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="p">{})</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;ConfigMap&quot;</span><span class="p">:</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">delete_namespaced_config_map</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="p">{})</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;Pod&quot;</span><span class="p">:</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">delete_namespaced_pod</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="p">{})</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;PersistentVolumeClaim&quot;</span><span class="p">:</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">delete_namespaced_persistent_volume_claim</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="p">{})</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;ResourceQuota&quot;</span><span class="p">:</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">delete_namespaced_resource_quota</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="p">{})</span>
+            <span class="k">elif</span> <span class="n">kind</span> <span class="o">==</span> <span class="s2">&quot;LimitRange&quot;</span><span class="p">:</span>
+                <span class="n">core_v1_api</span><span class="o">.</span><span class="n">delete_namespaced_limit_range</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">namespace</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="p">{})</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported kind: </span><span class="si">{</span><span class="n">kind</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)}</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Deletion successful&quot;</span><span class="p">}</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, WhileTrue.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

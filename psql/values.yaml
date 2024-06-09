@@ -676,7 +676,7 @@ primary:
     ## @param primary.persistence.selector Selector to match an existing Persistent Volume (this value is evaluated as a template)
     ## selector:
     ##   matchLabels:
-    ##     app: my-app
+    ##     backend: my-backend
     ##
     selector: {}
     ## @param primary.persistence.dataSource Custom PVC data source
@@ -1013,7 +1013,7 @@ readReplicas:
     ## @param readReplicas.persistence.selector Selector to match an existing Persistent Volume (this value is evaluated as a template)
     ## selector:
     ##   matchLabels:
-    ##     app: my-app
+    ##     backend: my-backend
     ##
     selector: {}
     ## @param readReplicas.persistence.dataSource Custom PVC data source

@@ -494,7 +494,7 @@ customTemplate:
 ##     whenUnsatisfiable: DoNotSchedule
 ##     labelSelector:
 ##       matchLabels:
-##         app.kubernetes.io/instance: ingress-nginx-internal
+##         backend.kubernetes.io/instance: ingress-nginx-internal
 ##
 topologySpreadConstraints: []
 ## @param podSecurityPolicy.enabled Whether to create a PodSecurityPolicy. WARNING: PodSecurityPolicy is deprecated in Kubernetes v1.21 or later, unavailable in v1.25 or later
