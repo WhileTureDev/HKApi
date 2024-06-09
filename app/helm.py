@@ -12,7 +12,7 @@ import logging
 router = APIRouter()
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 @router.post("/api/v1/helm/create", dependencies=[Depends(get_current_active_user)])
@@ -111,11 +111,21 @@ async def delete_helm_release(release_info: DeleteHelmReleaseInfo):  # Use a dat
     Returns:
         dict: JSON response with a message indicating success or failure.
     """
-    name = release_info.name
-    namespace = release_info.namespace
-
     try:
-        subprocess.run(["helm", "delete", f"{name}", "--namespace", f"{namespace}"], capture_output=True)
-        return {"message": f"Helm release {name} deleted"}
-    except Exception as e:
-        return HTTPException(status_code=500, detail=str(e))
+        result = subprocess.run(
+            ["helm", "delete", release_info.name, "--namespace", release_info.namespace],
+            capture_output=True,
+            text=True  # Capture output as text for easier decoding
+        )
+
+        if result.returncode != 0:  # Check the return code for success/failure
+            if "not found" in result.stderr.lower():
+                return {
+                    "message": f"Helm release {release_info.name} does not exist in namespace {release_info.namespace}"}
+            else:
+                raise HTTPException(status_code=500, detail=result.stderr)  # Return the actual error from Helm
+        else:
+            return {"message": f"Helm release {release_info.name} deleted"}
+
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=str(e))
