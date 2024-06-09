@@ -16,7 +16,7 @@ async def list_ingresses_by_namespace(namespace_name: str):
     Lists all ingresses in a specified namespace.
 
     Route:
-    @app.get("/api/v1/namespaces/{namespace_name}/ingresses")
+    @backend.get("/api/v1/namespaces/{namespace_name}/ingresses")
 
     Input:
     namespace_name: str

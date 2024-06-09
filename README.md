@@ -183,13 +183,13 @@ Example payload:
         {
             "chart_name": "jenkins",
             "chart_repo_url": "https://charts.bitnami.com/bitnami",
-            "release_name": "jenkins-app",
+            "release_name": "jenkins-backend",
             "provider": "bitnami"
         },
         {
             "chart_name": "wordpress",
             "chart_repo_url": "https://charts.bitnami.com/bitnami",
-            "release_name": "wordpress-app",
+            "release_name": "wordpress-backend",
             "provider": "bitnami"
         }
     ]
@@ -212,7 +212,7 @@ Example payload:
 ```json
 {
   "labels":{
-     "app":"new-app"
+     "app":"new-backend"
   }
 }
 
@@ -225,7 +225,7 @@ Example payload:
     "metadata": {
         "name": "test-namespace",
         "labels": {
-            "app": "test-app"
+            "app": "test-backend"
         }
     }
 }

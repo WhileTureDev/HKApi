@@ -6,7 +6,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import crud_deployments, crud_namespace, router_cluster_summary, router_pods, rd_services, \
+from backend import crud_deployments, crud_namespace, router_cluster_summary, router_pods, rd_services, \
     helm, crud_configmap, crud_secretes, crud_database, monitoring, r_nodes, crd_ingress, crud_user
 
 app = FastAPI()

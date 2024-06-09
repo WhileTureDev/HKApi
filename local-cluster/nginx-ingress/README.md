@@ -1,4 +1,4 @@
-<!--- app-name: NGINX Ingress Controller -->
+<!--- backend-name: NGINX Ingress Controller -->
 
 # Bitnami package for NGINX Ingress Controller
 
