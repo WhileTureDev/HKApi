@@ -7,7 +7,7 @@ from starlette.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import crud_deployments, crud_namespace, router_cluster_summary, router_pods, rd_services, \
-    crud_helm, crud_configmap, crud_secretes, crud_database, monitoring, r_nodes, crd_ingress, crud_user
+    helm, crud_configmap, crud_secretes, crud_database, monitoring, r_nodes, crd_ingress, crud_user
 
 app = FastAPI()
 cluster_config = os.getenv('cluster_config')
@@ -62,7 +62,7 @@ r_nodes
 crd_ingress
 """
 app.include_router(crud_user.router)
-app.include_router(crud_helm.router)
+app.include_router(helm.router)
 app.include_router(crud_deployments.router)
 app.include_router(crud_namespace.router)
 app.include_router(router_pods.router)

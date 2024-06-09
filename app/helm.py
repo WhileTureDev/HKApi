@@ -8,7 +8,7 @@ from .crud_user import get_current_active_user
 router = APIRouter()
 
 
-@router.post("/api/v1/create-helm-release", dependencies=[Depends(get_current_active_user)])
+@router.post("/api/v1/helm/create", dependencies=[Depends(get_current_active_user)])
 async def create_helm_release_api(request: Request):
     """
     Create Helm Release API
@@ -86,7 +86,7 @@ async def create_helm_release_api(request: Request):
     return JSONResponse(status_code=200, content=status)
 
 
-@router.delete("/api/v1/delete/{namespace}/helm/{name}", dependencies=[Depends(get_current_active_user)])
+@router.delete("/api/v1/helm/{namespace}/helm/{name}", dependencies=[Depends(get_current_active_user)])
 async def delete_helm_release_from_given_namespace(
         name: str,
         namespace: str
