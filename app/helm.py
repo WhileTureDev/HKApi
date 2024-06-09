@@ -5,18 +5,18 @@ from starlette.responses import JSONResponse
 
 from .def_namespace import create_namespace, check_if_namespace_exist
 from .crud_user import get_current_active_user
-from .schemas import ReleaseInfo
+from .schemas import CreateHelmReleaseInfo, DeleteHelmReleaseInfo
 import subprocess
 import logging
 
 router = APIRouter()
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 
 @router.post("/api/v1/helm/create", dependencies=[Depends(get_current_active_user)])
-async def create_helm_release_api(release_info: ReleaseInfo):
+async def create_helm_release_api(release_info: CreateHelmReleaseInfo):
     """
     Create Helm Release API
 
@@ -52,9 +52,9 @@ async def create_helm_release_api(release_info: ReleaseInfo):
 
         # Iterate through the list of charts in the data
 
+        release_name = release_info.name
         chart_name = release_info.chart_name
         chart_repo_url = release_info.chart_repo_url
-        release_name = release_info.release_name
         provider = release_info.provider
         namespace = release_info.namespace
 
@@ -70,30 +70,30 @@ async def create_helm_release_api(release_info: ReleaseInfo):
             if not check_if_namespace_exist(namespace):
                 create_namespace(namespace)
 
-                # Attempt Helm upgrade/install
-                helm_command = ["helm", "upgrade", "--install", release_name, provider + "/" + chart_name,
-                                "--namespace", namespace]
-                logging.info(f"Executing Helm command: {helm_command}")
-                result = subprocess.run(helm_command, capture_output=True)
+            # Attempt Helm upgrade/install
+            helm_command = ["helm", "upgrade", "--install", release_name, provider + "/" + chart_name,
+                            "--namespace", namespace]
+            logging.info(f"Executing Helm command: {helm_command}")
+            result = subprocess.run(helm_command, capture_output=True)
 
-                if result.returncode != 0:
-                    error_msg = f"Helm command failed with exit code {result.returncode}: {result.stderr.decode()}"
-                    logging.error(error_msg)
-                    status.append(error_msg)
-                else:
+            if result.returncode != 0:
+                error_msg = f"Helm command failed with exit code {result.returncode}: {result.stderr.decode()}"
+                logging.error(error_msg)
+                status.append(error_msg)
+            else:
 
-                    # Update the database with the new chart information
+                # Update the database with the new chart information
 
-                    release_status = subprocess.run(["helm", "status", release_name, "--namespace", namespace],
-                                                    capture_output=True)
-                    status.append({
-                        "chart_name": chart_name,
-                        "chart_repo_url": chart_repo_url,
-                        "release_name": release_name,
-                        "provider": provider,
-                        "namespace": namespace,
-                        "repo_output": repo_output.stdout.decode(),
-                        "release_status": release_status.stdout.decode()
+                release_status = subprocess.run(["helm", "status", release_name, "--namespace", namespace],
+                                                capture_output=True)
+                status.append({
+                    "chart_name": chart_name,
+                    "chart_repo_url": chart_repo_url,
+                    "release_name": release_name,
+                    "provider": provider,
+                    "namespace": namespace,
+                    "repo_output": repo_output.stdout.decode(),
+                    "release_status": release_status.stdout.decode()
                     })
     except subprocess.CalledProcessError as e:
         status.append(e.stderr)
@@ -101,7 +101,7 @@ async def create_helm_release_api(release_info: ReleaseInfo):
 
 
 @router.delete("/api/v1/helm/delete", dependencies=[Depends(get_current_active_user)])
-async def delete_helm_release(release_info: ReleaseInfo):  # Use a data model
+async def delete_helm_release(release_info: DeleteHelmReleaseInfo):  # Use a data model
     """
     Delete the Helm release.
 

@@ -28,10 +28,16 @@ class UserInDB(User):
     password: str
 
 
-class ReleaseInfo(BaseModel):
+class BaseHelmReleaseInfo(BaseModel):
     name: str
     namespace: str
+
+
+class CreateHelmReleaseInfo(BaseHelmReleaseInfo):
     chart_name: str
     chart_repo_url: str
-    release_name: str
     provider: str
+
+
+class DeleteHelmReleaseInfo(BaseHelmReleaseInfo):
+    pass  # No additional fields needed for deletion
