@@ -38,7 +38,7 @@ securityContext: {}
   # runAsUser: 1000
 
 service:
-  type: LoadBalancer
+  type: ClusterIP
   port: 8000
 
 ingress:
@@ -68,6 +68,10 @@ resources: {}
   # requests:
   #   cpu: 100m
   #   memory: 128Mi
+
+metalLB:
+  enabled: false
+  type: LoadBalancer
 
 autoscaling:
   enabled: false
