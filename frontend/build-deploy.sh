@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 IMAGE="steerci/hkui:0.0.2"
 
 docker build -t  ${IMAGE} . --progress=plain
