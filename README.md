@@ -60,7 +60,7 @@ Example response:
           "service_name": "service-1"
         },                    
         {                        
-          "path": "/dashboard",                        
+          "path": "/page",                        
           "service_name": "service-2"
         }]
             }
