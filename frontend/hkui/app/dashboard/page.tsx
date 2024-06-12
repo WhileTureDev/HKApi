@@ -1,18 +1,14 @@
-import React from 'react';
-import Head from 'next/head';
-import styles from '../styles/Dashboard.module.css';
+'use client';
 
-const Dashboard = () => {
+import React from 'react';
+import withAuth from '@/app/lib/withAuth'; // Adjust the import path as necessary
+import styles from '@/app/styles/Dashboard.module.css';
+
+const Dashboard: React.FC = () => {
     return (
         <div className={styles.container}>
-            <Head>
-                <title>Dashboard - Kubernetes API Platform</title>
-                <meta name="description" content="Monitor and manage your Kubernetes environments." />
-                <link rel="icon" href="/favicon.ico" />
-            </Head>
-
             <header className={styles.header}>
-                <div className={styles.logo}>KubeEnv</div>
+                <div className={styles.logo}>HKUI</div>
                 <nav className={styles.nav}>
                     <a href="#">Dashboard</a>
                     <a href="#">Projects</a>
@@ -75,7 +71,7 @@ const Dashboard = () => {
             </main>
 
             <footer className={styles.footer}>
-                <p>&copy; 2024 KubeEnv. All rights reserved.</p>
+                <p>&copy; 2024 HKUI. All rights reserved.</p>
                 <div className={styles.footerLinks}>
                     <a href="#">Privacy Policy</a>
                     <a href="#">Terms of Service</a>
@@ -86,4 +82,4 @@ const Dashboard = () => {
     );
 };
 
-export default Dashboard;
+export default withAuth(Dashboard);
