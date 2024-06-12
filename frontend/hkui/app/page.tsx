@@ -1,8 +1,44 @@
-import React from 'react';
+'use client'
+import React, { useState } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/navigation'; // Use next/navigation for new app directory
 import styles from './styles/Home.module.css';
 
 const Home = () => {
+  const router = useRouter(); // Use next/navigation for new app directory
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleLogin = async (e: { preventDefault: () => void; }) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/token`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          username: email,
+          password,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Login failed');
+      }
+
+      const data = await response.json();
+      localStorage.setItem('token', data.token);
+      router.push('/dashboard');
+    } catch (error) {
+      setError('Invalid email or password');
+    }
+  };
+
   return (
       <div className={styles.container}>
         <Head>
@@ -16,7 +52,6 @@ const Home = () => {
           <nav>
             <ul className={styles.navLinks}>
               <li><a href="#">Home</a></li>
-              <li><a href="#">Dashboard</a></li>
               <li><a href="#">API Docs</a></li>
               <li><a href="#">Support</a></li>
               <li><a href="#">Login</a></li>
@@ -29,9 +64,22 @@ const Home = () => {
           <section className={styles.formSection}>
             <div className={styles.formCard}>
               <h2>Login</h2>
-              <form>
-                <input type="email" placeholder="Email" required />
-                <input type="password" placeholder="Password" required />
+              {error && <p className={styles.error}>{error}</p>}
+              <form onSubmit={handleLogin}>
+                <input
+                    type="User"
+                    placeholder="User"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                />
+                <input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                />
                 <button type="submit" className={styles.loginButton}>Login</button>
               </form>
               <div className={styles.socialLogin}>
