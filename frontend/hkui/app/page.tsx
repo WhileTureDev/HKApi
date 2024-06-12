@@ -1,14 +1,19 @@
-'use client'
-import React, { useState } from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { useRouter } from 'next/navigation'; // Use next/navigation for new app directory
+import { useRouter } from 'next/navigation';
 import styles from './styles/Home.module.css';
 
 const Home = () => {
-  const router = useRouter(); // Use next/navigation for new app directory
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    // This ensures any client-side only code runs after the component is mounted
+  }, []);
 
   const handleLogin = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
