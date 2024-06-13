@@ -17,6 +17,9 @@ const HelmPage: React.FC = () => {
     });
     const [jsonPayload, setJsonPayload] = useState('');
     const [response, setResponse] = useState('');
+    const [namespace, setNamespace] = useState('');
+    const [releases, setReleases] = useState([]);
+    const [releaseError, setReleaseError] = useState('');
 
     useEffect(() => {
         const generatedPayload = JSON.stringify(formData, null, 2);
@@ -87,6 +90,54 @@ const HelmPage: React.FC = () => {
         }
     };
 
+    const handleNamespaceChange = (e) => {
+        setNamespace(e.target.value);
+    };
+
+    const fetchReleases = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            console.log('Token from localStorage:', token); // Debug log for token
+
+            if (!token) {
+                setReleaseError('No authentication token found');
+                return;
+            }
+
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/helm/list?namespace=${namespace}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            console.log('Namespace:', namespace); // Debug log for namespace
+            console.log('Response status:', res.status); // Debug log for response status
+
+            if (res.status === 401) {
+                setReleaseError('Unauthorized: Invalid token or session expired');
+                return;
+            }
+
+            const data = await res.json();
+            if (Array.isArray(data.releases)) {
+                setReleases(data.releases);
+            } else {
+                setReleases([]);
+                setReleaseError('Unexpected response format');
+            }
+            setReleaseError('');
+        } catch (error: unknown) {
+            if (error instanceof Error) {
+                setReleaseError('Error: ' + error.message);
+                console.error('Error message:', error.message); // Debug log for error message
+            } else {
+                setReleaseError('An unknown error occurred');
+                console.error('Unknown error:', error); // Debug log for unknown error
+            }
+        }
+    };
+
     return (
         <div className={styles.container}>
             <header className={styles.header}>
@@ -109,72 +160,118 @@ const HelmPage: React.FC = () => {
 
             <main className={styles.main}>
                 <section className={styles.content}>
-                    <h1>Deploy a Helm Chart</h1>
-                    <form onSubmit={handleSubmit} className={styles.form}>
-                        <div className={styles.formGroup}>
-                            <label>Name</label>
-                            <input
-                                type="text"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleChange}
-                                placeholder="Enter the name"
-                                required
-                            />
+                    <div className={styles.card}>
+                        <h1>Deploy a Helm Chart</h1>
+                        <form onSubmit={handleSubmit} className={styles.form}>
+                            <div className={styles.formGroup}>
+                                <label>Name</label>
+                                <input
+                                    type="text"
+                                    name="name"
+                                    value={formData.name}
+                                    onChange={handleChange}
+                                    placeholder="Enter the name"
+                                    required
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Namespace</label>
+                                <input
+                                    type="text"
+                                    name="namespace"
+                                    value={formData.namespace}
+                                    onChange={handleChange}
+                                    placeholder="Enter the namespace"
+                                    required
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Chart Name</label>
+                                <input
+                                    type="text"
+                                    name="chart_name"
+                                    value={formData.chart_name}
+                                    onChange={handleChange}
+                                    placeholder="Enter the chart name"
+                                    required
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Chart Repo URL</label>
+                                <input
+                                    type="text"
+                                    name="chart_repo_url"
+                                    value={formData.chart_repo_url}
+                                    onChange={handleChange}
+                                    placeholder="Enter the chart repo URL"
+                                    required
+                                />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Provider</label>
+                                <input
+                                    type="text"
+                                    name="provider"
+                                    value={formData.provider}
+                                    onChange={handleChange}
+                                    placeholder="Enter the provider"
+                                    required
+                                />
+                            </div>
+                            <button type="submit" className={styles.submitButton}>Deploy</button>
+                        </form>
+                        <div className={styles.jsonInput}>
+                            <label>Or provide JSON payload</label>
+                            <textarea value={jsonPayload} onChange={handleJsonChange} />
                         </div>
+                        <div className={styles.response}>
+                            <h2>Response</h2>
+                            <pre>{response}</pre>
+                        </div>
+                    </div>
+
+                    <div className={styles.card}>
+                        <h1>Helm Releases</h1>
                         <div className={styles.formGroup}>
                             <label>Namespace</label>
                             <input
                                 type="text"
-                                name="namespace"
-                                value={formData.namespace}
-                                onChange={handleChange}
+                                value={namespace}
+                                onChange={handleNamespaceChange}
                                 placeholder="Enter the namespace"
                                 required
                             />
+                            <button onClick={fetchReleases} className={styles.refreshButton}>Refresh</button>
                         </div>
-                        <div className={styles.formGroup}>
-                            <label>Chart Name</label>
-                            <input
-                                type="text"
-                                name="chart_name"
-                                value={formData.chart_name}
-                                onChange={handleChange}
-                                placeholder="Enter the chart name"
-                                required
-                            />
+                        {releaseError && <p className={styles.error}>{releaseError}</p>}
+                        <div className={styles.releaseList}>
+                            {Array.isArray(releases) && releases.length > 0 ? (
+                                <table className={styles.table}>
+                                    <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Namespace</th>
+                                        <th>Status</th>
+                                        <th>Revision</th>
+                                        <th>Updated</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {releases.map((release, index) => (
+                                        <tr key={index}>
+                                            <td>{release.Name}</td>
+                                            <td>{release.Namespace}</td>
+                                            <td>{release.Status}</td>
+                                            <td>{release.Revision}</td>
+                                            <td>{release.Updated}</td>
+                                        </tr>
+                                    ))}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <p>No releases found</p>
+                            )}
                         </div>
-                        <div className={styles.formGroup}>
-                            <label>Chart Repo URL</label>
-                            <input
-                                type="text"
-                                name="chart_repo_url"
-                                value={formData.chart_repo_url}
-                                onChange={handleChange}
-                                placeholder="Enter the chart repo URL"
-                                required
-                            />
-                        </div>
-                        <div className={styles.formGroup}>
-                            <label>Provider</label>
-                            <input
-                                type="text"
-                                name="provider"
-                                value={formData.provider}
-                                onChange={handleChange}
-                                placeholder="Enter the provider"
-                                required
-                            />
-                        </div>
-                        <button type="submit" className={styles.submitButton}>Deploy</button>
-                    </form>
-                    <div className={styles.jsonInput}>
-                        <label>Or provide JSON payload</label>
-                        <textarea value={jsonPayload} onChange={handleJsonChange} />
-                    </div>
-                    <div className={styles.response}>
-                        <h2>Response</h2>
-                        <pre>{response}</pre>
                     </div>
                 </section>
             </main>

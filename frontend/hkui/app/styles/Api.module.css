@@ -106,9 +106,15 @@
 }
 
 .content {
-    padding: 2rem;
+    display: flex;
+    gap: 2rem;
+}
+
+.card {
+    flex: 1;
     background: #2e2e2e;
     border-radius: 0.5rem;
+    padding: 2rem;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
 }
 
@@ -154,6 +160,21 @@
     background: linear-gradient(135deg, #764ba2, #667eea);
 }
 
+.refreshButton {
+    margin-top: 0.5rem;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.refreshButton:hover {
+    background: linear-gradient(135deg, #764ba2, #667eea);
+}
+
 .jsonInput {
     margin-top: 1rem;
 }
@@ -187,6 +208,38 @@
 .response pre {
     white-space: pre-wrap;
     word-wrap: break-word;
+}
+
+.releaseList {
+    margin-top: 1rem;
+}
+
+.releaseItem {
+    padding: 1rem;
+    background: #3e3e3e;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.table th,
+.table td {
+    padding: 0.75rem;
+    border: 1px solid #444;
+}
+
+.table th {
+    background: #444;
+    font-weight: bold;
+}
+
+.table td {
+    background: #3e3e3e;
 }
 
 .footer {
