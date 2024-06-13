@@ -1,27 +1,41 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import withAuth from '@/app/lib/withAuth'; // Adjust the import path as necessary
 import styles from '@/app/styles/Dashboard.module.css';
 
 const Dashboard: React.FC = () => {
+    const router = useRouter();
+    const [showDropdown, setShowDropdown] = useState(false);
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        router.push('/');
+    };
+
+    const toggleDropdown = () => {
+        setShowDropdown((prev) => !prev);
+    };
+
     return (
         <div className={styles.container}>
             <header className={styles.header}>
                 <div className={styles.logo}>HKUI</div>
-                <nav className={styles.nav}>
-                    <a href="#">Dashboard</a>
-                    <a href="#">Projects</a>
-                    <a href="#">Settings</a>
-                </nav>
-                <div className={styles.userProfile}>
+                <div className={styles.userProfile} onClick={toggleDropdown}>
                     <img src="/profile.png" alt="User Profile" />
+                    {showDropdown && (
+                        <div className={styles.dropdownMenu}>
+                            <a href="/profile">Profile</a>
+                            <a href="/settings">User Settings</a>
+                            <button onClick={handleLogout}>Logout</button>
+                        </div>
+                    )}
                 </div>
             </header>
 
             <aside className={styles.sidebar}>
                 <nav>
-                    <a href="#">Dashboard</a>
                     <a href="#">Projects</a>
                     <a href="#">Settings</a>
                     <a href="#">Logs</a>
