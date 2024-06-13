@@ -8,7 +8,7 @@ from starlette.responses import JSONResponse
 
 from .crud_user import get_current_active_user
 from .def_namespace import create_namespace, check_if_namespace_exist
-from .schemas import BaseHelmReleaseInfo, CreateHelmReleaseInfo, DeleteHelmReleaseInfo, NamespaceInput
+from .schemas import BaseHelmReleaseInfo, CreateHelmReleaseInfo, DeleteHelmReleaseInfo
 
 router = APIRouter()
 
@@ -199,10 +199,10 @@ async def status_helm_release(release_info: BaseHelmReleaseInfo):
 
 
 @router.get("/api/v1/helm/list", dependencies=[Depends(get_current_active_user)])
-async def list_helm_releases_in_namespace(namespace_info: NamespaceInput):
+async def list_helm_releases_in_namespace(namespace: str):
     try:
         result = subprocess.run(
-            ["helm", "list", "--namespace", namespace_info.namespace, "-o", "json"],
+            ["helm", "list", "--namespace", namespace, "-o", "json"],
             capture_output=True,
             text=True
         )
@@ -210,7 +210,7 @@ async def list_helm_releases_in_namespace(namespace_info: NamespaceInput):
             return {"releases": parse_helm_list_output(result.stdout)}
         else:
             raise HTTPException(status_code=500,
-                                detail=f"Error listing Helm releases in namespace {namespace_info.namespace}: {result.stderr}")
+                                detail=f"Error listing Helm releases in namespace {namespace}: {result.stderr}")
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
