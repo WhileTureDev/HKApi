@@ -147,6 +147,10 @@
 }
 
 .submitButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
     padding: 0.75rem 1rem;
     border: none;
     border-radius: 0.25rem;
@@ -156,8 +160,27 @@
     cursor: pointer;
 }
 
-.submitButton:hover {
-    background: linear-gradient(135deg, #764ba2, #667eea);
+.submitButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.spinner {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid #fff;
+    border-top: 2px solid #764ba2;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .refreshButton {
@@ -273,4 +296,55 @@
 .footerLinks a {
     color: white;
     text-decoration: none;
+}
+
+.confirmDialogOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.confirmDialog {
+    background: #2d3748;
+    padding: 2rem;
+    border-radius: 0.25rem;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.confirmDialog h2 {
+    margin-bottom: 1rem;
+}
+
+.confirmDialogActions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.confirmButton {
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: linear-gradient(135deg, #ff6b6b, #ff4b4b);
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.cancelButton {
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
 }

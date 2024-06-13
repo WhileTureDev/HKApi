@@ -23,6 +23,9 @@ const HelmPage: React.FC = () => {
     const [releases, setReleases] = useState([]);
     const [releaseError, setReleaseError] = useState('');
     const [selectedReleases, setSelectedReleases] = useState([]);
+    const [isDeploying, setIsDeploying] = useState(false);
+    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+    const [releaseToDelete, setReleaseToDelete] = useState(null);
 
     useEffect(() => {
         const generatedPayload = JSON.stringify(formData, null, 2);
@@ -42,12 +45,15 @@ const HelmPage: React.FC = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setResponse('');
+        setIsDeploying(true);
         let payload;
         if (jsonPayload) {
             try {
                 payload = JSON.parse(jsonPayload);
             } catch (error) {
                 setResponse('Invalid JSON payload');
+                setIsDeploying(false);
                 return;
             }
         } else {
@@ -60,6 +66,7 @@ const HelmPage: React.FC = () => {
 
             if (!token) {
                 setResponse('No authentication token found');
+                setIsDeploying(false);
                 return;
             }
 
@@ -77,11 +84,13 @@ const HelmPage: React.FC = () => {
 
             if (res.status === 401) {
                 setResponse('Unauthorized: Invalid token or session expired');
+                setIsDeploying(false);
                 return;
             }
 
             const data = await res.json();
             setResponse(JSON.stringify(data, null, 2));
+            setIsDeploying(false);
         } catch (error: unknown) {
             if (error instanceof Error) {
                 setResponse('Error: ' + error.message);
@@ -90,6 +99,7 @@ const HelmPage: React.FC = () => {
                 setResponse('An unknown error occurred');
                 console.error('Unknown error:', error);
             }
+            setIsDeploying(false);
         }
     };
 
@@ -148,7 +158,14 @@ const HelmPage: React.FC = () => {
         setSelectedReleases(newSelectedReleases);
     };
 
-    const handleDeleteRelease = async (release) => {
+    const handleDeleteRelease = (release) => {
+        setReleaseToDelete(release);
+        setShowConfirmDialog(true);
+    };
+
+    const confirmDeleteRelease = async () => {
+        if (!releaseToDelete) return;
+
         try {
             const token = localStorage.getItem('token');
             console.log('Token from localStorage:', token);
@@ -165,14 +182,14 @@ const HelmPage: React.FC = () => {
                     'Authorization': `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                    name: release.Name,
-                    namespace: release.Namespace,
+                    name: releaseToDelete.Name,
+                    namespace: releaseToDelete.Namespace,
                 }),
             });
 
             console.log('Delete request payload:', {
-                name: release.Name,
-                namespace: release.Namespace,
+                name: releaseToDelete.Name,
+                namespace: releaseToDelete.Namespace,
             });
             console.log('Response status:', res.status);
 
@@ -182,8 +199,8 @@ const HelmPage: React.FC = () => {
             }
 
             if (res.ok) {
-                setReleases((prevReleases) => prevReleases.filter((r) => r !== release));
-                setSelectedReleases((prevSelected) => prevSelected.filter((r) => r !== release));
+                setReleases((prevReleases) => prevReleases.filter((r) => r !== releaseToDelete));
+                setSelectedReleases((prevSelected) => prevSelected.filter((r) => r !== releaseToDelete));
             } else {
                 setReleaseError('Failed to delete release');
             }
@@ -195,12 +212,20 @@ const HelmPage: React.FC = () => {
                 setReleaseError('An unknown error occurred');
                 console.error('Unknown error:', error);
             }
+        } finally {
+            setShowConfirmDialog(false);
+            setReleaseToDelete(null);
         }
     };
 
     const handleDeleteSelectedReleases = async () => {
+        const confirmDelete = confirm(`Are you sure you want to delete the selected releases?`);
+        if (!confirmDelete) {
+            return;
+        }
+
         for (const release of selectedReleases) {
-            await handleDeleteRelease(release);
+            await confirmDeleteRelease(release);
         }
     };
 
@@ -283,7 +308,16 @@ const HelmPage: React.FC = () => {
                                     required
                                 />
                             </div>
-                            <button type="submit" className={styles.submitButton}>Deploy</button>
+                            <button type="submit" className={styles.submitButton} disabled={isDeploying}>
+                                {isDeploying ? (
+                                    <>
+                                        <span>Deploying</span>
+                                        <span className={styles.spinner}></span>
+                                    </>
+                                ) : (
+                                    'Deploy'
+                                )}
+                            </button>
                         </form>
                         <div className={styles.jsonInput}>
                             <label>Or provide JSON payload</label>
@@ -307,7 +341,7 @@ const HelmPage: React.FC = () => {
                                 required
                             />
                             <button onClick={fetchReleases} className={styles.refreshButton}>Refresh</button>
-                            {selectedReleases.length > 0 && (
+                            {selectedReleases.length > 1 && (
                                 <button onClick={handleDeleteSelectedReleases} className={styles.deleteButton}>Delete All</button>
                             )}
                         </div>
@@ -342,7 +376,11 @@ const HelmPage: React.FC = () => {
                                             <td>{release.Revision}</td>
                                             <td>{release.Updated}</td>
                                             <td>
-                                                <button onClick={() => handleDeleteRelease(release)} className={styles.deleteButton}>Delete</button>
+                                                {selectedReleases.length <= 1 && (
+                                                    <button onClick={() => handleDeleteRelease(release)} className={styles.deleteButton}>
+                                                        Delete
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
@@ -355,6 +393,19 @@ const HelmPage: React.FC = () => {
                     </div>
                 </section>
             </main>
+
+            {showConfirmDialog && (
+                <div className={styles.confirmDialogOverlay}>
+                    <div className={styles.confirmDialog}>
+                        <h2>Confirm Deletion</h2>
+                        <p>Are you sure you want to delete the release "{releaseToDelete?.Name}" in namespace "{releaseToDelete?.Namespace}"?</p>
+                        <div className={styles.confirmDialogActions}>
+                            <button onClick={confirmDeleteRelease} className={styles.confirmButton}>Yes</button>
+                            <button onClick={() => setShowConfirmDialog(false)} className={styles.cancelButton}>No</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <footer className={styles.footer}>
                 <p>&copy; 2024 HKUI. All rights reserved.</p>
