@@ -175,6 +175,21 @@
     background: linear-gradient(135deg, #764ba2, #667eea);
 }
 
+.deleteButton {
+    margin-top: 0.5rem;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: linear-gradient(135deg, #ff6b6b, #ff4b4b);
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.deleteButton:hover {
+    background: linear-gradient(135deg, #ff4b4b, #ff6b6b);
+}
+
 .jsonInput {
     margin-top: 1rem;
 }

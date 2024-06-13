@@ -1,8 +1,10 @@
+// app/api/helm/page.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link'; // Import Link component
+import Link from 'next/link';
 import withAuth from '@/app/lib/withAuth'; // Adjust the import path as necessary
 import styles from '@/app/styles/Api.module.css';
 
@@ -20,6 +22,7 @@ const HelmPage: React.FC = () => {
     const [namespace, setNamespace] = useState('');
     const [releases, setReleases] = useState([]);
     const [releaseError, setReleaseError] = useState('');
+    const [selectedReleases, setSelectedReleases] = useState([]);
 
     useEffect(() => {
         const generatedPayload = JSON.stringify(formData, null, 2);
@@ -53,7 +56,7 @@ const HelmPage: React.FC = () => {
 
         try {
             const token = localStorage.getItem('token');
-            console.log('Token from localStorage:', token); // Debug log for token
+            console.log('Token from localStorage:', token);
 
             if (!token) {
                 setResponse('No authentication token found');
@@ -69,8 +72,8 @@ const HelmPage: React.FC = () => {
                 body: JSON.stringify(payload),
             });
 
-            console.log('Request payload:', payload); // Debug log for request payload
-            console.log('Response status:', res.status); // Debug log for response status
+            console.log('Request payload:', payload);
+            console.log('Response status:', res.status);
 
             if (res.status === 401) {
                 setResponse('Unauthorized: Invalid token or session expired');
@@ -82,10 +85,10 @@ const HelmPage: React.FC = () => {
         } catch (error: unknown) {
             if (error instanceof Error) {
                 setResponse('Error: ' + error.message);
-                console.error('Error message:', error.message); // Debug log for error message
+                console.error('Error message:', error.message);
             } else {
                 setResponse('An unknown error occurred');
-                console.error('Unknown error:', error); // Debug log for unknown error
+                console.error('Unknown error:', error);
             }
         }
     };
@@ -97,7 +100,7 @@ const HelmPage: React.FC = () => {
     const fetchReleases = async () => {
         try {
             const token = localStorage.getItem('token');
-            console.log('Token from localStorage:', token); // Debug log for token
+            console.log('Token from localStorage:', token);
 
             if (!token) {
                 setReleaseError('No authentication token found');
@@ -111,8 +114,8 @@ const HelmPage: React.FC = () => {
                 },
             });
 
-            console.log('Namespace:', namespace); // Debug log for namespace
-            console.log('Response status:', res.status); // Debug log for response status
+            console.log('Namespace:', namespace);
+            console.log('Response status:', res.status);
 
             if (res.status === 401) {
                 setReleaseError('Unauthorized: Invalid token or session expired');
@@ -130,11 +133,74 @@ const HelmPage: React.FC = () => {
         } catch (error: unknown) {
             if (error instanceof Error) {
                 setReleaseError('Error: ' + error.message);
-                console.error('Error message:', error.message); // Debug log for error message
+                console.error('Error message:', error.message);
             } else {
                 setReleaseError('An unknown error occurred');
-                console.error('Unknown error:', error); // Debug log for unknown error
+                console.error('Unknown error:', error);
             }
+        }
+    };
+
+    const handleSelectRelease = (release) => {
+        const newSelectedReleases = selectedReleases.includes(release)
+            ? selectedReleases.filter((r) => r !== release)
+            : [...selectedReleases, release];
+        setSelectedReleases(newSelectedReleases);
+    };
+
+    const handleDeleteRelease = async (release) => {
+        try {
+            const token = localStorage.getItem('token');
+            console.log('Token from localStorage:', token);
+
+            if (!token) {
+                setReleaseError('No authentication token found');
+                return;
+            }
+
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/helm/delete`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    name: release.Name,
+                    namespace: release.Namespace,
+                }),
+            });
+
+            console.log('Delete request payload:', {
+                name: release.Name,
+                namespace: release.Namespace,
+            });
+            console.log('Response status:', res.status);
+
+            if (res.status === 401) {
+                setReleaseError('Unauthorized: Invalid token or session expired');
+                return;
+            }
+
+            if (res.ok) {
+                setReleases((prevReleases) => prevReleases.filter((r) => r !== release));
+                setSelectedReleases((prevSelected) => prevSelected.filter((r) => r !== release));
+            } else {
+                setReleaseError('Failed to delete release');
+            }
+        } catch (error: unknown) {
+            if (error instanceof Error) {
+                setReleaseError('Error: ' + error.message);
+                console.error('Error message:', error.message);
+            } else {
+                setReleaseError('An unknown error occurred');
+                console.error('Unknown error:', error);
+            }
+        }
+    };
+
+    const handleDeleteSelectedReleases = async () => {
+        for (const release of selectedReleases) {
+            await handleDeleteRelease(release);
         }
     };
 
@@ -144,7 +210,6 @@ const HelmPage: React.FC = () => {
                 <div className={styles.logo}>HKUI</div>
                 <div className={styles.userProfile}>
                     <img src="/profile.png" alt="User Profile" />
-                    {/* User dropdown logic can be reused here */}
                 </div>
             </header>
 
@@ -242,6 +307,9 @@ const HelmPage: React.FC = () => {
                                 required
                             />
                             <button onClick={fetchReleases} className={styles.refreshButton}>Refresh</button>
+                            {selectedReleases.length > 0 && (
+                                <button onClick={handleDeleteSelectedReleases} className={styles.deleteButton}>Delete All</button>
+                            )}
                         </div>
                         {releaseError && <p className={styles.error}>{releaseError}</p>}
                         <div className={styles.releaseList}>
@@ -249,21 +317,33 @@ const HelmPage: React.FC = () => {
                                 <table className={styles.table}>
                                     <thead>
                                     <tr>
+                                        <th>Select</th>
                                         <th>Name</th>
                                         <th>Namespace</th>
                                         <th>Status</th>
                                         <th>Revision</th>
                                         <th>Updated</th>
+                                        <th>Action</th>
                                     </tr>
                                     </thead>
                                     <tbody>
                                     {releases.map((release, index) => (
                                         <tr key={index}>
+                                            <td>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedReleases.includes(release)}
+                                                    onChange={() => handleSelectRelease(release)}
+                                                />
+                                            </td>
                                             <td>{release.Name}</td>
                                             <td>{release.Namespace}</td>
                                             <td>{release.Status}</td>
                                             <td>{release.Revision}</td>
                                             <td>{release.Updated}</td>
+                                            <td>
+                                                <button onClick={() => handleDeleteRelease(release)} className={styles.deleteButton}>Delete</button>
+                                            </td>
                                         </tr>
                                     ))}
                                     </tbody>
