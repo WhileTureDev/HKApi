@@ -41,6 +41,3 @@ class CreateHelmReleaseInfo(BaseHelmReleaseInfo):
 
 class DeleteHelmReleaseInfo(BaseHelmReleaseInfo):
     pass  # No additional fields needed for deletion
-
-class NamespaceInput(BaseModel):
-    namespace: str
