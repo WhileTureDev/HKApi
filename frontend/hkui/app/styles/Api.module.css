@@ -1,0 +1,208 @@
+/* styles/Api.module.css */
+
+.container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    font-family: 'Roboto', sans-serif;
+    background: #1e1e1e;
+    color: white;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    position: relative;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.userProfile {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+}
+
+.userProfile img {
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+}
+
+.dropdownMenu {
+    position: absolute;
+    top: 60px;
+    right: 0;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border-radius: 0.25rem;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    z-index: 10;
+}
+
+.dropdownMenu a,
+.dropdownMenu button {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: white;
+    text-decoration: none;
+    text-align: left;
+    width: 100%;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+.dropdownMenu a:hover,
+.dropdownMenu button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar {
+    width: 250px;
+    background: #2d3748;
+    color: white;
+    padding: 2rem 1rem;
+    position: fixed;
+    height: 100%;
+    top: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar nav {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.sidebar nav a {
+    color: white;
+    text-decoration: none;
+}
+
+.bottomNav {
+    margin-top: auto;
+    padding-top: 2rem;
+    border-top: 1px solid #444;
+}
+
+.main {
+    margin-left: 250px;
+    padding: 2rem;
+    flex: 1;
+    background: #1e1e1e;
+    color: white;
+}
+
+.content {
+    padding: 2rem;
+    background: #2e2e2e;
+    border-radius: 0.5rem;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+}
+
+.formGroup label {
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.formGroup input {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 0.25rem;
+    background: #3e3e3e;
+    color: white;
+}
+
+.formGroup input::placeholder {
+    color: #ccc;
+}
+
+.submitButton {
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 0.25rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.submitButton:hover {
+    background: linear-gradient(135deg, #764ba2, #667eea);
+}
+
+.jsonInput {
+    margin-top: 1rem;
+}
+
+.jsonInput label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.jsonInput textarea {
+    width: 100%;
+    height: 150px;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 0.25rem;
+    font-family: 'Roboto', sans-serif;
+    background: #3e3e3e;
+    color: white;
+}
+
+.response {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: #2d3748;
+    color: white;
+    border-radius: 0.25rem;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+.response pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.footer {
+    text-align: center;
+    padding: 1rem;
+    background: #2d3748;
+    color: white;
+}
+
+.footerLinks {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.footerLinks a {
+    color: white;
+    text-decoration: none;
+}

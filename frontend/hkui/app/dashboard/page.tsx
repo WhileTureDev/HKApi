@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import withAuth from '@/app/lib/withAuth'; // Adjust the import path as necessary
 import styles from '@/app/styles/Dashboard.module.css';
 
@@ -23,7 +24,7 @@ const Dashboard: React.FC = () => {
             <header className={styles.header}>
                 <div className={styles.logo}>HKUI</div>
                 <div className={styles.userProfile} onClick={toggleDropdown}>
-                    <img src="/profile.png" alt="User Profile" />
+                    <img src="/profile.png" alt="User Profile"/>
                     {showDropdown && (
                         <div className={styles.dropdownMenu}>
                             <a href="/profile">Profile</a>
@@ -36,10 +37,11 @@ const Dashboard: React.FC = () => {
 
             <aside className={styles.sidebar}>
                 <nav>
-                    <a href="#">Projects</a>
-                    <a href="#">Settings</a>
-                    <a href="#">Logs</a>
-                    <a href="#">Alerts</a>
+                    <Link href="/projects">Projects</Link>
+                    <Link href="/api">API</Link>
+                    <Link href="/settings">Settings</Link>
+                    <Link href="/logs">Logs</Link>
+                    <Link href="/alerts">Alerts</Link>
                 </nav>
             </aside>
 
@@ -66,11 +68,11 @@ const Dashboard: React.FC = () => {
                 <section className={styles.charts}>
                     <div className={styles.chartCard}>
                         <h3>CPU Usage</h3>
-                        <img src="/cpu-chart.png" alt="CPU Usage Chart" />
+                        <img src="/cpu-chart.png" alt="CPU Usage Chart"/>
                     </div>
                     <div className={styles.chartCard}>
                         <h3>Memory Usage</h3>
-                        <img src="/memory-chart.png" alt="Memory Usage Chart" />
+                        <img src="/memory-chart.png" alt="Memory Usage Chart"/>
                     </div>
                 </section>
 

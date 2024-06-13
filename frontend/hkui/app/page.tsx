@@ -1,21 +1,19 @@
+// Home page
+
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Head from 'next/head';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from './styles/Home.module.css';
+import Head from 'next/head';
+import styles from '@/app/styles/Home.module.css';
 
 const Home = () => {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const router = useRouter();
 
-  useEffect(() => {
-    // This ensures any client-side only code runs after the component is mounted
-  }, []);
-
-  const handleLogin = async (e: { preventDefault: () => void; }) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -33,14 +31,17 @@ const Home = () => {
       });
 
       if (!response.ok) {
-        setError('Login failed: Invalid email or password')
+        setError('Invalid email or password');
+        return;
       }
 
       const data = await response.json();
-      localStorage.setItem('token', data.token);
+      localStorage.setItem('token', data.access_token); // Ensure this matches the key used in the backend
+      console.log('Token stored in localStorage:', data.access_token); // Debug log for stored token
       router.push('/dashboard');
     } catch (error) {
-      setError('Invalid email or password');
+      setError('An unexpected error occurred. Please try again.');
+      console.error('Login error:', error); // Debug log for login error
     }
   };
 
@@ -69,7 +70,6 @@ const Home = () => {
           <section className={styles.formSection}>
             <div className={styles.formCard}>
               <h2>Login</h2>
-              {error && <p className={styles.error}>{error}</p>}
               <form onSubmit={handleLogin}>
                 <input
                     type="User"
@@ -87,6 +87,7 @@ const Home = () => {
                 />
                 <button type="submit" className={styles.loginButton}>Login</button>
               </form>
+              {error && <p className={styles.error}>{error}</p>}
               <div className={styles.socialLogin}>
                 <div className={styles.socialIcons}>
                   <a href="#" className={styles.socialIcon}><i className="fab fa-facebook-f"></i></a>
