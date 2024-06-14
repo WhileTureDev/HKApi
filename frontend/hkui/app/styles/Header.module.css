@@ -1,0 +1,65 @@
+/* app/lib/Header.module.css */
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    position: relative;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.userProfile {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+}
+
+.userProfile img {
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+}
+
+.dropdownMenu {
+    position: absolute;
+    top: 60px;
+    right: 50%;
+    transform: translateX(50%);
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border-radius: 0.25rem;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    z-index: 10;
+    display: none; /* Hide by default */
+}
+
+.dropdownMenuVisible {
+    display: block; /* Show when visible */
+}
+
+.dropdownMenu a,
+.dropdownMenu button {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: white;
+    text-decoration: none;
+    text-align: left;
+    width: 100%;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+.dropdownMenu a:hover,
+.dropdownMenu button:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
