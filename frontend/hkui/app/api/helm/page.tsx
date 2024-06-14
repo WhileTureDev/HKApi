@@ -3,11 +3,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-// import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import withAuth from '@/app/lib/withAuth'; // Adjust the import path as necessary
 import LoginModal from '@/app/lib/LoginModal'; // Import the shared LoginModal component
-import styles from '@/app/styles/Api.module.css';
+import Header from '@/app/lib/Header'; // Import the shared Header component
+import styles from '@/app/styles/shared.module.css'; // Import shared CSS
 
 interface Release {
     Name: string;
@@ -18,7 +18,6 @@ interface Release {
 }
 
 const HelmPage: React.FC = () => {
-    // const router = useRouter();
     const [formData, setFormData] = useState({
         name: '',
         namespace: '',
@@ -304,12 +303,7 @@ const HelmPage: React.FC = () => {
 
     return (
         <div className={styles.container}>
-            <header className={styles.header}>
-                <div className={styles.logo}>HKUI</div>
-                <div className={styles.userProfile}>
-                    <img src="/profile.png" alt="User Profile" />
-                </div>
-            </header>
+            <Header />
 
             <aside className={styles.sidebar}>
                 <nav>
@@ -396,10 +390,6 @@ const HelmPage: React.FC = () => {
                             <label>Or provide JSON payload</label>
                             <textarea value={jsonPayload} onChange={handleJsonChange} />
                         </div>
-                        <div className={styles.response}>
-                            <h2>Response</h2>
-                            <pre>{response}</pre>
-                        </div>
                     </div>
 
                     <div className={styles.card}>
@@ -463,6 +453,12 @@ const HelmPage: React.FC = () => {
                                 <p>No releases found</p>
                             )}
                         </div>
+                    </div>
+                </section>
+                <section className={styles.consoleSection}>
+                    <div className={styles.console}>
+                        <h2>Response</h2>
+                        <pre>{response}</pre>
                     </div>
                 </section>
             </main>
