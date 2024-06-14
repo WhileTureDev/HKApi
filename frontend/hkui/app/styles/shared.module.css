@@ -38,9 +38,11 @@
 }
 
 .dropdownMenu {
+    display: block;
     position: absolute;
     top: 60px;
-    right: 0;
+    right: 50%;
+    transform: translateX(50%);
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
     border-radius: 0.25rem;
@@ -400,24 +402,4 @@
 
 .error {
     color: red;
-}
-
-.consoleSection {
-    margin-top: 2rem;
-}
-
-.console {
-    background: #2d3748;
-    color: white;
-    padding: 1rem;
-    border-radius: 0.25rem;
-    font-family: 'Courier New', Courier, monospace;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-.console h2 {
-    margin-bottom: 1rem;
 }
