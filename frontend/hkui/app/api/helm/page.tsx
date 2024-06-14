@@ -3,14 +3,22 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import withAuth from '@/app/lib/withAuth'; // Adjust the import path as necessary
 import LoginModal from '@/app/lib/LoginModal'; // Import the shared LoginModal component
 import styles from '@/app/styles/Api.module.css';
 
+interface Release {
+    Name: string;
+    Namespace: string;
+    Status: string;
+    Revision: string;
+    Updated: string;
+}
+
 const HelmPage: React.FC = () => {
-    const router = useRouter();
+    // const router = useRouter();
     const [formData, setFormData] = useState({
         name: '',
         namespace: '',
@@ -21,13 +29,13 @@ const HelmPage: React.FC = () => {
     const [jsonPayload, setJsonPayload] = useState('');
     const [response, setResponse] = useState('');
     const [namespace, setNamespace] = useState('');
-    const [releases, setReleases] = useState([]);
+    const [releases, setReleases] = useState<Release[]>([]);
     const [releaseError, setReleaseError] = useState('');
-    const [selectedReleases, setSelectedReleases] = useState([]);
+    const [selectedReleases, setSelectedReleases] = useState<Release[]>([]);
     const [isDeploying, setIsDeploying] = useState(false);
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
     const [showDeleteAllConfirmDialog, setShowDeleteAllConfirmDialog] = useState(false);
-    const [releaseToDelete, setReleaseToDelete] = useState(null);
+    const [releaseToDelete, setReleaseToDelete] = useState<Release | null>(null);
     const [showLoginModal, setShowLoginModal] = useState(false);
 
     useEffect(() => {
@@ -35,18 +43,18 @@ const HelmPage: React.FC = () => {
         setJsonPayload(generatedPayload);
     }, [formData]);
 
-    const handleChange = (e) => {
+    const handleChange = (e: { target: { name: string; value: string } }) => {
         setFormData({
             ...formData,
             [e.target.name]: e.target.value,
         });
     };
 
-    const handleJsonChange = (e) => {
+    const handleJsonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setJsonPayload(e.target.value);
     };
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setResponse('');
         setIsDeploying(true);
@@ -108,7 +116,7 @@ const HelmPage: React.FC = () => {
         }
     };
 
-    const handleNamespaceChange = (e) => {
+    const handleNamespaceChange = (e: { target: { value: string } }) => {
         setNamespace(e.target.value);
     };
 
@@ -158,14 +166,14 @@ const HelmPage: React.FC = () => {
         }
     };
 
-    const handleSelectRelease = (release) => {
+    const handleSelectRelease = (release: Release) => {
         const newSelectedReleases = selectedReleases.includes(release)
             ? selectedReleases.filter((r) => r !== release)
             : [...selectedReleases, release];
         setSelectedReleases(newSelectedReleases);
     };
 
-    const handleDeleteRelease = (release) => {
+    const handleDeleteRelease = (release: Release) => {
         setReleaseToDelete(release);
         setShowConfirmDialog(true);
     };
@@ -238,7 +246,7 @@ const HelmPage: React.FC = () => {
         setShowDeleteAllConfirmDialog(false);
     };
 
-    const deleteRelease = async (release) => {
+    const deleteRelease = async (release: Release) => {
         try {
             const token = localStorage.getItem('token');
             console.log('Token from localStorage:', token);

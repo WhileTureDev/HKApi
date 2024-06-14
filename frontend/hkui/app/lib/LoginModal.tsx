@@ -14,14 +14,14 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose, onLoginSuccess }) => {
     const [loginForm, setLoginForm] = useState({ username: '', password: '' });
     const [loginError, setLoginError] = useState('');
 
-    const handleLoginChange = (e) => {
+    const handleLoginChange = (e: { target: { name: any; value: any; }; }) => {
         setLoginForm({
             ...loginForm,
             [e.target.name]: e.target.value,
         });
     };
 
-    const handleLogin = async (e) => {
+    const handleLogin = async (e: { preventDefault: () => void; }) => {
         e.preventDefault();
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/token`, {
