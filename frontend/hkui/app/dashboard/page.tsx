@@ -1,11 +1,9 @@
-// app/dashboard/page.tsx
-
 'use client';
 
 import React from 'react';
 import Link from 'next/link';
 import Header from '@/app/lib/Header'; // Import the shared Header component
-import styles from '@/app/styles/shared.module.css'; // Import shared CSS
+import styles from '@/app/styles/Dashboard.module.css'; // Import the new Dashboard CSS
 
 const Dashboard: React.FC = () => {
     return (

@@ -1,85 +1,12 @@
-/* styles/Dashboard.module.css */
+/* app/styles/Dashboard.module.css */
 
 .container {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
     font-family: 'Roboto', sans-serif;
-}
-
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 2rem;
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: #1e1e1e;
     color: white;
-    position: relative;
-}
-
-.logo {
-    font-size: 1.5rem;
-    font-weight: bold;
-}
-
-.userProfile {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    position: relative;
-}
-
-.userProfile img {
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-}
-
-.dropdownMenu {
-    position: absolute;
-    top: 60px;
-    right: 0;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    border-radius: 0.25rem;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-    z-index: 10;
-}
-
-.dropdownMenu a,
-.dropdownMenu button {
-    display: block;
-    padding: 0.75rem 1rem;
-    color: white;
-    text-decoration: none;
-    text-align: left;
-    width: 100%;
-    border: none;
-    background: none;
-    cursor: pointer;
-}
-
-.dropdownMenu a:hover,
-.dropdownMenu button:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.logoutButton {
-    background: #e53e3e;
-    color: white;
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 0.25rem;
-    cursor: pointer;
-    position: absolute;
-    top: 60px;
-    right: 0;
-    z-index: 10;
-}
-
-.logoutButton:hover {
-    background: #c53030;
 }
 
 .sidebar {
@@ -106,83 +33,48 @@
     text-decoration: none;
 }
 
+.sidebar nav a:hover {
+    text-decoration: underline;
+}
+
+.bottomNav {
+    margin-top: auto;
+    padding-top: 2rem;
+    border-top: 1px solid #444;
+}
+
 .main {
     margin-left: 250px;
     padding: 2rem;
     flex: 1;
-    background: #f7fafc;
-}
-
-.metrics {
     display: flex;
-    gap: 2rem;
-    margin-bottom: 2rem;
+    justify-content: center;
+    align-items: flex-start;
+    background: #1e1e1e;
+    color: white;
 }
 
-.metricCard {
-    flex: 1;
-    background: white;
-    padding: 2rem;
+.content {
+    width: 100%;
+    max-width: 800px;
+}
+
+.card {
+    background: #2d3748;
     border-radius: 0.5rem;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-    text-align: center;
-}
-
-.metricCard h3 {
-    font-size: 1.2rem;
-    margin-bottom: 1rem;
-}
-
-.metricCard p {
-    font-size: 1.5rem;
-    font-weight: bold;
-}
-
-.charts {
-    display: flex;
-    gap: 2rem;
-    margin-bottom: 2rem;
-}
-
-.chartCard {
-    flex: 1;
-    background: white;
     padding: 2rem;
-    border-radius: 0.5rem;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-    text-align: center;
-}
-
-.chartCard h3 {
-    margin-bottom: 1rem;
-}
-
-.activity {
-    background: white;
-    padding: 2rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-}
-
-.activity h3 {
-    margin-bottom: 1rem;
-}
-
-.activity ul {
-    list-style: none;
-    padding: 0;
-}
-
-.activity li {
-    padding: 0.5rem 0;
-    border-bottom: 1px solid #e2e8f0;
 }
 
 .footer {
-    text-align: center;
-    padding: 1rem;
     background: #2d3748;
     color: white;
+    text-align: center;
+    padding: 1rem 2rem;
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    box-shadow: 0 -1px 10px rgba(0, 0, 0, 0.1);
 }
 
 .footerLinks {
@@ -194,4 +86,8 @@
 .footerLinks a {
     color: white;
     text-decoration: none;
+}
+
+.footerLinks a:hover {
+    text-decoration: underline;
 }
