@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import withAuth from '@/app/lib/withAuth';
 import Header from '@/app/lib/Header';
 import styles from '@/app/styles/HelmReleases.module.css';
+import sharedStyles from '@/app/styles/shared.module.css';
 import listHelmReleases from '@/app/lib/api/listHelmReleases';
 import deleteHelmRelease from '@/app/lib/api/deleteHelmRelease';
 import LoginModal from '@/app/lib/LoginModal';
@@ -153,10 +154,12 @@ const HelmReleases: React.FC = () => {
                             placeholder="Enter the namespace"
                             required
                         />
-                        <button onClick={fetchReleases} className={styles.refreshButton}>Refresh</button>
-                        {selectedReleases.length > 1 && (
-                            <button onClick={handleDeleteSelectedReleases} className={styles.deleteButton}>Delete All</button>
-                        )}
+                        <div className={styles.buttonContainer}>
+                            <button onClick={fetchReleases} className={sharedStyles.button}>Refresh</button>
+                            {selectedReleases.length > 1 && (
+                                <button onClick={handleDeleteSelectedReleases} className={sharedStyles.button}>Delete All</button>
+                            )}
+                        </div>
                     </div>
                     {releaseError && <p className={styles.error}>{releaseError}</p>}
                     <div className={styles.releaseList}>
@@ -190,7 +193,7 @@ const HelmReleases: React.FC = () => {
                                         <td>{release.Updated}</td>
                                         <td>
                                             {selectedReleases.length <= 1 && selectedReleases.includes(release) && (
-                                                <button onClick={() => handleDeleteRelease(release)} className={styles.deleteButton}>
+                                                <button onClick={() => handleDeleteRelease(release)} className={sharedStyles.button}>
                                                     Delete
                                                 </button>
                                             )}
@@ -212,8 +215,8 @@ const HelmReleases: React.FC = () => {
                         <h2>Confirm Deletion</h2>
                         <p>Are you sure you want to delete the release "{releaseToDelete?.Name}" in namespace "{releaseToDelete?.Namespace}"?</p>
                         <div className={styles.confirmDialogActions}>
-                            <button onClick={confirmDeleteRelease} className={styles.confirmButton}>Yes</button>
-                            <button onClick={() => setShowConfirmDialog(false)} className={styles.cancelButton}>No</button>
+                            <button onClick={confirmDeleteRelease} className={sharedStyles.button}>Yes</button>
+                            <button onClick={() => setShowConfirmDialog(false)} className={sharedStyles.button}>No</button>
                         </div>
                     </div>
                 </div>
@@ -225,8 +228,8 @@ const HelmReleases: React.FC = () => {
                         <h2>Confirm Deletion</h2>
                         <p>Are you sure you want to delete all selected releases?</p>
                         <div className={styles.confirmDialogActions}>
-                            <button onClick={confirmDeleteAllReleases} className={styles.confirmButton}>Yes</button>
-                            <button onClick={() => setShowDeleteAllConfirmDialog(false)} className={styles.cancelButton}>No</button>
+                            <button onClick={confirmDeleteAllReleases} className={sharedStyles.button}>Yes</button>
+                            <button onClick={() => setShowDeleteAllConfirmDialog(false)} className={sharedStyles.button}>No</button>
                         </div>
                     </div>
                 </div>

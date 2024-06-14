@@ -47,9 +47,9 @@
     margin-left: 250px;
     padding: 2rem;
     flex: 1;
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-gap: 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
     background: #1e1e1e;
     color: white;
 }
@@ -59,11 +59,14 @@
     border-radius: 0.5rem;
     padding: 2rem;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 600px;
 }
 
 .formGroup {
     display: flex;
     flex-direction: column;
+    margin-bottom: 1rem;
 }
 
 .formGroup label {
@@ -83,26 +86,10 @@
     color: #ccc;
 }
 
-.submitButton {
-    margin-top: 1rem;
-    padding: 0.75rem 1rem;
-    border: none;
-    border-radius: 0.25rem;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    font-size: 1rem;
-    cursor: pointer;
-}
-
-.submitButton:hover {
-    background: linear-gradient(135deg, #764ba2, #667eea);
-}
-
 .statusCard {
     margin-top: 2rem;
-    padding: 1rem;
     background: #2d3748;
-    color: white;
+    padding: 1rem;
     border-radius: 0.25rem;
 }
 
@@ -112,39 +99,17 @@
     margin-top: 1rem;
 }
 
-.statusTable th,
 .statusTable td {
-    padding: 0.75rem;
+    padding: 0.5rem;
     border: 1px solid #444;
-}
-
-.statusTable th {
-    background: #444;
-    font-weight: bold;
-}
-
-.statusTable td {
-    background: #3e3e3e;
-}
-
-.footer {
-    text-align: center;
-    padding: 1rem;
-    background: #2d3748;
-    color: white;
-}
-
-.footerLinks {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-}
-
-.footerLinks a {
-    color: white;
-    text-decoration: none;
 }
 
 .error {
     color: red;
+}
+
+.buttonContainer {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
 }

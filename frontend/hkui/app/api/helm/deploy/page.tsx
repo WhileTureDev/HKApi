@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import withAuth from '@/app/lib/withAuth';
 import Header from '@/app/lib/Header';
 import styles from '@/app/styles/HelmDeploy.module.css';
+import sharedStyles from '@/app/styles/shared.module.css';
 import createHelmRelease from '@/app/lib/api/createHelmRelease';
 import LoginModal from '@/app/lib/LoginModal';
 
@@ -20,10 +21,6 @@ const HelmDeploy: React.FC = () => {
     const [isDeploying, setIsDeploying] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
 
-    useEffect(() => {
-        setJsonPayload(JSON.stringify(formData, null, 2));
-    }, [formData]);
-
     const handleChange = (e: { target: { name: string; value: string } }) => {
         setFormData({
             ...formData,
@@ -33,12 +30,6 @@ const HelmDeploy: React.FC = () => {
 
     const handleJsonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setJsonPayload(e.target.value);
-        try {
-            const updatedFormData = JSON.parse(e.target.value);
-            setFormData(updatedFormData);
-        } catch (error) {
-            // Invalid JSON, do not update formData
-        }
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -156,16 +147,18 @@ const HelmDeploy: React.FC = () => {
                                 required
                             />
                         </div>
-                        <button type="submit" className={styles.submitButton} disabled={isDeploying}>
-                            {isDeploying ? (
-                                <>
-                                    <span>Deploying</span>
-                                    <span className={styles.spinner}></span>
-                                </>
-                            ) : (
-                                'Deploy'
-                            )}
-                        </button>
+                        <div className={styles.buttonContainer}>
+                            <button type="submit" className={sharedStyles.button} disabled={isDeploying}>
+                                {isDeploying ? (
+                                    <>
+                                        <span>Deploying</span>
+                                        <span className={sharedStyles.spinner}></span>
+                                    </>
+                                ) : (
+                                    'Deploy'
+                                )}
+                            </button>
+                        </div>
                     </form>
                     <div className={styles.jsonInput}>
                         <label>Or provide JSON payload</label>
