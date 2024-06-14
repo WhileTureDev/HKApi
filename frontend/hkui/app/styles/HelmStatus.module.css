@@ -33,6 +33,10 @@
     text-decoration: none;
 }
 
+.sidebar nav a:hover {
+    text-decoration: underline;
+}
+
 .bottomNav {
     margin-top: auto;
     padding-top: 2rem;
@@ -44,7 +48,7 @@
     padding: 2rem;
     flex: 1;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: 1fr;
     grid-gap: 2rem;
     background: #1e1e1e;
     color: white;

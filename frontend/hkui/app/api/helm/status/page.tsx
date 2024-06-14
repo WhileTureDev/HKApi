@@ -7,12 +7,22 @@ import styles from '@/app/styles/HelmStatus.module.css';
 import getHelmStatus from '@/app/lib/api/getHelmStatus';
 import LoginModal from '@/app/lib/LoginModal';
 
+interface HelmStatusInfo {
+    [key: string]: string;
+}
+
+interface HelmStatusResponse {
+    Name: string;
+    Namespace: string;
+    Info: HelmStatusInfo;
+}
+
 const HelmStatus: React.FC = () => {
     const [statusFormData, setStatusFormData] = useState({
         name: '',
         namespace: '',
     });
-    const [helmStatus, setHelmStatus] = useState(null);
+    const [helmStatus, setHelmStatus] = useState<HelmStatusResponse | null>(null);
     const [statusError, setStatusError] = useState('');
     const [showLoginModal, setShowLoginModal] = useState(false);
 

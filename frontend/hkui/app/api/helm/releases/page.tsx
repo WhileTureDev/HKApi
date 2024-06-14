@@ -8,14 +8,22 @@ import listHelmReleases from '@/app/lib/api/listHelmReleases';
 import deleteHelmRelease from '@/app/lib/api/deleteHelmRelease';
 import LoginModal from '@/app/lib/LoginModal';
 
+interface HelmRelease {
+    Name: string;
+    Namespace: string;
+    Status: string;
+    Revision: string;
+    Updated: string;
+}
+
 const HelmReleases: React.FC = () => {
     const [namespace, setNamespace] = useState('');
-    const [releases, setReleases] = useState([]);
+    const [releases, setReleases] = useState<HelmRelease[]>([]);
     const [releaseError, setReleaseError] = useState('');
-    const [selectedReleases, setSelectedReleases] = useState([]);
+    const [selectedReleases, setSelectedReleases] = useState<HelmRelease[]>([]);
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
     const [showDeleteAllConfirmDialog, setShowDeleteAllConfirmDialog] = useState(false);
-    const [releaseToDelete, setReleaseToDelete] = useState(null);
+    const [releaseToDelete, setReleaseToDelete] = useState<HelmRelease | null>(null);
     const [showLoginModal, setShowLoginModal] = useState(false);
 
     const handleNamespaceChange = (e: { target: { value: string } }) => {
@@ -48,14 +56,14 @@ const HelmReleases: React.FC = () => {
         }
     };
 
-    const handleSelectRelease = (release) => {
+    const handleSelectRelease = (release: HelmRelease) => {
         const newSelectedReleases = selectedReleases.includes(release)
             ? selectedReleases.filter((r) => r !== release)
             : [...selectedReleases, release];
         setSelectedReleases(newSelectedReleases);
     };
 
-    const handleDeleteRelease = (release) => {
+    const handleDeleteRelease = (release: HelmRelease) => {
         setReleaseToDelete(release);
         setShowConfirmDialog(true);
     };
@@ -97,7 +105,7 @@ const HelmReleases: React.FC = () => {
         setShowDeleteAllConfirmDialog(false);
     };
 
-    const deleteRelease = async (release) => {
+    const deleteRelease = async (release: HelmRelease) => {
         try {
             const token = localStorage.getItem('token');
             if (!token) {

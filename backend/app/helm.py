@@ -3,8 +3,9 @@ import subprocess
 import time
 import json
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from starlette.responses import JSONResponse
+import subprocess
 
 from .crud_user import get_current_active_user
 from .def_namespace import create_namespace, check_if_namespace_exist
@@ -177,21 +178,21 @@ async def delete_helm_release(release_info: DeleteHelmReleaseInfo):  # Use a dat
 
 # Status helm release
 @router.get("/api/v1/helm/status", dependencies=[Depends(get_current_active_user)])
-async def status_helm_release(release_info: BaseHelmReleaseInfo):
+async def status_helm_release(name: str = Query(...), namespace: str = Query(...)):
     try:
         status_result = subprocess.run(
-            ["helm", "status", release_info.name, "--namespace", release_info.namespace],
+            ["helm", "status", name, "--namespace", namespace],
             capture_output=True,
             text=True
         )
         if status_result.returncode == 0:
             status_dict = parse_helm_status(status_result.stdout)
-            return {"Name": release_info.name, "Namespace": release_info.namespace, "Info": status_dict}
+            return {"Name": name, "Namespace": namespace, "Info": status_dict}
         else:
             error_message = status_result.stderr.strip()
             if "not found" in error_message.lower():
                 return {
-                    "message": f"Helm release {release_info.name} does not exist in namespace {release_info.namespace}"}
+                    "message": f"Helm release {name} does not exist in namespace {namespace}"}
             else:
                 raise HTTPException(status_code=500, detail=f"Error getting Helm status: {error_message}")
     except subprocess.CalledProcessError as e:
