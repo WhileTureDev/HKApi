@@ -1,9 +1,7 @@
-// app/lib/LoginModal.tsx
-
 'use client';
 
 import React, { useState } from 'react';
-import styles from '@/app/styles/Api.module.css';
+import styles from '@/app/styles/LoginModal.module.css';
 
 interface LoginModalProps {
     onClose: () => void;

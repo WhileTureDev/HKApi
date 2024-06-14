@@ -7,6 +7,7 @@ import styles from '@/app/styles/HelmReleases.module.css';
 import listHelmReleases from '@/app/lib/api/listHelmReleases';
 import deleteHelmRelease from '@/app/lib/api/deleteHelmRelease';
 import LoginModal from '@/app/lib/LoginModal';
+import { handleAuthorizationError } from '@/app/lib/authUtils';
 
 interface HelmRelease {
     Name: string;
@@ -25,6 +26,7 @@ const HelmReleases: React.FC = () => {
     const [showDeleteAllConfirmDialog, setShowDeleteAllConfirmDialog] = useState(false);
     const [releaseToDelete, setReleaseToDelete] = useState<HelmRelease | null>(null);
     const [showLoginModal, setShowLoginModal] = useState(false);
+    const [redirectAfterLogin, setRedirectAfterLogin] = useState(false);
 
     const handleNamespaceChange = (e: { target: { value: string } }) => {
         setNamespace(e.target.value);
@@ -36,6 +38,7 @@ const HelmReleases: React.FC = () => {
             if (!token) {
                 setReleaseError('No authentication token found');
                 setShowLoginModal(true);
+                setRedirectAfterLogin(true);
                 return;
             }
 
@@ -48,11 +51,7 @@ const HelmReleases: React.FC = () => {
             }
             setReleaseError('');
         } catch (error: unknown) {
-            if (error instanceof Error) {
-                setReleaseError('Error: ' + error.message);
-            } else {
-                setReleaseError('An unknown error occurred');
-            }
+            handleAuthorizationError(error, setReleaseError, setShowLoginModal, setRedirectAfterLogin);
         }
     };
 
@@ -76,6 +75,7 @@ const HelmReleases: React.FC = () => {
             if (!token) {
                 setReleaseError('No authentication token found');
                 setShowLoginModal(true);
+                setRedirectAfterLogin(true);
                 return;
             }
 
@@ -83,11 +83,7 @@ const HelmReleases: React.FC = () => {
             setReleases((prevReleases) => prevReleases.filter((r) => r !== releaseToDelete));
             setSelectedReleases((prevSelected) => prevSelected.filter((r) => r !== releaseToDelete));
         } catch (error: unknown) {
-            if (error instanceof Error) {
-                setReleaseError('Error: ' + error.message);
-            } else {
-                setReleaseError('An unknown error occurred');
-            }
+            handleAuthorizationError(error, setReleaseError, setShowLoginModal, setRedirectAfterLogin);
         } finally {
             setShowConfirmDialog(false);
             setReleaseToDelete(null);
@@ -111,6 +107,7 @@ const HelmReleases: React.FC = () => {
             if (!token) {
                 setReleaseError('No authentication token found');
                 setShowLoginModal(true);
+                setRedirectAfterLogin(true);
                 return;
             }
 
@@ -118,16 +115,17 @@ const HelmReleases: React.FC = () => {
             setReleases((prevReleases) => prevReleases.filter((r) => r !== release));
             setSelectedReleases((prevSelected) => prevSelected.filter((r) => r !== release));
         } catch (error: unknown) {
-            if (error instanceof Error) {
-                setReleaseError('Error: ' + error.message);
-            } else {
-                setReleaseError('An unknown error occurred');
-            }
+            handleAuthorizationError(error, setReleaseError, setShowLoginModal, setRedirectAfterLogin);
         }
     };
 
     const handleLoginSuccess = () => {
-        window.location.reload();
+        setShowLoginModal(false);
+        if (redirectAfterLogin) {
+            window.location.href = '/dashboard';
+        } else {
+            window.location.reload();
+        }
     };
 
     return (

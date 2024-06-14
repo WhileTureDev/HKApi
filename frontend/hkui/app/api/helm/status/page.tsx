@@ -6,6 +6,7 @@ import Header from '@/app/lib/Header';
 import styles from '@/app/styles/HelmStatus.module.css';
 import getHelmStatus from '@/app/lib/api/getHelmStatus';
 import LoginModal from '@/app/lib/LoginModal';
+import { handleAuthorizationError } from '@/app/lib/authUtils';
 
 interface HelmStatusInfo {
     [key: string]: string;
@@ -25,6 +26,7 @@ const HelmStatus: React.FC = () => {
     const [helmStatus, setHelmStatus] = useState<HelmStatusResponse | null>(null);
     const [statusError, setStatusError] = useState('');
     const [showLoginModal, setShowLoginModal] = useState(false);
+    const [redirectAfterLogin, setRedirectAfterLogin] = useState(false);
 
     const handleStatusChange = (e: { target: { name: string; value: string } }) => {
         setStatusFormData({
@@ -39,6 +41,7 @@ const HelmStatus: React.FC = () => {
             if (!token) {
                 setStatusError('No authentication token found');
                 setShowLoginModal(true);
+                setRedirectAfterLogin(true);
                 return;
             }
 
@@ -46,16 +49,17 @@ const HelmStatus: React.FC = () => {
             setHelmStatus(data);
             setStatusError('');
         } catch (error: unknown) {
-            if (error instanceof Error) {
-                setStatusError('Error: ' + error.message);
-            } else {
-                setStatusError('An unknown error occurred');
-            }
+            handleAuthorizationError(error, setStatusError, setShowLoginModal, setRedirectAfterLogin);
         }
     };
 
     const handleLoginSuccess = () => {
-        window.location.reload();
+        setShowLoginModal(false);
+        if (redirectAfterLogin) {
+            window.location.href = '/dashboard';
+        } else {
+            window.location.reload();
+        }
     };
 
     return (
