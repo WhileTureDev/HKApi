@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import withAuth from '@/app/lib/withAuth'; // Adjust the import path as necessary
+import LoginModal from '@/app/lib/LoginModal'; // Import the shared LoginModal component
 import styles from '@/app/styles/Api.module.css';
 
 const HelmPage: React.FC = () => {
@@ -25,7 +26,9 @@ const HelmPage: React.FC = () => {
     const [selectedReleases, setSelectedReleases] = useState([]);
     const [isDeploying, setIsDeploying] = useState(false);
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+    const [showDeleteAllConfirmDialog, setShowDeleteAllConfirmDialog] = useState(false);
     const [releaseToDelete, setReleaseToDelete] = useState(null);
+    const [showLoginModal, setShowLoginModal] = useState(false);
 
     useEffect(() => {
         const generatedPayload = JSON.stringify(formData, null, 2);
@@ -66,6 +69,7 @@ const HelmPage: React.FC = () => {
 
             if (!token) {
                 setResponse('No authentication token found');
+                setShowLoginModal(true);
                 setIsDeploying(false);
                 return;
             }
@@ -84,6 +88,7 @@ const HelmPage: React.FC = () => {
 
             if (res.status === 401) {
                 setResponse('Unauthorized: Invalid token or session expired');
+                setShowLoginModal(true);
                 setIsDeploying(false);
                 return;
             }
@@ -114,6 +119,7 @@ const HelmPage: React.FC = () => {
 
             if (!token) {
                 setReleaseError('No authentication token found');
+                setShowLoginModal(true);
                 return;
             }
 
@@ -129,6 +135,7 @@ const HelmPage: React.FC = () => {
 
             if (res.status === 401) {
                 setReleaseError('Unauthorized: Invalid token or session expired');
+                setShowLoginModal(true);
                 return;
             }
 
@@ -172,6 +179,7 @@ const HelmPage: React.FC = () => {
 
             if (!token) {
                 setReleaseError('No authentication token found');
+                setShowLoginModal(true);
                 return;
             }
 
@@ -195,6 +203,7 @@ const HelmPage: React.FC = () => {
 
             if (res.status === 401) {
                 setReleaseError('Unauthorized: Invalid token or session expired');
+                setShowLoginModal(true);
                 return;
             }
 
@@ -218,15 +227,71 @@ const HelmPage: React.FC = () => {
         }
     };
 
-    const handleDeleteSelectedReleases = async () => {
-        const confirmDelete = confirm(`Are you sure you want to delete the selected releases?`);
-        if (!confirmDelete) {
-            return;
-        }
+    const handleDeleteSelectedReleases = () => {
+        setShowDeleteAllConfirmDialog(true);
+    };
 
+    const confirmDeleteAllReleases = async () => {
         for (const release of selectedReleases) {
-            await confirmDeleteRelease(release);
+            await deleteRelease(release);
         }
+        setShowDeleteAllConfirmDialog(false);
+    };
+
+    const deleteRelease = async (release) => {
+        try {
+            const token = localStorage.getItem('token');
+            console.log('Token from localStorage:', token);
+
+            if (!token) {
+                setReleaseError('No authentication token found');
+                setShowLoginModal(true);
+                return;
+            }
+
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/helm/delete`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    name: release.Name,
+                    namespace: release.Namespace,
+                }),
+            });
+
+            console.log('Delete request payload:', {
+                name: release.Name,
+                namespace: release.Namespace,
+            });
+            console.log('Response status:', res.status);
+
+            if (res.status === 401) {
+                setReleaseError('Unauthorized: Invalid token or session expired');
+                setShowLoginModal(true);
+                return;
+            }
+
+            if (res.ok) {
+                setReleases((prevReleases) => prevReleases.filter((r) => r !== release));
+                setSelectedReleases((prevSelected) => prevSelected.filter((r) => r !== release));
+            } else {
+                setReleaseError('Failed to delete release');
+            }
+        } catch (error: unknown) {
+            if (error instanceof Error) {
+                setReleaseError('Error: ' + error.message);
+                console.error('Error message:', error.message);
+            } else {
+                setReleaseError('An unknown error occurred');
+                console.error('Unknown error:', error);
+            }
+        }
+    };
+
+    const handleLoginSuccess = () => {
+        window.location.reload();
     };
 
     return (
@@ -405,6 +470,26 @@ const HelmPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {showDeleteAllConfirmDialog && (
+                <div className={styles.confirmDialogOverlay}>
+                    <div className={styles.confirmDialog}>
+                        <h2>Confirm Deletion</h2>
+                        <p>Are you sure you want to delete all selected releases?</p>
+                        <div className={styles.confirmDialogActions}>
+                            <button onClick={confirmDeleteAllReleases} className={styles.confirmButton}>Yes</button>
+                            <button onClick={() => setShowDeleteAllConfirmDialog(false)} className={styles.cancelButton}>No</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showLoginModal && (
+                <LoginModal
+                    onClose={() => setShowLoginModal(false)}
+                    onLoginSuccess={handleLoginSuccess}
+                />
             )}
 
             <footer className={styles.footer}>
