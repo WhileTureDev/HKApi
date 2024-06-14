@@ -1,5 +1,3 @@
-// app/lib/Header.tsx
-
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -45,13 +43,11 @@ const Header: React.FC = () => {
             <div className={styles.logo}>HKUI</div>
             <div className={styles.userProfile} onClick={toggleDropdown} ref={dropdownRef}>
                 <img src={userIcon.src} alt="User Profile" className={styles.userIcon} /> {/* Use the imported image */}
-                {isDropdownVisible && (
-                    <div className={styles.dropdownMenu}>
-                        <Link href="/profile">Profile</Link>
-                        <Link href="/settings">User Settings</Link>
-                        <button onClick={handleLogout}>Logout</button>
-                    </div>
-                )}
+                <div className={`${styles.dropdownMenu} ${isDropdownVisible ? styles.dropdownMenuVisible : ''}`}>
+                    <Link href="/profile">Profile</Link>
+                    <Link href="/settings">User Settings</Link>
+                    <button onClick={handleLogout}>Logout</button>
+                </div>
             </div>
         </header>
     );

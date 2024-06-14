@@ -29,7 +29,6 @@
 }
 
 .dropdownMenu {
-    display: none;
     position: absolute;
     top: 60px;
     right: 50%;
@@ -40,6 +39,11 @@
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     overflow: hidden;
     z-index: 10;
+    display: none; /* Hide by default */
+}
+
+.dropdownMenuVisible {
+    display: block; /* Show when visible */
 }
 
 .dropdownMenu a,
