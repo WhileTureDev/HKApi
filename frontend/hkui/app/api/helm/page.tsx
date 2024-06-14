@@ -376,7 +376,7 @@ const HelmPage: React.FC = () => {
                                             <td>{release.Revision}</td>
                                             <td>{release.Updated}</td>
                                             <td>
-                                                {selectedReleases.length <= 1 && (
+                                                {selectedReleases.length <= 1 && selectedReleases.includes(release) && (
                                                     <button onClick={() => handleDeleteRelease(release)} className={styles.deleteButton}>
                                                         Delete
                                                     </button>
