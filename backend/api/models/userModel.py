@@ -14,4 +14,5 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
     disabled = Column(Boolean, default=False)
     deployments = relationship("Deployment", back_populates="owner")
-    projects = relationship("UserProject", back_populates="user")
+    projects = relationship("Project", back_populates="owner")
+    user_projects = relationship("UserProject", back_populates="user")

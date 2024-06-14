@@ -3,9 +3,8 @@ from sqlalchemy import Column, String, DateTime, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 from ..utils.database import Base
 
-
 class Deployment(Base):
-    __tablename__ = 'deployments'
+    __tablename__ = "deployments"
     id = Column(Integer, primary_key=True, index=True)
     release_type = Column(String, index=True)
     install_type = Column(String, index=True)

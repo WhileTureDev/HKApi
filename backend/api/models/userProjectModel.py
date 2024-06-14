@@ -1,8 +1,7 @@
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Integer, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from ..utils.database import Base
-
 
 class UserProject(Base):
     __tablename__ = "user_projects"
@@ -11,5 +10,5 @@ class UserProject(Base):
     role = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
-    user = relationship("User", back_populates="projects")
-    project = relationship("Project", back_populates="users")
+    user = relationship("User", back_populates="user_projects")
+    project = relationship("Project", back_populates="user_projects")

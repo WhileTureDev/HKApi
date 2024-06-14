@@ -3,11 +3,10 @@ from sqlalchemy import Column, String, DateTime, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 from ..utils.database import Base
 
-
 class Namespace(Base):
     __tablename__ = "namespaces"
-    id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True, index=True, nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
     project_id = Column(Integer, ForeignKey('projects.id'))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
