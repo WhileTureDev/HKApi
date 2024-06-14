@@ -4,9 +4,9 @@ import React, { useState } from 'react';
 import withAuth from '@/app/lib/withAuth';
 import Header from '@/app/lib/Header';
 import styles from '@/app/styles/HelmStatus.module.css';
+import sharedStyles from '@/app/styles/shared.module.css';
 import getHelmStatus from '@/app/lib/api/getHelmStatus';
 import LoginModal from '@/app/lib/LoginModal';
-import { handleAuthorizationError } from '@/app/lib/authUtils';
 
 interface HelmStatusInfo {
     [key: string]: string;
@@ -49,7 +49,16 @@ const HelmStatus: React.FC = () => {
             setHelmStatus(data);
             setStatusError('');
         } catch (error: unknown) {
-            handleAuthorizationError(error, setStatusError, setShowLoginModal, setRedirectAfterLogin);
+            if (error instanceof Error) {
+                if (error.message.includes('Unauthorized')) {
+                    setShowLoginModal(true);
+                    setRedirectAfterLogin(true);
+                } else {
+                    setStatusError('Error: ' + error.message);
+                }
+            } else {
+                setStatusError('An unknown error occurred');
+            }
         }
     };
 
@@ -100,9 +109,11 @@ const HelmStatus: React.FC = () => {
                             required
                         />
                     </div>
-                    <button onClick={() => fetchHelmStatus(statusFormData.name, statusFormData.namespace)} className={styles.submitButton}>
-                        Get Status
-                    </button>
+                    <div className={styles.buttonContainer}>
+                        <button onClick={() => fetchHelmStatus(statusFormData.name, statusFormData.namespace)} className={sharedStyles.button}>
+                            Get Status
+                        </button>
+                    </div>
                     {statusError && <p className={styles.error}>{statusError}</p>}
                     {helmStatus && (
                         <div className={styles.statusCard}>
