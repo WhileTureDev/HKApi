@@ -15,16 +15,17 @@ RUN   chmod +x /usr/local/bin/kubectl
 
 # Install application dependencies
 
-WORKDIR /code
+WORKDIR /app
 COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 RUN pip install psycopg2-binary && \
     pip install python-multipart && \
-    pip install pyyaml
+    pip install pyyaml && \
+    pip install pydantic[email]
 
 
-COPY app /code/app
+COPY api/ /app/api
 COPY docs/_build/html /code/html
 
 EXPOSE 8000

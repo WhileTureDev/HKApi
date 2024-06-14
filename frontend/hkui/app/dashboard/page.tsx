@@ -1,4 +1,4 @@
-// app/dashboard/page.tsx
+// api/dashboard/page.tsx
 
 'use client';
 

@@ -1,4 +1,4 @@
-// app/lib/api/deleteHelmRelease.ts
+// api/lib/api/deleteHelmRelease.ts
 
 const deleteHelmRelease = async (name: string, namespace: string, token: string) => {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/helm/delete`, {
