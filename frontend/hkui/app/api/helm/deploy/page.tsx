@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import withAuth from '@/app/lib/withAuth';
 import Header from '@/app/lib/Header';
 import styles from '@/app/styles/HelmDeploy.module.css';
@@ -20,6 +20,10 @@ const HelmDeploy: React.FC = () => {
     const [isDeploying, setIsDeploying] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
 
+    useEffect(() => {
+        setJsonPayload(JSON.stringify(formData, null, 2));
+    }, [formData]);
+
     const handleChange = (e: { target: { name: string; value: string } }) => {
         setFormData({
             ...formData,
@@ -29,6 +33,12 @@ const HelmDeploy: React.FC = () => {
 
     const handleJsonChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setJsonPayload(e.target.value);
+        try {
+            const updatedFormData = JSON.parse(e.target.value);
+            setFormData(updatedFormData);
+        } catch (error) {
+            // Invalid JSON, do not update formData
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
