@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import styles from '@/app/styles/shared.module.css';
+import styles from '@/app/styles/Header.module.css';
 import userIcon from './img/user-icon-2048x2048-ihoxz4vq.png'; // Import the image
 
 const Header: React.FC = () => {
