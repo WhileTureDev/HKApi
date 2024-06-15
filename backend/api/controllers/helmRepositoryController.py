@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
@@ -7,7 +7,7 @@ from schemas.helmRepositorySchema import HelmRepositoryCreate, HelmRepository as
 from utils.database import get_db
 from utils.auth import get_current_active_user
 from models.userModel import User as UserModel
-from utils.helm import add_helm_repo
+from utils.helm import add_helm_repo, search_helm_charts  # Add this import
 
 router = APIRouter()
 
@@ -55,3 +55,19 @@ def delete_helm_repository(
     db.delete(repository)
     db.commit()
     return repository
+
+@router.get("/helm/charts/search", response_model=List[dict])
+def search_charts(
+    term: str = Query(..., description="The search term for the charts"),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user)
+):
+    # Get all repository names from the database
+    repositories = db.query(HelmRepositoryModel.name).all()
+    repo_names = [repo[0] for repo in repositories]
+
+    # Perform the search
+    search_results = search_helm_charts(term, repo_names)
+    if not search_results:
+        raise HTTPException(status_code=404, detail="No charts found matching the search term")
+    return search_results

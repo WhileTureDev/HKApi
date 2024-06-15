@@ -25,7 +25,6 @@ app.add_event_handler("startup", startup_event)
 app.include_router(userController.router, tags=["Users"])
 app.include_router(projectController.router, tags=["Projects"])
 app.include_router(authController.router, tags=["Auth"])
-app.include_router(projectController.router, tags=["Projects"])
 app.include_router(helmController.router, tags=["Helm"])
 app.include_router(helmRepositoryController.router, tags=["Helm Repositories"])
 

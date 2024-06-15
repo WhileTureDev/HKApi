@@ -169,6 +169,21 @@ def configure_helm_repositories_from_db(db: Session):
 
 def extract_repo_name_from_url(url: str) -> str:
     parsed_url = urlparse(url)
-    # Use the full domain name as the repository name (e.g., 'cloudecho.github.io' from 'https://cloudecho.github.io/charts/')
+    # Use the full domain name as the repository name (e.g., 'cloudecho.github.io' from
+    # 'https://cloudecho.github.io/charts/')
     repo_name = parsed_url.netloc
     return repo_name
+
+
+def search_helm_charts(term: str, repositories: List[str]) -> List[dict]:
+    search_results = []
+    for repo in repositories:
+        try:
+            command = ["helm", "search", "repo", repo, "--output", "json"]
+            result = subprocess.run(command, capture_output=True, text=True, check=True)
+            charts = json.loads(result.stdout)
+            filtered_charts = [chart for chart in charts if term.lower() in chart["name"].lower()]
+            search_results.extend(filtered_charts)
+        except subprocess.CalledProcessError as e:
+            print(f"Error searching Helm repository {repo}: {e}")
+    return search_results
