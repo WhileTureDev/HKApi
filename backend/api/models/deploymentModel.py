@@ -1,18 +1,21 @@
-# models/deploymentModel.py
-
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Integer, ForeignKey
+from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, JSON, Boolean
 from sqlalchemy.orm import relationship
-from utils.database import Base  # Use absolute import
+from utils.database import Base
 
 class Deployment(Base):
     __tablename__ = "deployments"
     id = Column(Integer, primary_key=True, index=True)
-    release_type = Column(String, index=True)
+    project = Column(String, index=True)
     install_type = Column(String, index=True)
     chart_name = Column(String, index=True)
     chart_repo_url = Column(String, index=True)
     namespace_id = Column(Integer, ForeignKey('namespaces.id'))
+    namespace_name = Column(String, index=True)
+    values = Column(JSON)
+    revision = Column(Integer)
+    active = Column(Boolean, default=True)
+    status = Column(String, default="active")  # Add status column
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
     owner_id = Column(Integer, ForeignKey('users.id'))

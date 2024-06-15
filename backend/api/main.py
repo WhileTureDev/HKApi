@@ -1,8 +1,13 @@
 from fastapi import FastAPI
+from kubernetes import config
+from utils.k8s import load_k8s_config
 from models import Base
 from utils.database import create_database_if_not_exists, create_tables
-from routes import userRoutes, projectRoutes, deploymentRoutes
+from routes import userRoutes, projectRoutes, deploymentRoutes, helmRoutes
 from controllers import authController
+
+# Load Kubernetes configuration
+load_k8s_config()
 
 app = FastAPI()
 
@@ -16,6 +21,7 @@ create_tables()
 app.include_router(userRoutes.router)
 app.include_router(projectRoutes.router)
 app.include_router(deploymentRoutes.router)
+app.include_router(helmRoutes.router)
 app.include_router(authController.router)
 
 @app.get("/")
