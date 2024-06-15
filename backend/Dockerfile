@@ -25,7 +25,7 @@ RUN pip install psycopg2-binary && \
     pip install pydantic[email]
 
 
-COPY api/ /app/api
+COPY api .
 COPY docs/_build/html /code/html
 
 EXPOSE 8000
