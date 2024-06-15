@@ -18,7 +18,7 @@ from utils.helm import (
     rollback_helm_release,
     get_helm_status,
     add_helm_repo,
-    extract_repo_name_from_url  # Add this import
+    extract_repo_name_from_url
 )
 
 router = APIRouter()
@@ -74,7 +74,8 @@ def create_release(
         chart_name=deployment.chart_name,
         chart_repo_url=deployment.chart_repo_url,
         namespace=deployment.namespace_name,
-        values=deployment.values  # Pass the custom values
+        values=deployment.values,  # Pass the custom values
+        version=deployment.version  # Pass the version if provided
     )
     if revision == -1:
         raise HTTPException(status_code=500, detail="Helm chart deployment failed")

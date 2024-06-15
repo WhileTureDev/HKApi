@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from models import Base
 from utils.database import create_database_if_not_exists, create_tables, get_db
 from controllers import authController, projectController, helmController, helmRepositoryController, userController
 from utils.helm import configure_helm_repositories_from_db

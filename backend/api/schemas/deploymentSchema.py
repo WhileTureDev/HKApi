@@ -9,6 +9,7 @@ class DeploymentCreate(BaseModel):
     namespace_name: str
     release_name: str  # Add this line
     values: Dict
+    version: Optional[str] = None
 
 class Deployment(BaseModel):
     id: int

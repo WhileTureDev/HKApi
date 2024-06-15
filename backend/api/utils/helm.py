@@ -33,7 +33,7 @@ def add_helm_repo(repo_name: str, repo_url: str) -> bool:
         return False
 
 
-def deploy_helm_chart(release_name: str, chart_name: str, chart_repo_url: str, namespace: str, values: dict) -> int:
+def deploy_helm_chart(release_name: str, chart_name: str, chart_repo_url: str, namespace: str, values: dict, version: Optional[str] = None) -> int:
     try:
         load_k8s_config()
         v1 = client.CoreV1Api()
@@ -42,13 +42,13 @@ def deploy_helm_chart(release_name: str, chart_name: str, chart_repo_url: str, n
         namespaces = v1.list_namespace()
         if namespace not in [ns.metadata.name for ns in namespaces.items]:
             # Create the namespace if it does not exist
-            namespace_body = client.V1Namespace(
-                metadata=client.V1ObjectMeta(name=namespace)
-            )
+            namespace_body = client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace))
             v1.create_namespace(namespace_body)
 
+        # Extract the repository name from the URL
+        repo_name = extract_repo_name_from_url(chart_repo_url)
+
         # Add Helm repository
-        repo_name = os.path.basename(chart_repo_url.strip('/'))
         if not add_helm_repo(repo_name, chart_repo_url):
             raise Exception("Failed to add Helm repository")
 
@@ -57,12 +57,17 @@ def deploy_helm_chart(release_name: str, chart_name: str, chart_repo_url: str, n
             yaml.dump(values, temp_file)
             temp_file_name = temp_file.name
 
-        # Deploy or upgrade the Helm chart
-        subprocess.run([
+        # Build the helm upgrade --install command
+        command = [
             "helm", "upgrade", "--install", release_name, f"{repo_name}/{chart_name}",
-            "--namespace", namespace,
-            "-f", temp_file_name
-        ], check=True)
+            "--namespace", namespace, "-f", temp_file_name
+        ]
+
+        if version:
+            command.extend(["--version", version])
+
+        # Deploy or upgrade the Helm chart
+        subprocess.run(command, check=True)
 
         # Fetch the Helm revision
         result = subprocess.run([
@@ -187,3 +192,12 @@ def search_helm_charts(term: str, repositories: List[str]) -> List[dict]:
         except subprocess.CalledProcessError as e:
             print(f"Error searching Helm repository {repo}: {e}")
     return search_results
+
+def update_helm_repositories() -> bool:
+    try:
+        command = ["helm", "repo", "update"]
+        subprocess.run(command, check=True)
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Error updating Helm repositories: {e}")
+        return False

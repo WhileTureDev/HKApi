@@ -7,7 +7,7 @@ from schemas.helmRepositorySchema import HelmRepositoryCreate, HelmRepository as
 from utils.database import get_db
 from utils.auth import get_current_active_user
 from models.userModel import User as UserModel
-from utils.helm import add_helm_repo, search_helm_charts  # Add this import
+from utils.helm import add_helm_repo, update_helm_repositories, search_helm_charts
 
 router = APIRouter()
 
@@ -71,3 +71,13 @@ def search_charts(
     if not search_results:
         raise HTTPException(status_code=404, detail="No charts found matching the search term")
     return search_results
+
+@router.post("/helm/repositories/update", response_model=dict)
+def update_repositories(
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user)
+):
+    success = update_helm_repositories()
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update Helm repositories")
+    return {"message": "Helm repositories updated successfully"}
