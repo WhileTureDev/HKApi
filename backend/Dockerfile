@@ -18,7 +18,7 @@ RUN   chmod +x /usr/local/bin/kubectl
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+RUN pip install -r requirement`s.txt
 RUN pip install psycopg2-binary && \
     pip install python-multipart && \
     pip install pyyaml && \
@@ -34,6 +34,6 @@ EXPOSE 8000
 COPY entrypoint.sh .
 RUN  chmod +x ./entrypoint.sh && \
      dos2unix ./entrypoint.sh && \
-     dos2unix /code/*
+     dos2unix /app/*
 
 CMD ["./entrypoint.sh"]
