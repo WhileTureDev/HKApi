@@ -1,7 +1,8 @@
+# models/adminModel.py
+
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Integer, ForeignKey
-from ..utils.database import Base
-
+from utils.database import Base  # Use absolute import
 
 class Admin(Base):
     __tablename__ = "admin"

@@ -1,5 +1,7 @@
+# utils/database.py
+
 import os
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
@@ -17,9 +19,11 @@ DATABASE_URL = f'postgresql://{db_user}:{psq_pass}@{db_host}:{db_port}/postgres'
 # Create the database engine for the initial connection
 engine = create_engine(DATABASE_URL, isolation_level="AUTOCOMMIT")
 
-# Base class for declarative models
-Base = declarative_base()
+# Create a metadata object
+metadata = MetaData()
 
+# Base class for declarative models
+Base = declarative_base(metadata=metadata)
 
 def create_database_if_not_exists():
     with engine.connect() as connection:
@@ -31,7 +35,6 @@ def create_database_if_not_exists():
             except IntegrityError:
                 print(f"Database {db_name} already exists.")
 
-
 # Create the actual database URL for the application
 APPLICATION_DATABASE_URL = f'postgresql://{db_user}:{psq_pass}@{db_host}:{db_port}/{db_name}'
 
@@ -41,7 +44,6 @@ app_engine = create_engine(APPLICATION_DATABASE_URL)
 # Create a configured "Session" class for the application
 AppSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=app_engine)
 
-
 # Dependency for database sessions
 def get_db():
     db = AppSessionLocal()
@@ -49,7 +51,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
 
 def create_tables():
     Base.metadata.create_all(bind=app_engine)

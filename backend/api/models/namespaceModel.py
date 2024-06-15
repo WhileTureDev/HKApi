@@ -1,7 +1,9 @@
+# models/namespaceModel.py
+
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Integer, ForeignKey
 from sqlalchemy.orm import relationship
-from ..utils.database import Base
+from utils.database import Base  # Use absolute import
 
 class Namespace(Base):
     __tablename__ = "namespaces"

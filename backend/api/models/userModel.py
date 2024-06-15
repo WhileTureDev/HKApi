@@ -1,7 +1,9 @@
+# models/userModel.py
+
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Integer, Boolean
 from sqlalchemy.orm import relationship
-from ..utils.database import Base
+from utils.database import Base  # Use absolute import
 
 class User(Base):
     __tablename__ = "users"

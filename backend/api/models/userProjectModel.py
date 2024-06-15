@@ -1,7 +1,9 @@
+# models/userProjectModel.py
+
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-from ..utils.database import Base
+from utils.database import Base  # Use absolute import
 
 class UserProject(Base):
     __tablename__ = "user_projects"
