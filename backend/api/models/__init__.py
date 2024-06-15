@@ -1,7 +1,7 @@
-from utils.database import Base, metadata  # Ensure this import is absolute
-from .userModel import User
-from .projectModel import Project
-from .namespaceModel import Namespace
-from .deploymentModel import Deployment
-from .userProjectModel import UserProject
-from .adminModel import Admin
+from utils.database import Base, metadata
+from models.userModel import User
+from models.projectModel import Project
+from models.namespaceModel import Namespace
+from models.deploymentModel import Deployment
+from models.userProjectModel import UserProject
+from models.adminModel import Admin

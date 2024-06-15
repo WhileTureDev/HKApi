@@ -1,7 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
 
-
 class DeploymentBase(BaseModel):
     release_type: str
     install_type: str
@@ -9,10 +8,8 @@ class DeploymentBase(BaseModel):
     chart_repo_url: str
     namespace_id: int
 
-
 class DeploymentCreate(DeploymentBase):
     pass
-
 
 class Deployment(DeploymentBase):
     id: int
