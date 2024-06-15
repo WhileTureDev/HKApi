@@ -3,6 +3,9 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 from models.deploymentModel import Deployment as DeploymentModel
+from models.helmRepositoryModel import HelmRepository as HelmRepositoryModel
+from models.projectModel import Project as ProjectModel
+from models.namespaceModel import Namespace as NamespaceModel
 from schemas.deploymentSchema import DeploymentCreate, Deployment as DeploymentSchema
 from utils.database import get_db
 from utils.auth import get_current_active_user
@@ -13,10 +16,10 @@ from utils.helm import (
     list_helm_releases,
     get_helm_values,
     rollback_helm_release,
-    get_helm_status
+    get_helm_status,
+    add_helm_repo,
+    extract_repo_name_from_url  # Add this import
 )
-from models.namespaceModel import Namespace as NamespaceModel
-from models.projectModel import Project as ProjectModel
 
 router = APIRouter()
 
@@ -44,6 +47,26 @@ def create_release(
         db.add(namespace)
         db.commit()
         db.refresh(namespace)
+
+    # Extract the repository name from the URL
+    repo_name = extract_repo_name_from_url(deployment.chart_repo_url)
+
+    # Check if the Helm repository exists in the database
+    helm_repo = db.query(HelmRepositoryModel).filter_by(name=repo_name).first()
+    if not helm_repo:
+        # Add the repository to the database
+        new_repo = HelmRepositoryModel(
+            name=repo_name,
+            url=deployment.chart_repo_url,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        db.add(new_repo)
+        db.commit()
+        db.refresh(new_repo)
+        # Add the repository to Helm
+        if not add_helm_repo(repo_name, deployment.chart_repo_url):
+            raise HTTPException(status_code=500, detail="Failed to add Helm repository")
 
     # Deploy Helm chart using utility function
     revision = deploy_helm_chart(

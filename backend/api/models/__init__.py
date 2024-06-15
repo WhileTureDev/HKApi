@@ -5,3 +5,4 @@ from models.namespaceModel import Namespace
 from models.deploymentModel import Deployment
 from models.userProjectModel import UserProject
 from models.adminModel import Admin
+from models.helmRepositoryModel import HelmRepository

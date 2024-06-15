@@ -5,6 +5,9 @@ import tempfile
 import yaml
 from kubernetes import client, config
 from typing import List, Optional
+from sqlalchemy.orm import Session
+from models.helmRepositoryModel import HelmRepository
+from urllib.parse import urlparse
 
 
 def load_k8s_config():
@@ -124,7 +127,6 @@ def rollback_helm_release(release_name: str, revision: int, namespace: Optional[
         return False
 
 
-
 def get_helm_status(release_name: str, namespace: Optional[str] = None) -> dict:
     try:
         command = ["helm", "status", release_name, "--output", "json"]
@@ -135,3 +137,38 @@ def get_helm_status(release_name: str, namespace: Optional[str] = None) -> dict:
     except subprocess.CalledProcessError as e:
         print(f"Error getting status for release {release_name}: {e}")
         return {}
+
+
+def get_helm_history(release_name: str, namespace: Optional[str] = None) -> List[dict]:
+    try:
+        command = ["helm", "history", release_name, "--output", "json"]
+        if namespace:
+            command.extend(["--namespace", namespace])
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"Error getting history for release {release_name}: {e}")
+        return []
+
+
+def list_charts_in_repo(repo_name: str) -> List[dict]:
+    try:
+        command = ["helm", "search", "repo", repo_name, "--output", "json"]
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"Error listing charts in repository {repo_name}: {e}")
+        return []
+
+
+def configure_helm_repositories_from_db(db: Session):
+    repositories = db.query(HelmRepository).all()
+    for repo in repositories:
+        add_helm_repo(repo.name, repo.url)
+
+
+def extract_repo_name_from_url(url: str) -> str:
+    parsed_url = urlparse(url)
+    # Use the full domain name as the repository name (e.g., 'cloudecho.github.io' from 'https://cloudecho.github.io/charts/')
+    repo_name = parsed_url.netloc
+    return repo_name
