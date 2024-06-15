@@ -12,10 +12,11 @@ class Deployment(Base):
     chart_repo_url = Column(String, index=True)
     namespace_id = Column(Integer, ForeignKey('namespaces.id'))
     namespace_name = Column(String, index=True)
+    release_name = Column(String, index=True)  # Add this line
     values = Column(JSON)
     revision = Column(Integer)
     active = Column(Boolean, default=True)
-    status = Column(String, default="active")  # Add status column
+    status = Column(String, default="active")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
     owner_id = Column(Integer, ForeignKey('users.id'))

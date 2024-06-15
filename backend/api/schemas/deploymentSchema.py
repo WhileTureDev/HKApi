@@ -1,23 +1,30 @@
 from pydantic import BaseModel
-from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Optional, Dict
+from  datetime import datetime
 
-class DeploymentBase(BaseModel):
+class DeploymentCreate(BaseModel):
     project: str
     chart_name: str
     chart_repo_url: str
     namespace_name: str
-    values: Dict[str, Any]
+    release_name: str  # Add this line
+    values: Dict
 
-class DeploymentCreate(DeploymentBase):
-    pass
-
-class Deployment(DeploymentBase):
+class Deployment(BaseModel):
     id: int
+    project: str
+    chart_name: str
+    chart_repo_url: str
+    namespace_name: str
+    release_name: str  # Add this line
+    values: Dict
+    revision: int
+    install_type: str
+    active: bool
+    status: str
     owner_id: int
     created_at: datetime
     updated_at: datetime
-    status: str  # Add status field
 
     class Config:
         orm_mode = True

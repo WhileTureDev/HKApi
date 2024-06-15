@@ -1,8 +1,10 @@
-from kubernetes import client, config
 import subprocess
+import json
+import os
 import tempfile
 import yaml
-import os
+from kubernetes import client, config
+from typing import List, Optional
 
 
 def load_k8s_config():
@@ -76,8 +78,60 @@ def delete_helm_release(release_name: str, namespace: str) -> bool:
         load_k8s_config()
         subprocess.run([
             "helm", "uninstall", release_name, "--namespace", namespace
-        ], check=True)
+        ], check=True, capture_output=True, text=True)
         return True
     except subprocess.CalledProcessError as e:
+        if "release: not found" in e.stderr:
+            print(f"Release {release_name} not found in namespace {namespace}")
+            return False
         print(f"Error during Helm chart deletion: {e}")
         return False
+
+
+def list_helm_releases(namespace: Optional[str] = None) -> List[dict]:
+    try:
+        command = ["helm", "list", "--all", "--output", "json"]
+        if namespace:
+            command.extend(["--namespace", namespace])
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"Error listing Helm releases: {e}")
+        return []
+
+
+def get_helm_values(release_name: str, namespace: Optional[str] = None) -> dict:
+    try:
+        command = ["helm", "get", "values", release_name, "--output", "json"]
+        if namespace:
+            command.extend(["--namespace", namespace])
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"Error getting values for release {release_name}: {e}")
+        return {}
+
+
+def rollback_helm_release(release_name: str, revision: int, namespace: Optional[str] = None) -> bool:
+    try:
+        command = ["helm", "rollback", release_name, str(revision)]
+        if namespace:
+            command.extend(["--namespace", namespace])
+        subprocess.run(command, check=True, capture_output=True, text=True)
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Error rolling back release {release_name} to revision {revision}: {e}")
+        return False
+
+
+
+def get_helm_status(release_name: str, namespace: Optional[str] = None) -> dict:
+    try:
+        command = ["helm", "status", release_name, "--output", "json"]
+        if namespace:
+            command.extend(["--namespace", namespace])
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"Error getting status for release {release_name}: {e}")
+        return {}

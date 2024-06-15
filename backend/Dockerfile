@@ -18,7 +18,7 @@ RUN   chmod +x /usr/local/bin/kubectl
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --upgrade pip
-RUN pip install -r requirement`s.txt
+RUN pip install -r requirements.txt
 RUN pip install psycopg2-binary && \
     pip install python-multipart && \
     pip install pyyaml && \
@@ -26,7 +26,6 @@ RUN pip install psycopg2-binary && \
 
 
 COPY api .
-COPY docs/obsolute/_build/html /code/html
 
 EXPOSE 8000
 

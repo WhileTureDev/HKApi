@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from kubernetes import config
-from utils.k8s import load_k8s_config
+from utils.helm import load_k8s_config
 from models import Base
 from utils.database import create_database_if_not_exists, create_tables
 from routes import userRoutes, projectRoutes, deploymentRoutes, helmRoutes
