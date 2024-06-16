@@ -1,16 +1,17 @@
 from pydantic import BaseModel
 from datetime import datetime
 
-class HelmRepositoryCreate(BaseModel):
+class HelmRepositoryBase(BaseModel):
     name: str
     url: str
 
-class HelmRepository(BaseModel):
+class HelmRepositoryCreate(HelmRepositoryBase):
+    pass
+
+class HelmRepository(HelmRepositoryBase):
     id: int
-    name: str
-    url: str
     created_at: datetime
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        orm_mode = True  # Ensure this is set

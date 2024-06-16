@@ -1,6 +1,5 @@
 import subprocess
 import json
-import os
 import tempfile
 import yaml
 from kubernetes import client, config
@@ -33,7 +32,8 @@ def add_helm_repo(repo_name: str, repo_url: str) -> bool:
         return False
 
 
-def deploy_helm_chart(release_name: str, chart_name: str, chart_repo_url: str, namespace: str, values: dict, version: Optional[str] = None) -> int:
+def deploy_helm_chart(release_name: str, chart_name: str, chart_repo_url: str, namespace: str, values: dict,
+                      version: Optional[str] = None) -> int:
     try:
         load_k8s_config()
         v1 = client.CoreV1Api()
@@ -144,16 +144,6 @@ def get_helm_status(release_name: str, namespace: Optional[str] = None) -> dict:
         return {}
 
 
-def list_charts_in_repo(repo_name: str) -> List[dict]:
-    try:
-        command = ["helm", "search", "repo", repo_name, "--output", "json"]
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
-        return json.loads(result.stdout)
-    except subprocess.CalledProcessError as e:
-        print(f"Error listing charts in repository {repo_name}: {e}")
-        return []
-
-
 def configure_helm_repositories_from_db(db: Session):
     repositories = db.query(HelmRepository).all()
     for repo in repositories:
@@ -181,6 +171,7 @@ def search_helm_charts(term: str, repositories: List[str]) -> List[dict]:
             print(f"Error searching Helm repository {repo}: {e}")
     return search_results
 
+
 def update_helm_repositories() -> bool:
     try:
         command = ["helm", "repo", "update"]
@@ -202,6 +193,7 @@ def get_helm_release_history(release_name: str, namespace: Optional[str] = None)
         print(f"Error getting history for release {release_name}: {e}")
         return []
 
+
 def list_all_helm_releases() -> List[dict]:
     try:
         command = ["helm", "list", "--all-namespaces", "--output", "json"]
@@ -209,4 +201,14 @@ def list_all_helm_releases() -> List[dict]:
         return json.loads(result.stdout)
     except subprocess.CalledProcessError as e:
         print(f"Error listing all Helm releases: {e}")
+        return []
+
+
+def list_helm_charts_in_repo(repo_name: str) -> List[dict]:
+    try:
+        command = ["helm", "search", "repo", repo_name, "--output", "json"]
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"Error listing charts in repository {repo_name}: {e}")
         return []

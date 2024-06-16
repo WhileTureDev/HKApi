@@ -7,7 +7,7 @@ from schemas.helmRepositorySchema import HelmRepositoryCreate, HelmRepository as
 from utils.database import get_db
 from utils.auth import get_current_active_user
 from models.userModel import User as UserModel
-from utils.helm import add_helm_repo, update_helm_repositories, search_helm_charts
+from utils.helm import add_helm_repo, update_helm_repositories, search_helm_charts, list_helm_charts_in_repo
 
 router = APIRouter()
 
@@ -40,7 +40,8 @@ def list_helm_repositories(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_active_user)
 ):
-    return db.query(HelmRepositoryModel).all()
+    repositories = db.query(HelmRepositoryModel).all()
+    return [HelmRepositorySchema.from_orm(repo) for repo in repositories]
 
 @router.delete("/helm/repositories/{repo_id}", response_model=HelmRepositorySchema)
 def delete_helm_repository(
@@ -81,3 +82,20 @@ def update_repositories(
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update Helm repositories")
     return {"message": "Helm repositories updated successfully"}
+
+@router.get("/helm/repositories/charts", response_model=List[dict])
+def list_charts_in_repo(
+    repo_name: str = Query(..., description="The name of the repository"),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user)
+):
+    # Check if the repository exists in the database
+    helm_repo = db.query(HelmRepositoryModel).filter_by(name=repo_name).first()
+    if not helm_repo:
+        raise HTTPException(status_code=404, detail="Repository not found")
+
+    # List all charts in the specified repository
+    charts = list_helm_charts_in_repo(repo_name)
+    if not charts:
+        raise HTTPException(status_code=404, detail="No charts found in the repository")
+    return charts
