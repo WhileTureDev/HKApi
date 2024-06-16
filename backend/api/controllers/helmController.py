@@ -7,6 +7,7 @@ from models.helmRepositoryModel import HelmRepository as HelmRepositoryModel
 from models.projectModel import Project as ProjectModel
 from models.namespaceModel import Namespace as NamespaceModel
 from schemas.deploymentSchema import DeploymentCreate, Deployment as DeploymentSchema
+from schemas.helmRepositorySchema import HelmRepositoryCreate
 from utils.database import get_db
 from utils.auth import get_current_active_user
 from models.userModel import User as UserModel
@@ -18,7 +19,8 @@ from utils.helm import (
     rollback_helm_release,
     get_helm_status,
     add_helm_repo,
-    extract_repo_name_from_url
+    extract_repo_name_from_url,
+    get_helm_release_history  # Add this import
 )
 
 router = APIRouter()
@@ -198,3 +200,16 @@ async def get_release_status(
     if not status:
         raise HTTPException(status_code=404, detail="Release status not found")
     return status
+
+
+@router.get("/helm/releases/history", response_model=List[dict])
+async def get_release_history(
+        release_name: str = Query(..., description="The name of the release"),
+        namespace: str = Query(..., description="The namespace of the release"),
+        db: Session = Depends(get_db),
+        current_user: UserModel = Depends(get_current_active_user)
+):
+    history = get_helm_release_history(release_name, namespace)
+    if not history:
+        raise HTTPException(status_code=404, detail="Release history not found")
+    return history

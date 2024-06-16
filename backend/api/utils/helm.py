@@ -144,18 +144,6 @@ def get_helm_status(release_name: str, namespace: Optional[str] = None) -> dict:
         return {}
 
 
-def get_helm_history(release_name: str, namespace: Optional[str] = None) -> List[dict]:
-    try:
-        command = ["helm", "history", release_name, "--output", "json"]
-        if namespace:
-            command.extend(["--namespace", namespace])
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
-        return json.loads(result.stdout)
-    except subprocess.CalledProcessError as e:
-        print(f"Error getting history for release {release_name}: {e}")
-        return []
-
-
 def list_charts_in_repo(repo_name: str) -> List[dict]:
     try:
         command = ["helm", "search", "repo", repo_name, "--output", "json"]
@@ -201,3 +189,15 @@ def update_helm_repositories() -> bool:
     except subprocess.CalledProcessError as e:
         print(f"Error updating Helm repositories: {e}")
         return False
+
+
+def get_helm_release_history(release_name: str, namespace: Optional[str] = None) -> List[dict]:
+    try:
+        command = ["helm", "history", release_name, "--output", "json"]
+        if namespace:
+            command.extend(["--namespace", namespace])
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"Error getting history for release {release_name}: {e}")
+        return []
