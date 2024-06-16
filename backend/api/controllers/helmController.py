@@ -1,5 +1,6 @@
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form
+import json
 import yaml
-from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from typing import List, Optional
@@ -15,7 +16,7 @@ from utils.database import get_db
 from utils.auth import get_current_active_user
 from models.userModel import User as UserModel
 from utils.helm import (
-    deploy_helm_chart,
+    deploy_helm_chart_combined,
     delete_helm_release,
     list_helm_releases,
     get_helm_values,
@@ -26,90 +27,126 @@ from utils.helm import (
     get_helm_release_history,
     list_all_helm_releases,
     get_helm_release_notes,
-    export_helm_release_values_to_file,
-    deploy_helm_chart_with_file  # Add this import
+    export_helm_release_values_to_file
 )
 
 router = APIRouter()
 
+
 @router.post("/helm/releases", response_model=DeploymentSchema)
-def create_release(
-        deployment: DeploymentCreate,
+async def create_release(
+        release_name: str = Query(..., description="The name of the release"),
+        chart_name: str = Query(..., description="The name of the chart"),
+        chart_repo_url: str = Query(..., description="The URL of the chart repository"),
+        namespace: str = Query(..., description="The namespace of the release"),
+        project: str = Query(..., description="The project name"),
+        values: Optional[str] = Query(None, description="The values for the chart in JSON format"),
+        version: Optional[str] = Query(None, description="The version of the chart"),
+        debug: Optional[bool] = Query(False, description="Enable debug mode"),
+        values_file: Optional[UploadFile] = File(None),
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user)
 ):
-    # Check if the project exists
-    project = db.query(ProjectModel).filter_by(name=deployment.project, owner_id=current_user.id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    try:
+        # Parse the values JSON if provided
+        values_dict = json.loads(values) if values else {}
 
-    # Check if the namespace exists, if not create it
-    namespace = db.query(NamespaceModel).filter_by(name=deployment.namespace_name).first()
-    if not namespace:
-        namespace = NamespaceModel(
-            name=deployment.namespace_name,
-            project_id=project.id,  # Use project ID
+        # Save the uploaded values file to a temporary location if provided
+        values_file_path = None
+        if values_file:
+            with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                tmp.write(values_file.file.read())
+                values_file_path = tmp.name
+
+            # Load values from the file if no values JSON was provided
+            if not values:
+                with open(values_file_path, 'r') as f:
+                    values_dict = yaml.safe_load(f)
+
+        # Check if the project exists
+        project_obj = db.query(ProjectModel).filter_by(name=project, owner_id=current_user.id).first()
+        if not project_obj:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # Check if the namespace exists, if not create it
+        namespace_obj = db.query(NamespaceModel).filter_by(name=namespace).first()
+        if not namespace_obj:
+            namespace_obj = NamespaceModel(
+                name=namespace,
+                project_id=project_obj.id,  # Use project ID
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(namespace_obj)
+            db.commit()
+            db.refresh(namespace_obj)
+
+        # Extract the repository name from the URL
+        repo_name = extract_repo_name_from_url(chart_repo_url)
+
+        # Check if the Helm repository exists in the database
+        helm_repo = db.query(HelmRepositoryModel).filter_by(name=repo_name).first()
+        if not helm_repo:
+            # Add the repository to the database
+            new_repo = HelmRepositoryModel(
+                name=repo_name,
+                url=chart_repo_url,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(new_repo)
+            db.commit()
+            db.refresh(new_repo)
+            # Add the repository to Helm
+            if not add_helm_repo(repo_name, chart_repo_url):
+                raise HTTPException(status_code=500, detail="Failed to add Helm repository")
+
+        # Deploy Helm chart using the combined function
+        revision = deploy_helm_chart_combined(
+            release_name=release_name,
+            chart_name=chart_name,
+            chart_repo_url=chart_repo_url,
+            namespace=namespace,
+            values=values_dict,
+            values_file_path=values_file_path,
+            version=version,
+            debug=debug
+        )
+
+        if revision == -1:
+            raise HTTPException(status_code=500, detail="Helm chart deployment failed")
+
+        # Clean up the temporary file
+        if values_file_path:
+            os.remove(values_file_path)
+
+        # Create a new deployment record for each revision
+        new_deployment = DeploymentModel(
+            project=project,
+            release_name=release_name,
+            chart_name=chart_name,
+            chart_repo_url=chart_repo_url,
+            namespace_id=namespace_obj.id,
+            namespace_name=namespace,
+            values=values_dict if values_dict is not None else {},  # Store the values if provided
+            revision=revision,
+            install_type="helm",
+            active=True,
+            status="deployed",
+            owner_id=current_user.id,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
-        db.add(namespace)
+        db.add(new_deployment)
+
         db.commit()
-        db.refresh(namespace)
+        db.refresh(new_deployment)
 
-    # Extract the repository name from the URL
-    repo_name = extract_repo_name_from_url(deployment.chart_repo_url)
-
-    # Check if the Helm repository exists in the database
-    helm_repo = db.query(HelmRepositoryModel).filter_by(name=repo_name).first()
-    if not helm_repo:
-        # Add the repository to the database
-        new_repo = HelmRepositoryModel(
-            name=repo_name,
-            url=deployment.chart_repo_url,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db.add(new_repo)
-        db.commit()
-        db.refresh(new_repo)
-        # Add the repository to Helm
-        if not add_helm_repo(repo_name, deployment.chart_repo_url):
-            raise HTTPException(status_code=500, detail="Failed to add Helm repository")
-
-    # Deploy Helm chart using utility function
-    revision = deploy_helm_chart(
-        release_name=deployment.release_name,
-        chart_name=deployment.chart_name,
-        chart_repo_url=deployment.chart_repo_url,
-        namespace=deployment.namespace_name,
-        values=deployment.values,  # Pass the custom values
-        version=deployment.version  # Pass the version if provided
-    )
-    if revision == -1:
-        raise HTTPException(status_code=500, detail="Helm chart deployment failed")
-
-    # Create a new deployment record for each revision
-    new_deployment = DeploymentModel(
-        project=deployment.project,
-        release_name=deployment.release_name,  # Use release_name instead of chart_name
-        chart_name=deployment.chart_name,  # Ensure chart_name is set
-        chart_repo_url=deployment.chart_repo_url,
-        namespace_id=namespace.id,
-        namespace_name=deployment.namespace_name,
-        values=deployment.values,
-        revision=revision,
-        install_type="helm",
-        active=True,
-        status="deployed",  # Set status to deployed
-        owner_id=current_user.id,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
-    db.add(new_deployment)
-
-    db.commit()
-    db.refresh(new_deployment)
-    return new_deployment
+        return new_deployment
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error deploying Helm chart: {str(e)}")
 
 
 @router.delete("/helm/releases", response_model=DeploymentSchema)
@@ -264,108 +301,3 @@ async def export_release_values(
         filename=f"{release_name}-values.yaml",
         media_type='application/octet-stream'
     )
-
-
-@router.post("/helm/releases/import")
-async def import_release_values(
-        release_name: str = Query(..., description="The name of the release"),
-        chart_name: str = Query(..., description="The name of the chart"),
-        chart_repo_url: str = Query(..., description="The URL of the chart repository"),
-        namespace: str = Query(..., description="The namespace of the release"),
-        project: str = Query(..., description="The name of the project"),
-        version: Optional[str] = Query(None, description="The version of the chart"),
-        values_file: UploadFile = File(...),
-        db: Session = Depends(get_db),
-        current_user: UserModel = Depends(get_current_active_user)
-):
-    try:
-        # Check if the project exists
-        project_obj = db.query(ProjectModel).filter_by(name=project, owner_id=current_user.id).first()
-        if not project_obj:
-            raise HTTPException(status_code=404, detail="Project not found")
-
-        # Check if the namespace exists, if not create it
-        namespace_obj = db.query(NamespaceModel).filter_by(name=namespace).first()
-        if not namespace_obj:
-            namespace_obj = NamespaceModel(
-                name=namespace,
-                project_id=project_obj.id,  # Use project ID
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
-            )
-            db.add(namespace_obj)
-            db.commit()
-            db.refresh(namespace_obj)
-
-        # Extract the repository name from the URL
-        repo_name = extract_repo_name_from_url(chart_repo_url)
-
-        # Check if the Helm repository exists in the database
-        helm_repo = db.query(HelmRepositoryModel).filter_by(name=repo_name).first()
-        if not helm_repo:
-            # Add the repository to the database
-            new_repo = HelmRepositoryModel(
-                name=repo_name,
-                url=chart_repo_url,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
-            )
-            db.add(new_repo)
-            db.commit()
-            db.refresh(new_repo)
-            # Add the repository to Helm
-            if not add_helm_repo(repo_name, chart_repo_url):
-                raise HTTPException(status_code=500, detail="Failed to add Helm repository")
-
-        # Save the uploaded file to a temporary location and read the values
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            tmp.write(values_file.file.read())
-            tmp_path = tmp.name
-
-        with open(tmp_path, 'r') as file:
-            values = yaml.safe_load(file)
-
-        # Deploy Helm chart using the uploaded values file
-        revision = deploy_helm_chart_with_file(
-            release_name=release_name,
-            chart_name=chart_name,
-            chart_repo_url=chart_repo_url,
-            namespace=namespace,
-            values_file_path=tmp_path,
-            version=version
-        )
-
-        if revision == -1:
-            raise HTTPException(status_code=500, detail="Helm chart deployment failed")
-
-        # Clean up the temporary file
-        os.remove(tmp_path)
-
-        # Create a new deployment record for each revision
-        new_deployment = DeploymentModel(
-            project=project,
-            release_name=release_name,
-            chart_name=chart_name,
-            chart_repo_url=chart_repo_url,
-            namespace_id=namespace_obj.id,
-            namespace_name=namespace,
-            values=values,  # Store the values in the database
-            revision=revision,
-            install_type="helm",
-            active=True,
-            status="deployed",
-            owner_id=current_user.id,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db.add(new_deployment)
-
-        db.commit()
-        db.refresh(new_deployment)
-
-        # Return a success message
-        return {"message": "Helm chart deployed successfully", "revision": revision}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error importing release values: {str(e)}")

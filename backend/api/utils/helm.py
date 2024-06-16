@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from models.helmRepositoryModel import HelmRepository
 from urllib.parse import urlparse
 import os
+from typing import Optional, Union, Dict
 
 
 def load_k8s_config():
@@ -33,8 +34,16 @@ def add_helm_repo(repo_name: str, repo_url: str) -> bool:
         return False
 
 
-def deploy_helm_chart(release_name: str, chart_name: str, chart_repo_url: str, namespace: str, values: dict,
-                      version: Optional[str] = None) -> int:
+def deploy_helm_chart_combined(
+    release_name: str,
+    chart_name: str,
+    chart_repo_url: str,
+    namespace: str,
+    values: Optional[Dict[str, Union[str, int, float, bool, None]]] = None,
+    values_file_path: Optional[str] = None,
+    version: Optional[str] = None,
+    debug: bool = False
+) -> int:
     try:
         load_k8s_config()
         v1 = client.CoreV1Api()
@@ -43,32 +52,44 @@ def deploy_helm_chart(release_name: str, chart_name: str, chart_repo_url: str, n
         namespaces = v1.list_namespace()
         if namespace not in [ns.metadata.name for ns in namespaces.items]:
             # Create the namespace if it does not exist
-            namespace_body = client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace))
+            namespace_body = client.V1Namespace(
+                metadata=client.V1ObjectMeta(name=namespace)
+            )
             v1.create_namespace(namespace_body)
 
-        # Extract the repository name from the URL
-        repo_name = extract_repo_name_from_url(chart_repo_url)
-
         # Add Helm repository
+        repo_name = os.path.basename(chart_repo_url.strip('/'))
         if not add_helm_repo(repo_name, chart_repo_url):
             raise Exception("Failed to add Helm repository")
 
-        # Create a temporary values.yaml file
-        with tempfile.NamedTemporaryFile('w', delete=False) as temp_file:
-            yaml.dump(values, temp_file)
-            temp_file_name = temp_file.name
+        # Create a temporary values.yaml file if values are provided
+        temp_file_name = None
+        if values is not None:
+            with tempfile.NamedTemporaryFile('w', delete=False) as temp_file:
+                yaml.dump(values, temp_file)
+                temp_file_name = temp_file.name
 
-        # Build the helm upgrade --install command
-        command = [
+        # Prepare Helm command
+        helm_command = [
             "helm", "upgrade", "--install", release_name, f"{repo_name}/{chart_name}",
-            "--namespace", namespace, "-f", temp_file_name
+            "--namespace", namespace
         ]
 
+        if temp_file_name:
+            helm_command.extend(["-f", temp_file_name])
+        elif values_file_path:
+            helm_command.extend(["-f", values_file_path])
+
+        # If a specific version is provided, add the --version flag
         if version:
-            command.extend(["--version", version])
+            helm_command.extend(["--version", version])
+
+        # Add --debug flag if debug mode is enabled
+        if debug:
+            helm_command.append("--debug")
 
         # Deploy or upgrade the Helm chart
-        subprocess.run(command, check=True)
+        subprocess.run(helm_command, check=True)
 
         # Fetch the Helm revision
         result = subprocess.run([
@@ -76,6 +97,11 @@ def deploy_helm_chart(release_name: str, chart_name: str, chart_repo_url: str, n
         ], check=True, capture_output=True, text=True)
 
         revision = int(result.stdout.splitlines()[-1].split()[0])
+
+        # Clean up the temporary file
+        if temp_file_name:
+            os.remove(temp_file_name)
+
         return revision
     except (subprocess.CalledProcessError, client.exceptions.ApiException) as e:
         print(f"Error during Helm chart deployment: {e}")
@@ -251,49 +277,3 @@ def export_helm_release_values_to_file(release_name: str, namespace: str) -> str
     except subprocess.CalledProcessError as e:
         print(f"Error exporting values for release {release_name}: {e}")
         return None
-
-
-def deploy_helm_chart_with_file(release_name: str, chart_name: str, chart_repo_url: str, namespace: str,
-                                values_file_path: str, version: Optional[str] = None) -> int:
-    try:
-        load_k8s_config()
-        v1 = client.CoreV1Api()
-
-        # Check if the namespace exists
-        namespaces = v1.list_namespace()
-        if namespace not in [ns.metadata.name for ns in namespaces.items]:
-            # Create the namespace if it does not exist
-            namespace_body = client.V1Namespace(
-                metadata=client.V1ObjectMeta(name=namespace)
-            )
-            v1.create_namespace(namespace_body)
-
-        # Add Helm repository
-        repo_name = os.path.basename(chart_repo_url.strip('/'))
-        if not add_helm_repo(repo_name, chart_repo_url):
-            raise Exception("Failed to add Helm repository")
-
-        # Prepare Helm command
-        helm_command = [
-            "helm", "upgrade", "--install", release_name, f"{repo_name}/{chart_name}",
-            "--namespace", namespace,
-            "-f", values_file_path
-        ]
-
-        # If a specific version is provided, add the --version flag
-        if version:
-            helm_command.extend(["--version", version])
-
-        # Deploy or upgrade the Helm chart
-        subprocess.run(helm_command, check=True)
-
-        # Fetch the Helm revision
-        result = subprocess.run([
-            "helm", "history", release_name, "--namespace", namespace, "--max", "1"
-        ], check=True, capture_output=True, text=True)
-
-        revision = int(result.stdout.splitlines()[-1].split()[0])
-        return revision
-    except (subprocess.CalledProcessError, client.exceptions.ApiException) as e:
-        print(f"Error during Helm chart deployment: {e}")
-        return -1
