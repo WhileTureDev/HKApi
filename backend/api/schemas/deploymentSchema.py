@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, Dict
-from  datetime import datetime
+from datetime import datetime
+
 
 class DeploymentCreate(BaseModel):
     project: str
@@ -10,6 +11,7 @@ class DeploymentCreate(BaseModel):
     release_name: str  # Add this line
     values: Dict
     version: Optional[str] = None
+
 
 class Deployment(BaseModel):
     id: int
@@ -29,3 +31,8 @@ class Deployment(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class RollbackOptions(BaseModel):
+    force: Optional[bool] = False
+    recreate_pods: Optional[bool] = False

@@ -6,8 +6,7 @@ from models.deploymentModel import Deployment as DeploymentModel
 from models.helmRepositoryModel import HelmRepository as HelmRepositoryModel
 from models.projectModel import Project as ProjectModel
 from models.namespaceModel import Namespace as NamespaceModel
-from schemas.deploymentSchema import DeploymentCreate, Deployment as DeploymentSchema
-from schemas.helmRepositorySchema import HelmRepositoryCreate
+from schemas.deploymentSchema import DeploymentCreate, Deployment as DeploymentSchema, RollbackOptions
 from utils.database import get_db
 from utils.auth import get_current_active_user
 from models.userModel import User as UserModel
@@ -21,7 +20,7 @@ from utils.helm import (
     add_helm_repo,
     extract_repo_name_from_url,
     get_helm_release_history,
-    list_all_helm_releases  # Add this import
+    list_all_helm_releases
 )
 
 router = APIRouter()
@@ -167,10 +166,13 @@ async def rollback_release(
         release_name: str = Query(..., description="The name of the release"),
         revision: int = Query(..., description="The revision number to rollback to"),
         namespace: str = Query(..., description="The namespace of the release"),
+        options: RollbackOptions = Depends(),
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user)
 ):
-    success = rollback_helm_release(release_name, revision, namespace)
+    success = rollback_helm_release(
+        release_name, revision, namespace, force=options.force, recreate_pods=options.recreate_pods
+    )
     if not success:
         raise HTTPException(status_code=500, detail="Rollback failed")
 

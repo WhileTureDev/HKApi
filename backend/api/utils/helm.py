@@ -120,15 +120,21 @@ def get_helm_values(release_name: str, namespace: Optional[str] = None) -> dict:
         return {}
 
 
-def rollback_helm_release(release_name: str, revision: int, namespace: Optional[str] = None) -> bool:
+def rollback_helm_release(release_name: str, revision: int, namespace: str, force: bool = False,
+                          recreate_pods: bool = False) -> bool:
     try:
-        command = ["helm", "rollback", release_name, str(revision)]
-        if namespace:
-            command.extend(["--namespace", namespace])
-        subprocess.run(command, check=True, capture_output=True, text=True)
+        command = ["helm", "rollback", release_name, str(revision), "--namespace", namespace]
+
+        if force:
+            command.append("--force")
+
+        if recreate_pods:
+            command.append("--recreate-pods")
+
+        subprocess.run(command, check=True)
         return True
     except subprocess.CalledProcessError as e:
-        print(f"Error rolling back release {release_name} to revision {revision}: {e}")
+        print(f"Error during rollback: {e}")
         return False
 
 
