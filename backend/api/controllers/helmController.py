@@ -1,5 +1,7 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from fastapi.responses import FileResponse
 from typing import List, Optional
 from datetime import datetime
 from models.deploymentModel import Deployment as DeploymentModel
@@ -21,7 +23,8 @@ from utils.helm import (
     extract_repo_name_from_url,
     get_helm_release_history,
     list_all_helm_releases,
-    get_helm_release_notes  # Add this import
+    get_helm_release_notes,
+    export_helm_release_values_to_file  # Add this import
 )
 
 router = APIRouter()
@@ -242,3 +245,20 @@ async def get_release_notes(
     if not notes:
         raise HTTPException(status_code=404, detail="Release notes not found")
     return {"notes": notes}
+
+
+@router.get("/helm/releases/export")
+async def export_release_values(
+        release_name: str = Query(..., description="The name of the release"),
+        namespace: str = Query(..., description="The namespace of the release"),
+        db: Session = Depends(get_db),
+        current_user: UserModel = Depends(get_current_active_user)
+):
+    file_path = export_helm_release_values_to_file(release_name, namespace)
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=500, detail="Error exporting release values")
+    return FileResponse(
+        path=file_path,
+        filename=f"{release_name}-values.yaml",
+        media_type='application/octet-stream'
+    )

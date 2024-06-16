@@ -234,3 +234,19 @@ def get_helm_release_notes(release_name: str, revision: int, namespace: str) -> 
     except subprocess.CalledProcessError as e:
         print(f"Error getting history for release {release_name}: {e}")
         return 'Error retrieving release notes'
+
+
+def export_helm_release_values_to_file(release_name: str, namespace: str) -> str:
+    try:
+        command = ["helm", "get", "values", release_name, "--namespace", namespace, "--output", "yaml", "--all"]
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".yaml") as temp_file:
+            temp_file.write(result.stdout.encode('utf-8'))
+            temp_file_name = temp_file.name
+            print(f"Temporary file created at: {temp_file_name}")
+            print(f"File content: {result.stdout}")
+            return temp_file_name
+    except subprocess.CalledProcessError as e:
+        print(f"Error exporting values for release {release_name}: {e}")
+        return None
