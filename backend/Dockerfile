@@ -15,17 +15,17 @@ RUN   chmod +x /usr/local/bin/kubectl
 
 # Install application dependencies
 
-WORKDIR /code
+WORKDIR /app
 COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 RUN pip install psycopg2-binary && \
     pip install python-multipart && \
-    pip install pyyaml
+    pip install pyyaml && \
+    pip install pydantic[email]
 
 
-COPY app /code/app
-COPY docs/_build/html /code/html
+COPY api .
 
 EXPOSE 8000
 
@@ -33,6 +33,6 @@ EXPOSE 8000
 COPY entrypoint.sh .
 RUN  chmod +x ./entrypoint.sh && \
      dos2unix ./entrypoint.sh && \
-     dos2unix /code/*
+     dos2unix /app/*
 
 CMD ["./entrypoint.sh"]

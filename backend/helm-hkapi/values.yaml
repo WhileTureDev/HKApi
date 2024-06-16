@@ -85,3 +85,7 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+env:
+  ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+  DATABASE_HOST: "postgres-postgresql"
