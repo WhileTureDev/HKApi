@@ -19,6 +19,13 @@ def create_project(
     current_user: UserModel = Depends(get_current_active_user)
 ):
     logger.info(f"User {current_user.username} is creating a new project: {project.name}")
+
+    # Check if project with the same name already exists
+    existing_project = db.query(ProjectModel).filter(ProjectModel.name == project.name).first()
+    if existing_project:
+        logger.warning(f"Project with name {project.name} already exists")
+        raise HTTPException(status_code=400, detail="Project with this name already exists")
+
     new_project = ProjectModel(
         name=project.name,
         description=project.description,
