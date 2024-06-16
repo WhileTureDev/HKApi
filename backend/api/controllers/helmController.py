@@ -1,9 +1,11 @@
-import os
-from fastapi import APIRouter, Depends, HTTPException, Query
+import yaml
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from typing import List, Optional
 from datetime import datetime
+import tempfile
+import os
 from models.deploymentModel import Deployment as DeploymentModel
 from models.helmRepositoryModel import HelmRepository as HelmRepositoryModel
 from models.projectModel import Project as ProjectModel
@@ -24,11 +26,11 @@ from utils.helm import (
     get_helm_release_history,
     list_all_helm_releases,
     get_helm_release_notes,
-    export_helm_release_values_to_file  # Add this import
+    export_helm_release_values_to_file,
+    deploy_helm_chart_with_file  # Add this import
 )
 
 router = APIRouter()
-
 
 @router.post("/helm/releases", response_model=DeploymentSchema)
 def create_release(
@@ -255,10 +257,115 @@ async def export_release_values(
         current_user: UserModel = Depends(get_current_active_user)
 ):
     file_path = export_helm_release_values_to_file(release_name, namespace)
-    if not file_path or not os.path.exists(file_path):
+    if not file_path:
         raise HTTPException(status_code=500, detail="Error exporting release values")
     return FileResponse(
         path=file_path,
         filename=f"{release_name}-values.yaml",
         media_type='application/octet-stream'
     )
+
+
+@router.post("/helm/releases/import")
+async def import_release_values(
+        release_name: str = Query(..., description="The name of the release"),
+        chart_name: str = Query(..., description="The name of the chart"),
+        chart_repo_url: str = Query(..., description="The URL of the chart repository"),
+        namespace: str = Query(..., description="The namespace of the release"),
+        project: str = Query(..., description="The name of the project"),
+        version: Optional[str] = Query(None, description="The version of the chart"),
+        values_file: UploadFile = File(...),
+        db: Session = Depends(get_db),
+        current_user: UserModel = Depends(get_current_active_user)
+):
+    try:
+        # Check if the project exists
+        project_obj = db.query(ProjectModel).filter_by(name=project, owner_id=current_user.id).first()
+        if not project_obj:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # Check if the namespace exists, if not create it
+        namespace_obj = db.query(NamespaceModel).filter_by(name=namespace).first()
+        if not namespace_obj:
+            namespace_obj = NamespaceModel(
+                name=namespace,
+                project_id=project_obj.id,  # Use project ID
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(namespace_obj)
+            db.commit()
+            db.refresh(namespace_obj)
+
+        # Extract the repository name from the URL
+        repo_name = extract_repo_name_from_url(chart_repo_url)
+
+        # Check if the Helm repository exists in the database
+        helm_repo = db.query(HelmRepositoryModel).filter_by(name=repo_name).first()
+        if not helm_repo:
+            # Add the repository to the database
+            new_repo = HelmRepositoryModel(
+                name=repo_name,
+                url=chart_repo_url,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(new_repo)
+            db.commit()
+            db.refresh(new_repo)
+            # Add the repository to Helm
+            if not add_helm_repo(repo_name, chart_repo_url):
+                raise HTTPException(status_code=500, detail="Failed to add Helm repository")
+
+        # Save the uploaded file to a temporary location and read the values
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(values_file.file.read())
+            tmp_path = tmp.name
+
+        with open(tmp_path, 'r') as file:
+            values = yaml.safe_load(file)
+
+        # Deploy Helm chart using the uploaded values file
+        revision = deploy_helm_chart_with_file(
+            release_name=release_name,
+            chart_name=chart_name,
+            chart_repo_url=chart_repo_url,
+            namespace=namespace,
+            values_file_path=tmp_path,
+            version=version
+        )
+
+        if revision == -1:
+            raise HTTPException(status_code=500, detail="Helm chart deployment failed")
+
+        # Clean up the temporary file
+        os.remove(tmp_path)
+
+        # Create a new deployment record for each revision
+        new_deployment = DeploymentModel(
+            project=project,
+            release_name=release_name,
+            chart_name=chart_name,
+            chart_repo_url=chart_repo_url,
+            namespace_id=namespace_obj.id,
+            namespace_name=namespace,
+            values=values,  # Store the values in the database
+            revision=revision,
+            install_type="helm",
+            active=True,
+            status="deployed",
+            owner_id=current_user.id,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        db.add(new_deployment)
+
+        db.commit()
+        db.refresh(new_deployment)
+
+        # Return a success message
+        return {"message": "Helm chart deployed successfully", "revision": revision}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error importing release values: {str(e)}")
