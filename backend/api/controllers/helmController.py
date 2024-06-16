@@ -20,7 +20,8 @@ from utils.helm import (
     get_helm_status,
     add_helm_repo,
     extract_repo_name_from_url,
-    get_helm_release_history  # Add this import
+    get_helm_release_history,
+    list_all_helm_releases  # Add this import
 )
 
 router = APIRouter()
@@ -213,3 +214,14 @@ async def get_release_history(
     if not history:
         raise HTTPException(status_code=404, detail="Release history not found")
     return history
+
+
+@router.get("/helm/releases/all", response_model=List[dict])
+async def list_all_releases(
+        db: Session = Depends(get_db),
+        current_user: UserModel = Depends(get_current_active_user)
+):
+    releases = list_all_helm_releases()
+    if not releases:
+        raise HTTPException(status_code=404, detail="No releases found")
+    return releases

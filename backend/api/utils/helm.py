@@ -201,3 +201,12 @@ def get_helm_release_history(release_name: str, namespace: Optional[str] = None)
     except subprocess.CalledProcessError as e:
         print(f"Error getting history for release {release_name}: {e}")
         return []
+
+def list_all_helm_releases() -> List[dict]:
+    try:
+        command = ["helm", "list", "--all-namespaces", "--output", "json"]
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"Error listing all Helm releases: {e}")
+        return []
