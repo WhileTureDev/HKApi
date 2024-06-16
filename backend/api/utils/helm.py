@@ -218,3 +218,19 @@ def list_helm_charts_in_repo(repo_name: str) -> List[dict]:
     except subprocess.CalledProcessError as e:
         print(f"Error listing charts in repository {repo_name}: {e}")
         return []
+
+
+def get_helm_release_notes(release_name: str, revision: int, namespace: str) -> str:
+    try:
+        command = ["helm", "history", release_name, "--namespace", namespace, "--output", "json"]
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        history = json.loads(result.stdout)
+
+        for entry in history:
+            if entry['revision'] == revision:
+                return entry.get('description', 'No notes available')
+
+        return 'Revision not found'
+    except subprocess.CalledProcessError as e:
+        print(f"Error getting history for release {release_name}: {e}")
+        return 'Error retrieving release notes'

@@ -20,7 +20,8 @@ from utils.helm import (
     add_helm_repo,
     extract_repo_name_from_url,
     get_helm_release_history,
-    list_all_helm_releases
+    list_all_helm_releases,
+    get_helm_release_notes  # Add this import
 )
 
 router = APIRouter()
@@ -227,3 +228,17 @@ async def list_all_releases(
     if not releases:
         raise HTTPException(status_code=404, detail="No releases found")
     return releases
+
+
+@router.get("/helm/releases/notes", response_model=dict)
+async def get_release_notes(
+        release_name: str = Query(..., description="The name of the release"),
+        revision: int = Query(..., description="The revision number"),
+        namespace: str = Query(..., description="The namespace of the release"),
+        db: Session = Depends(get_db),
+        current_user: UserModel = Depends(get_current_active_user)
+):
+    notes = get_helm_release_notes(release_name, revision, namespace)
+    if not notes:
+        raise HTTPException(status_code=404, detail="Release notes not found")
+    return {"notes": notes}
