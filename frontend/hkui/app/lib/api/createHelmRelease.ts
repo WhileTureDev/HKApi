@@ -1,4 +1,4 @@
-// api/lib/api/createHelmRelease.ts
+// app/lib/api/createHelmRelease.ts
 
 const createHelmRelease = async (payload: any, token: string) => {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/helm/create`, {

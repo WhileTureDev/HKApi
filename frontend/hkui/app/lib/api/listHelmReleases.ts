@@ -1,4 +1,4 @@
-// api/lib/api/listHelmReleases.ts
+// app/lib/api/listHelmReleases.ts
 
 const listHelmReleases = async (namespace: string, token: string) => {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/helm/list?namespace=${namespace}`, {
