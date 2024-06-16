@@ -1,4 +1,5 @@
 import os
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -10,14 +11,17 @@ from utils.auth import authenticate_user
 from schemas.tokenSchema import Token
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 access_token_expire_minutes = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 
 
 @router.post("/token", response_model=Token)
 def login_for_access_token(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
+    logger.info(f"Attempting login for user: {form_data.username}")
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
+        logger.warning(f"Login failed for user: {form_data.username}")
         raise HTTPException(
             status_code=400,
             detail="Incorrect username or password",
@@ -27,4 +31,5 @@ def login_for_access_token(db: Session = Depends(get_db), form_data: OAuth2Passw
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
+    logger.info(f"Login successful for user: {form_data.username}")
     return {"access_token": access_token, "token_type": "bearer"}

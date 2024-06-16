@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Form
 import json
 import yaml
@@ -11,7 +12,7 @@ from models.deploymentModel import Deployment as DeploymentModel
 from models.helmRepositoryModel import HelmRepository as HelmRepositoryModel
 from models.projectModel import Project as ProjectModel
 from models.namespaceModel import Namespace as NamespaceModel
-from schemas.deploymentSchema import DeploymentCreate, Deployment as DeploymentSchema, RollbackOptions
+from schemas.deploymentSchema import Deployment as DeploymentSchema, RollbackOptions
 from utils.database import get_db
 from utils.auth import get_current_active_user
 from models.userModel import User as UserModel
@@ -31,6 +32,7 @@ from utils.helm import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/helm/releases", response_model=DeploymentSchema)
@@ -48,8 +50,11 @@ async def create_release(
         current_user: UserModel = Depends(get_current_active_user)
 ):
     try:
+        logger.info(f"Starting release creation process for {release_name} in project {project}")
+
         # Parse the values JSON if provided
         values_dict = json.loads(values) if values else {}
+        logger.debug(f"Parsed values: {values_dict}")
 
         # Save the uploaded values file to a temporary location if provided
         values_file_path = None
@@ -57,15 +62,18 @@ async def create_release(
             with tempfile.NamedTemporaryFile(delete=False) as tmp:
                 tmp.write(values_file.file.read())
                 values_file_path = tmp.name
+            logger.debug(f"Saved values file to {values_file_path}")
 
             # Load values from the file if no values JSON was provided
             if not values:
                 with open(values_file_path, 'r') as f:
                     values_dict = yaml.safe_load(f)
+                logger.debug(f"Loaded values from file: {values_dict}")
 
         # Check if the project exists
         project_obj = db.query(ProjectModel).filter_by(name=project, owner_id=current_user.id).first()
         if not project_obj:
+            logger.error(f"Project {project} not found for user {current_user.username}")
             raise HTTPException(status_code=404, detail="Project not found")
 
         # Check if the namespace exists, if not create it
@@ -80,9 +88,11 @@ async def create_release(
             db.add(namespace_obj)
             db.commit()
             db.refresh(namespace_obj)
+            logger.info(f"Created new namespace: {namespace}")
 
         # Extract the repository name from the URL
         repo_name = extract_repo_name_from_url(chart_repo_url)
+        logger.debug(f"Extracted repo name: {repo_name}")
 
         # Check if the Helm repository exists in the database
         helm_repo = db.query(HelmRepositoryModel).filter_by(name=repo_name).first()
@@ -97,8 +107,11 @@ async def create_release(
             db.add(new_repo)
             db.commit()
             db.refresh(new_repo)
+            logger.info(f"Added new Helm repository: {repo_name}")
+
             # Add the repository to Helm
             if not add_helm_repo(repo_name, chart_repo_url):
+                logger.error("Failed to add Helm repository")
                 raise HTTPException(status_code=500, detail="Failed to add Helm repository")
 
         # Deploy Helm chart using the combined function
@@ -114,11 +127,13 @@ async def create_release(
         )
 
         if revision == -1:
+            logger.error(f"Helm chart deployment failed for release {release_name}")
             raise HTTPException(status_code=500, detail="Helm chart deployment failed")
 
         # Clean up the temporary file
         if values_file_path:
             os.remove(values_file_path)
+            logger.debug(f"Deleted temporary values file: {values_file_path}")
 
         # Create a new deployment record for each revision
         new_deployment = DeploymentModel(
@@ -142,8 +157,10 @@ async def create_release(
         db.commit()
         db.refresh(new_deployment)
 
+        logger.info(f"Successfully created release: {release_name}")
         return new_deployment
     except Exception as e:
+        logger.error(f"Error deploying Helm chart: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error deploying Helm chart: {str(e)}")
@@ -156,14 +173,16 @@ def delete_release(
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user)
 ):
+    logger.info(f"Attempting to delete release {release_name} in namespace {namespace}")
     # Delete Helm release using utility function
     success = delete_helm_release(release_name, namespace)
     if not success:
+        logger.error(f"Helm release {release_name} not found in namespace {namespace}")
         raise HTTPException(status_code=404, detail="Helm release not found")
 
     # Mark the deployment as inactive
     deployment = db.query(DeploymentModel).filter_by(
-        release_name=release_name,  # Use release_name instead of chart_name
+        release_name=release_name,
         namespace_name=namespace,
         owner_id=current_user.id,
         active=True
@@ -171,10 +190,11 @@ def delete_release(
 
     if deployment:
         deployment.active = False
-        deployment.status = "deleted"  # Set status to deleted
+        deployment.status = "deleted"
         deployment.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(deployment)
+        logger.info(f"Marked deployment {release_name} as deleted in database")
 
     return deployment
 
@@ -185,8 +205,10 @@ async def list_releases(
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user)
 ):
+    logger.info(f"Listing releases in namespace {namespace if namespace else 'all namespaces'}")
     releases = list_helm_releases(namespace)
     if not releases:
+        logger.warning(f"No releases found in namespace {namespace if namespace else 'all namespaces'}")
         raise HTTPException(status_code=404, detail="No releases found")
     return releases
 
@@ -198,8 +220,10 @@ async def get_release_values(
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user)
 ):
+    logger.info(f"Getting values for release {release_name} in namespace {namespace}")
     values = get_helm_values(release_name, namespace)
     if not values:
+        logger.warning(f"Values not found for release {release_name} in namespace {namespace}")
         raise HTTPException(status_code=404, detail="Release values not found")
     return values
 
@@ -213,10 +237,12 @@ async def rollback_release(
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user)
 ):
+    logger.info(f"Rolling back release {release_name} in namespace {namespace} to revision {revision}")
     success = rollback_helm_release(
         release_name, revision, namespace, force=options.force, recreate_pods=options.recreate_pods
     )
     if not success:
+        logger.error(f"Rollback failed for release {release_name} to revision {revision} in namespace {namespace}")
         raise HTTPException(status_code=500, detail="Rollback failed")
 
     # Update the deployment record to reflect the rollback
@@ -231,6 +257,7 @@ async def rollback_release(
         deployment.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(deployment)
+        logger.info(f"Updated deployment {release_name} to reflect rollback to revision {revision}")
 
     return {"message": "Rollback successful"}
 
@@ -242,8 +269,10 @@ async def get_release_status(
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user)
 ):
+    logger.info(f"Getting status for release {release_name} in namespace {namespace}")
     status = get_helm_status(release_name, namespace)
     if not status:
+        logger.warning(f"Status not found for release {release_name} in namespace {namespace}")
         raise HTTPException(status_code=404, detail="Release status not found")
     return status
 
@@ -255,8 +284,10 @@ async def get_release_history(
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user)
 ):
+    logger.info(f"Getting history for release {release_name} in namespace {namespace}")
     history = get_helm_release_history(release_name, namespace)
     if not history:
+        logger.warning(f"History not found for release {release_name} in namespace {namespace}")
         raise HTTPException(status_code=404, detail="Release history not found")
     return history
 
@@ -266,8 +297,10 @@ async def list_all_releases(
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user)
 ):
+    logger.info("Listing all releases across all namespaces")
     releases = list_all_helm_releases()
     if not releases:
+        logger.warning("No releases found across all namespaces")
         raise HTTPException(status_code=404, detail="No releases found")
     return releases
 
@@ -280,8 +313,10 @@ async def get_release_notes(
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user)
 ):
+    logger.info(f"Getting notes for release {release_name}, revision {revision} in namespace {namespace}")
     notes = get_helm_release_notes(release_name, revision, namespace)
     if not notes:
+        logger.warning(f"Notes not found for release {release_name}, revision {revision} in namespace {namespace}")
         raise HTTPException(status_code=404, detail="Release notes not found")
     return {"notes": notes}
 
@@ -293,9 +328,12 @@ async def export_release_values(
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user)
 ):
+    logger.info(f"Exporting values for release {release_name} in namespace {namespace}")
     file_path = export_helm_release_values_to_file(release_name, namespace)
     if not file_path:
+        logger.error(f"Error exporting values for release {release_name} in namespace {namespace}")
         raise HTTPException(status_code=500, detail="Error exporting release values")
+    logger.info(f"Successfully exported values for release {release_name} to file {file_path}")
     return FileResponse(
         path=file_path,
         filename=f"{release_name}-values.yaml",
