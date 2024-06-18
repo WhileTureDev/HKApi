@@ -87,5 +87,7 @@ tolerations: []
 affinity: {}
 
 env:
-  ACCESS_TOKEN_EXPIRE_MINUTES: "60"
-  DATABASE_HOST: "postgres-postgresql"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "60" # 60 minutes for access token expiration
+  DATABASE_HOST: "postgres-postgresql" # postgres service name in k8s
+  SECRET_KEY: "+TIH6yf=7?Zi9^J3vwqx$5gv?2y!VS" # 30 characters long secret key for encryption
+  ADMIN_PASSWORD: "yaG$yaH?Hd!@Gp3Y" # 16 characters long password for admin user

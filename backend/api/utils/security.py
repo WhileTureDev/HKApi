@@ -1,56 +1,14 @@
-from passlib.context import CryptContext
-from jose import JWTError, jwt
-from datetime import datetime, timedelta
-from typing import Optional
-from pydantic import BaseModel
-from fastapi import HTTPException
+from typing import List, Optional
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
-from models.projectModel import Project as ProjectModel
 from models.namespaceModel import Namespace as NamespaceModel
+from models.projectModel import Project as ProjectModel
+from models.roleModel import Role
 from models.userModel import User as UserModel
-
-# to get a string like this run: openssl rand -hex 32
-SECRET_KEY = "your_secret_key"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-class TokenData(BaseModel):
-    username: Optional[str] = None
-
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-
-def decode_access_token(token: str):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            return None
-        token_data = TokenData(username=username)
-    except JWTError:
-        return None
-    return token_data
-
+from models.userRoleModel import UserRole
+from utils.auth import get_current_active_user
+from utils.database import get_db
+from utils.shared_utils import create_access_token, get_password_hash, verify_password, decode_access_token
 
 def check_project_and_namespace_ownership(db: Session, project: Optional[str], namespace: str, current_user: UserModel):
     project_obj = None
@@ -65,6 +23,23 @@ def check_project_and_namespace_ownership(db: Session, project: Optional[str], n
     namespace_obj = db.query(NamespaceModel).filter_by(name=namespace).first()
     if namespace_obj and namespace_obj.owner_id != current_user.id:
         # If the namespace exists and does not belong to the current user, raise an exception
-        raise HTTPException(status_code=400, detail=f'User {current_user.username} does not own the namespace {namespace}')
+        raise HTTPException(status_code=400,
+                            detail=f'User {current_user.username} does not own the namespace {namespace}')
 
     return project_obj, namespace_obj
+
+
+def get_current_user_roles(current_user: UserModel = Depends(get_current_active_user), db: Session = Depends(get_db)) -> List[str]:
+    roles = db.query(Role.name).join(UserRole).filter(UserRole.user_id == current_user.id).all()
+    return [role.name for role in roles]
+
+
+def has_role(required_role: str):
+    def role_checker(current_user_roles: List[str] = Depends(get_current_user_roles)):
+        if required_role not in current_user_roles:
+            raise HTTPException(status_code=403, detail="Not enough permissions")
+    return role_checker
+
+
+def is_admin(current_user_roles: List[str] = Depends(get_current_user_roles)):
+    return "admin" in current_user_roles

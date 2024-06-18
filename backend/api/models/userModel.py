@@ -1,5 +1,4 @@
 # models/userModel.py
-
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Integer, Boolean
 from sqlalchemy.orm import relationship
@@ -18,3 +17,4 @@ class User(Base):
     deployments = relationship("Deployment", back_populates="owner")
     projects = relationship("Project", back_populates="owner")
     user_projects = relationship("UserProject", back_populates="user")
+    roles = relationship("UserRole", back_populates="user")  # New relationship
