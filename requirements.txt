@@ -7,3 +7,5 @@ kubernetes~=26.1.0
 PyYAML~=6.0.1
 jose~=1.0.0
 alembic~=1.13.1
+slowapi~=0.1.9
+python-dotenv~=1.0.1

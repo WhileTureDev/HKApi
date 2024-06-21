@@ -1,7 +1,6 @@
 import os
 import logging
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
@@ -9,20 +8,23 @@ from utils.database import get_db
 from utils.shared_utils import create_access_token
 from utils.auth import authenticate_user
 from schemas.tokenSchema import Token
-from utils.audit_logger import log_audit
+from utils.limiter import limiter
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 access_token_expire_minutes = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 
+# Fetch rate limit value from environment
+rate_limit_value = os.getenv("RATE_LIMIT", "5/minute")
+
 @router.post("/token", response_model=Token)
-def login_for_access_token(db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit(rate_limit_value)
+async def login_for_access_token(request: Request, db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
     logger.info(f"Attempting login for user: {form_data.username}")
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         logger.warning(f"Login failed for user: {form_data.username}")
-        log_audit(db, None, action="failed_login", resource="user", resource_id=None, resource_name=form_data.username, details=f"Failed login attempt for username: {form_data.username}")
         raise HTTPException(
             status_code=400,
             detail="Incorrect username or password",
@@ -33,5 +35,4 @@ def login_for_access_token(db: Session = Depends(get_db), form_data: OAuth2Passw
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     logger.info(f"Login successful for user: {form_data.username}")
-    log_audit(db, user.id, action="successful_login", resource="user", resource_id=user.id, resource_name=user.username, details=f"Successful login for username: {user.username}")
     return {"access_token": access_token, "token_type": "bearer"}

@@ -1,12 +1,13 @@
-# main.py
-
 import logging
 import logging.config
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from controllers import authController, projectController, helmController, helmRepositoryController, userController, changeLogController
-from controllers.adminControllers import adminHelmController, auditLogController  # Import the new audit log controller
+from starlette.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from controllers import authController, projectController, helmController, helmRepositoryController, userController, \
+    changeLogController
+from controllers.adminControllers import adminHelmController
 from utils.database import create_database_if_not_exists, create_tables, get_db
 from utils.logging_config import LOGGING_CONFIG
 from utils.exception_handlers import ExceptionMiddleware
@@ -16,13 +17,13 @@ from models.userRoleModel import UserRole
 from utils.shared_utils import get_password_hash
 from sqlalchemy.orm import Session
 import os
+from utils.limiter import limiter
 
 app = FastAPI()
 
 # Initialize logging
 logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
-
 
 # Middleware to log requests
 class LogRequestsMiddleware(BaseHTTPMiddleware):
@@ -31,7 +32,6 @@ class LogRequestsMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         logger.info(f"Response: {response.status_code}")
         return response
-
 
 # Add middleware for logging and exception handling
 app.add_middleware(LogRequestsMiddleware)
@@ -42,7 +42,6 @@ create_database_if_not_exists()
 
 # Ensure this runs only once and in a single-threaded context
 create_tables()
-
 
 def create_initial_admin(db: Session):
     admin_username = "admin"
@@ -73,10 +72,12 @@ def create_initial_admin(db: Session):
         db.add(user_role)
         db.commit()
 
-
 # Initialize the database session and create the initial admin
 with next(get_db()) as db:
     create_initial_admin(db)
+
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
 
 # Include routes
 app.include_router(userController.router, tags=["users"])
@@ -86,9 +87,14 @@ app.include_router(helmController.router, tags=["helm"])
 app.include_router(helmRepositoryController.router, tags=["repositories"])
 app.include_router(changeLogController.router, tags=["changelogs"])
 app.include_router(adminHelmController.router, tags=["admin"])
-app.include_router(auditLogController.router, tags=["audit_logs"])  # Include the new router
-
 
 @app.get("/")
 def read_root():
     return {"message": "Hello World"}
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Rate limit exceeded"},
+    )
