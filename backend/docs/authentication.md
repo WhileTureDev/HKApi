@@ -1,16 +1,24 @@
 # Authentication
 
 ## Overview
-The platform uses OAuth2 with password flow for authentication. Users receive a token upon successful login, which is used to authenticate subsequent requests.
+This document describes the authentication mechanism used in the Kubernetes API Platform.
 
-## Token Endpoint
-- **POST /token**
-  - Request: `{ "username": "string", "password": "string" }`
-  - Response: `{ "access_token": "string", "token_type": "bearer" }`
+## Token-Based Authentication
+The API uses token-based authentication. Users must obtain an access token by providing their username and password.
 
-## Securing Endpoints
-All endpoints, except for the token endpoint, require an access token for authentication. Use the token received from the `/token` endpoint in the `Authorization` header as follows:
-Authorization: Bearer <access_token>
+### Obtain Access Token
+- **Endpoint**: POST /token
+- **Request Parameters**:
+  - grant_type: password
+  - username: {username}
+  - password: {password}
+- **Response**:
+  - access_token: {token}
+  - token_type: "bearer"
 
-## Token Validation
-Tokens are validated using the secret key and the HS256 algorithm. The token must be included in the `Authorization` header of each request to protected endpoints.
+### Using Access Token
+Include the access token in the `Authorization` header of each request:
+Authorization: Bearer {access_token}
+
+## Rate Limiting
+Rate limiting is implemented to prevent abuse of the API. The rate limit can be configured using the `RATE_LIMIT` environment variable. The default value is `20/minute`.

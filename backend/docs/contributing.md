@@ -1,18 +1,27 @@
 # Contributing
 
-## Code of Conduct
-We expect all contributors to follow the [Code of Conduct](docs/code_of_conduct.md) to keep our community welcoming and respectful.
+## Overview
+We welcome contributions to the Kubernetes API Platform. This document provides guidelines for contributing to the project.
 
-## How to Contribute
+## Reporting Issues
+If you encounter any issues, please create a new issue in the GitHub repository.
+
+## Submitting Pull Requests
 1. Fork the repository.
-2. Create a new branch (`git checkout -b feature/your-feature`).
+2. Create a new branch from `main`.
 3. Make your changes.
-4. Commit your changes (`git commit -m 'Add some feature'`).
-5. Push to the branch (`git push origin feature/your-feature`).
-6. Open a pull request.
+4. Test your changes.
+5. Commit and push your changes to your fork.
+6. Create a pull request against the `main` branch.
 
 ## Coding Standards
 - Follow PEP 8 for Python code.
-- Write clear, concise commit messages.
-- Ensure all new code is covered by tests.
-- Document new functionality and updates in the appropriate markdown files.
+- Write clear and concise commit messages.
+- Ensure your code is well-documented.
+- Write tests for your code.
+
+## Code of Conduct
+Please read and follow our [Code of Conduct](docs/code_of_conduct.md).
+
+## License
+By contributing to this project, you agree that your contributions will be licensed under the same license as the project.

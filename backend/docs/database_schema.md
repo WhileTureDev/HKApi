@@ -1,46 +1,76 @@
 # Database Schema
 
-## Users Table
-- **Columns**:
-  - `id` (Integer, Primary Key)
-  - `username` (String, Unique, Index)
-  - `full_name` (String, Index)
-  - `email` (String, Unique, Index)
-  - `hashed_password` (String, Nullable=False)
-  - `created_at` (DateTime, Default=datetime.utcnow)
-  - `updated_at` (DateTime, Default=datetime.utcnow)
-  - `disabled` (Boolean, Default=False)
+## Overview
+This document describes the database schema used in the Kubernetes API Platform.
 
-## Projects Table
-- **Columns**:
-  - `id` (Integer, Primary Key)
-  - `name` (String, Index, Nullable=False)
-  - `description` (String)
-  - `created_at` (DateTime, Default=datetime.utcnow)
-  - `updated_at` (DateTime, Default=datetime.utcnow)
-  - `owner_id` (Integer, ForeignKey('users.id'), Nullable=False)
+## Tables
 
-## Namespaces Table
-- **Columns**:
-  - `id` (Integer, Primary Key, Index)
-  - `name` (String, Index, Nullable=False)
-  - `project_id` (Integer, ForeignKey('projects.id'))
-  - `created_at` (DateTime, Default=datetime.utcnow)
-  - `updated_at` (DateTime, Default=datetime.utcnow)
+### Users
+- **users**:
+  - id: Integer, primary key
+  - username: String, unique, index
+  - full_name: String, index
+  - email: String, unique, index
+  - hashed_password: String
+  - created_at: DateTime
+  - updated_at: DateTime
+  - disabled: Boolean
 
-## Deployments Table
-- **Columns**:
-  - `id` (Integer, Primary Key, Index)
-  - `project` (String, Index)
-  - `install_type` (String, Index)
-  - `chart_name` (String, Index)
-  - `chart_repo_url` (String, Index)
-  - `namespace_id` (Integer, ForeignKey('namespaces.id'))
-  - `namespace_name` (String, Index)
-  - `values` (JSON)
-  - `revision` (Integer)
-  - `active` (Boolean, Default=True)
-  - `status` (String, Default="active")
-  - `created_at` (DateTime, Default=datetime.utcnow)
-  - `updated_at` (DateTime, Default=datetime.utcnow)
-  - `owner_id` (Integer, ForeignKey('users.id'))
+### Projects
+- **projects**:
+  - id: Integer, primary key
+  - name: String, unique, index
+  - description: String
+  - created_at: DateTime
+  - updated_at: DateTime
+  - owner_id: Integer, ForeignKey(users.id)
+
+### Deployments
+- **deployments**:
+  - id: Integer, primary key
+  - project: String
+  - install_type: String
+  - release_name: String
+  - chart_name: String
+  - chart_repo_url: String
+  - namespace_id: Integer, ForeignKey(namespaces.id)
+  - namespace_name: String
+  - values: JSON
+  - revision: Integer
+  - active: Boolean
+  - status: String
+  - created_at: DateTime
+  - updated_at: DateTime
+  - owner_id: Integer, ForeignKey(users.id)
+
+### Namespaces
+- **namespaces**:
+  - id: Integer, primary key
+  - name: String, unique, index
+  - project_id: Integer, ForeignKey(projects.id)
+  - owner_id: Integer, ForeignKey(users.id)
+  - created_at: DateTime
+  - updated_at: DateTime
+
+### Change Logs
+- **change_logs**:
+  - id: Integer, primary key
+  - user_id: Integer, ForeignKey(users.id)
+  - action: String, index
+  - resource: String, index
+  - resource_id: Integer, index
+  - resource_name: String, index
+  - project_name: String, index
+  - timestamp: DateTime
+  - details: String, nullable
+
+### Audit Logs
+- **audit_logs**:
+  - id: Integer, primary key
+  - user_id: Integer, ForeignKey(users.id)
+  - action: String, index
+  - resource: String, index
+  - resource_id: Integer, index
+  - resource_name: String, index
+  - timestamp: DateTime
+  - details: String, nullable
