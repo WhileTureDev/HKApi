@@ -1,15 +1,12 @@
-# schemas/changeLogSchema.py
+# schemas/auditLogSchema.py
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 
-class ChangeLog(BaseModel):
+class AuditLog(BaseModel):
     id: int
-    user_id: int
-    user_name: str
+    user_id: Optional[int]  # Optional for failed logins
     action: str
-    resource: str
-    resource_id: int
     timestamp: datetime
     details: Optional[str]
 

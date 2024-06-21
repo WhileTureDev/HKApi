@@ -2,8 +2,7 @@
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Integer, Boolean
 from sqlalchemy.orm import relationship
-from utils.database import Base  # Use absolute import
-
+from utils.database import Base
 
 class User(Base):
     __tablename__ = "users"
@@ -18,5 +17,6 @@ class User(Base):
     deployments = relationship("Deployment", back_populates="owner")
     projects = relationship("Project", back_populates="owner")
     user_projects = relationship("UserProject", back_populates="user")
-    roles = relationship("UserRole", back_populates="user")  # New relationship
-    change_logs = relationship("ChangeLog", back_populates="user")  # New relationship
+    roles = relationship("UserRole", back_populates="user")
+    change_logs = relationship("ChangeLog", back_populates="user")
+    audit_logs = relationship("AuditLog", back_populates="user")

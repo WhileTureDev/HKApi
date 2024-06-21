@@ -183,7 +183,7 @@ async def create_release(
         db.refresh(new_deployment)
 
         # Log the change with resource_name and project_name
-        log_change(db, current_user.id, "create", "release", new_deployment.id, release_name, project)
+        log_change(db, current_user.id, "create", "release", new_deployment.id, release_name, project, details=None)
 
         logger.info(f"Successfully created release: {release_name}")
         return new_deployment
