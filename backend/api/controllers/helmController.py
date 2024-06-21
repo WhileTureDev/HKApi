@@ -1,3 +1,5 @@
+# helmController.py
+
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile
 import json
@@ -181,7 +183,7 @@ async def create_release(
         db.refresh(new_deployment)
 
         # Log the change with resource_name and project_name
-        log_change(db, current_user.id, "create", "release", new_deployment.id, release_name, project, f"Created release {release_name}")
+        log_change(db, current_user.id, "create", "release", new_deployment.id, release_name, project)
 
         logger.info(f"Successfully created release: {release_name}")
         return new_deployment
@@ -241,7 +243,7 @@ def delete_release(
     logger.info(f"Marked deployment {release_name} as deleted in database")
 
     # Log the change with resource_name and project_name
-    log_change(db, current_user.id, "delete", "release", deployment.id, release_name, deployment.project, f"Deleted release {release_name}")
+    log_change(db, current_user.id, "delete", "release", deployment.id, release_name, deployment.project)
 
     return deployment
 
@@ -369,9 +371,6 @@ async def rollback_release(
     db.refresh(deployment)
     logger.info(f"Updated deployment {release_name} to reflect rollback to revision {revision}")
 
-    # Log the rollback action
-    log_change(db, current_user.id, "rollback", "release", deployment.id, release_name, deployment.project, f"Rolled back release {release_name} to revision {revision}")
-
     return {"message": "Rollback successful"}
 
 
@@ -413,10 +412,6 @@ async def get_release_status(
     if not status:
         logger.warning(f"Status not found for release {release_name} in namespace {namespace}")
         raise HTTPException(status_code=404, detail="Release status not found")
-
-    # Log the action of getting release status
-    log_change(db, current_user.id, "get_status", "release", deployment.id, release_name, deployment.project, f"Retrieved status for release {release_name}")
-
     return status
 
 
@@ -452,50 +447,13 @@ async def get_release_history(
         ).first()
         if not deployment:
             logger.error(f"Deployment {release_name} not found in namespace {namespace}")
-        raise HTTPException(status_code=404, detail="Release history not found")
+            raise HTTPException(status_code=404, detail="Helm release not found")
 
     history = get_helm_release_history(release_name, namespace)
     if not history:
         logger.warning(f"History not found for release {release_name} in namespace {namespace}")
         raise HTTPException(status_code=404, detail="Release history not found")
-
-    # Log the action of getting release history
-    log_change(db, current_user.id, "get_history", "release", deployment.id, release_name, deployment.project, f"Retrieved history for release {release_name}")
-
     return history
-
-
-@router.get("/helm/releases/all", response_model=List[dict])
-async def list_all_releases(
-        db: Session = Depends(get_db),
-        current_user: UserModel = Depends(get_current_active_user),
-        current_user_roles: List[str] = Depends(get_current_user_roles)
-):
-    try:
-        logger.info("Listing all releases across all namespaces")
-
-        releases = []
-        # Admins can list all releases across all namespaces
-        if is_admin(current_user_roles):
-            releases = list_all_helm_releases()
-        else:
-            # Filter releases to only include those owned by the current user
-            deployments = db.query(DeploymentModel).filter_by(owner_id=current_user.id).all()
-            releases = [deployment_to_dict(deployment) for deployment in deployments]
-
-        if not releases:
-            if is_admin(current_user_roles):
-                logger.warning("No releases found across all namespaces")
-                raise HTTPException(status_code=404, detail="No releases found")
-            else:
-                logger.warning(f"No releases found for user {current_user.username}")
-                raise HTTPException(status_code=403, detail="User does not have access to any releases")
-
-        return releases
-
-    except Exception as e:
-        logger.error(f"An error occurred while listing releases: {str(e)}")
-        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/helm/releases/notes", response_model=dict)
@@ -537,10 +495,6 @@ async def get_release_notes(
     if not notes:
         logger.warning(f"Notes not found for release {release_name}, revision {revision} in namespace {namespace}")
         raise HTTPException(status_code=404, detail="Release notes not found")
-
-    # Log the action of getting release notes
-    log_change(db, current_user.id, "get_notes", "release", deployment.id, release_name, deployment.project, f"Retrieved notes for release {release_name}, revision {revision}")
-
     return {"notes": notes}
 
 
@@ -583,12 +537,34 @@ async def export_release_values(
         logger.error(f"Error exporting values for release {release_name} in namespace {namespace}")
         raise HTTPException(status_code=500, detail="Error exporting release values")
     logger.info(f"Successfully exported values for release {release_name} to file {file_path}")
-
-    # Log the action of exporting release values
-    log_change(db, current_user.id, "export_values", "release", deployment.id, release_name, deployment.project, f"Exported values for release {release_name}")
-
     return FileResponse(
         path=file_path,
         filename=f"{release_name}-values.yaml",
         media_type='application/octet-stream'
     )
+
+
+@router.get("/helm/releases/all", response_model=List[dict])
+async def list_all_releases(
+        db: Session = Depends(get_db),
+        current_user: UserModel = Depends(get_current_active_user),
+        current_user_roles: List[str] = Depends(get_current_user_roles)
+):
+    try:
+        logger.info(f"Listing all releases for user {current_user.username}")
+
+        if not is_admin(current_user_roles):
+            deployments = db.query(DeploymentModel).filter_by(owner_id=current_user.id).all()
+        else:
+            deployments = db.query(DeploymentModel).all()
+
+        if not deployments:
+            logger.warning(f"No releases found for user {current_user.username}")
+            raise HTTPException(status_code=404, detail="No releases found")
+
+        releases = [deployment_to_dict(deployment) for deployment in deployments]
+
+        return releases
+    except Exception as e:
+        logger.error(f"An error occurred while listing releases: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
