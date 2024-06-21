@@ -5,9 +5,8 @@ import logging.config
 from fastapi import FastAPI
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from controllers import authController, projectController, helmController, helmRepositoryController, userController, \
-    changeLogController
-from controllers.adminControllers import adminHelmController
+from controllers import authController, projectController, helmController, helmRepositoryController, userController, changeLogController
+from controllers.adminControllers import adminHelmController, auditLogController  # Import the new audit log controller
 from utils.database import create_database_if_not_exists, create_tables, get_db
 from utils.logging_config import LOGGING_CONFIG
 from utils.exception_handlers import ExceptionMiddleware
@@ -87,6 +86,7 @@ app.include_router(helmController.router, tags=["helm"])
 app.include_router(helmRepositoryController.router, tags=["repositories"])
 app.include_router(changeLogController.router, tags=["changelogs"])
 app.include_router(adminHelmController.router, tags=["admin"])
+app.include_router(auditLogController.router, tags=["audit_logs"])  # Include the new router
 
 
 @app.get("/")

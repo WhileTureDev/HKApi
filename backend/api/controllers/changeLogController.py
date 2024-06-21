@@ -1,5 +1,4 @@
 # controllers/changeLogController.py
-
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -16,7 +15,7 @@ from utils.security import get_current_user_roles, is_admin
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-def get_resource_details(db: Session, resource: str, resource_id: int) -> (Optional[str], Optional[str]):
+def get_resource_details(db: Session, resource: str, resource_id: int):
     try:
         if resource == 'project':
             project = db.query(ProjectModel).filter(ProjectModel.id == resource_id).first()
@@ -28,7 +27,6 @@ def get_resource_details(db: Session, resource: str, resource_id: int) -> (Optio
         elif resource == 'user':
             user = db.query(UserModel).filter(UserModel.id == resource_id).first()
             return user.username if user else None, None
-        # Add more resources as needed
     except Exception as e:
         logger.error(f"Error getting resource details: {e}")
     return None, None
@@ -43,6 +41,7 @@ async def get_all_change_logs(
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     change_logs = db.query(ChangeLogModel).all()
+    logger.debug(f"Fetched {len(change_logs)} change logs from the database")
 
     result = []
     for log in change_logs:
@@ -109,7 +108,6 @@ async def get_change_logs_for_resource(
     if not is_admin(current_user_roles):
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    # Assuming you have a function to get resource ID by name
     resource_id = get_resource_id_by_name(db, resource, resource_name)
     if resource_id is None:
         raise HTTPException(status_code=404, detail=f"{resource} with name {resource_name} not found")
@@ -148,7 +146,6 @@ def get_resource_id_by_name(db: Session, resource: str, resource_name: str) -> O
         elif resource == 'user':
             user = db.query(UserModel).filter(UserModel.username == resource_name).first()
             return user.id if user else None
-        # Add more resources as needed
     except Exception as e:
         logger.error(f"Error getting resource ID by name: {e}")
     return None
