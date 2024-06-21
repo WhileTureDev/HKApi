@@ -1,4 +1,3 @@
-# models/userModel.py
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Integer, Boolean
 from sqlalchemy.orm import relationship
@@ -19,4 +18,4 @@ class User(Base):
     user_projects = relationship("UserProject", back_populates="user")
     roles = relationship("UserRole", back_populates="user")
     change_logs = relationship("ChangeLog", back_populates="user")
-    audit_logs = relationship("AuditLog", back_populates="user")
+    audit_logs = relationship("AuditLog", back_populates="user")  # New relationship

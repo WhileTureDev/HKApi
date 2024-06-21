@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
-from typing import List  # Import the List type from typing
+from typing import List
 from models.userModel import User as UserModel
 from models.roleModel import Role as RoleModel
 from models.userRoleModel import UserRole as UserRoleModel
@@ -10,8 +10,8 @@ from schemas.userSchema import UserCreate, User as UserSchema
 from utils.database import get_db
 from utils.auth import get_current_active_user
 from utils.shared_utils import get_password_hash
-from utils.change_logger import log_change  # Import the change logger
-from utils.security import get_current_user_roles, is_admin  # Import role utilities
+from utils.audit_logger import log_audit
+from utils.security import get_current_user_roles, is_admin
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -38,8 +38,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(new_user)
         logger.info(f"User {user.email} created successfully")
-        # Log the change
-        log_change(db, new_user.id, action="create", resource="user", resource_id=new_user.id, resource_name=user.username, project_name="N/A", details=f"User {user.username} created")
+        log_audit(db, new_user.id, action="create", resource="user", resource_id=new_user.id, resource_name=user.username, details=f"User {user.username} created")
         return new_user
     except HTTPException as http_exc:
         raise http_exc
@@ -66,6 +65,6 @@ async def assign_role_to_user(user_id: int, role_id: int, db: Session = Depends(
     user_role = UserRoleModel(user_id=user_id, role_id=role_id)
     db.add(user_role)
     db.commit()
-    log_change(db, current_user.id, action="assign_role", resource="user_role", resource_id=user_role.id, resource_name=user.username, project_name="N/A", details=f"Assigned role {role.name} to user {user.username}")
+    log_audit(db, current_user.id, action="assign_role", resource="user_role", resource_id=user_role.id, resource_name=user.username, details=f"Assigned role {role.name} to user {user.username}")
 
     return {"message": "Role assigned successfully"}
