@@ -1,87 +1,76 @@
-# Helm Integration
+# Database Schema
 
 ## Overview
-This platform integrates with Helm to manage Kubernetes deployments. Users can deploy, upgrade, and delete Helm releases through the API.
+This document describes the database schema used in the Kubernetes API Platform.
 
-## Deploying Helm Charts
-- **POST /helm/releases**
-  - Request:
-    ```json
-    {
-      "project": "My Project",
-      "chart_name": "hello",
-      "chart_repo_url": "https://example.com/charts/",
-      "namespace_name": "my-namespace",
-      "values": {
-        "replicaCount": 2,
-        "image": {
-          "repository": "my-repo/my-image",
-          "tag": "latest"
-        },
-        "service": {
-          "type": "ClusterIP",
-          "port": 80
-        }
-      }
-    }
-    ```
-  - Response:
-    ```json
-    {
-      "id": 1,
-      "project": "My Project",
-      "chart_name": "hello",
-      "chart_repo_url": "https://example.com/charts/",
-      "namespace_name": "my-namespace",
-      "values": {
-        "replicaCount": 2,
-        "image": {
-          "repository": "my-repo/my-image",
-          "tag": "latest"
-        },
-        "service": {
-          "type": "ClusterIP",
-          "port": 80
-        }
-      },
-      "revision": 1,
-      "active": true,
-      "status": "deployed",
-      "created_at": "2024-06-15T18:36:04.152406",
-      "updated_at": "2024-06-15T18:36:04.152410",
-      "owner_id": 1
-    }
-    ```
+## Tables
 
-## Managing Releases
-- **DELETE /helm/releases**
-  - Query Parameters:
-    - `release_name`: `string`
-    - `namespace`: `string`
-  - Response:
-    ```json
-    {
-      "id": 1,
-      "project": "My Project",
-      "chart_name": "hello",
-      "chart_repo_url": "https://example.com/charts/",
-      "namespace_name": "my-namespace",
-      "values": {
-        "replicaCount": 2,
-        "image": {
-          "repository": "my-repo/my-image",
-          "tag": "latest"
-        },
-        "service": {
-          "type": "ClusterIP",
-          "port": 80
-        }
-      },
-      "revision": 1,
-      "active": false,
-      "status": "deleted",
-      "created_at": "2024-06-15T18:36:04.152406",
-      "updated_at": "2024-06-15T18:36:04.152410",
-      "owner_id": 1
-    }
-    ```
+### Users
+- **users**:
+  - id: Integer, primary key
+  - username: String, unique, index
+  - full_name: String, index
+  - email: String, unique, index
+  - hashed_password: String
+  - created_at: DateTime
+  - updated_at: DateTime
+  - disabled: Boolean
+
+### Projects
+- **projects**:
+  - id: Integer, primary key
+  - name: String, unique, index
+  - description: String
+  - created_at: DateTime
+  - updated_at: DateTime
+  - owner_id: Integer, ForeignKey(users.id)
+
+### Deployments
+- **deployments**:
+  - id: Integer, primary key
+  - project: String
+  - install_type: String
+  - release_name: String
+  - chart_name: String
+  - chart_repo_url: String
+  - namespace_id: Integer, ForeignKey(namespaces.id)
+  - namespace_name: String
+  - values: JSON
+  - revision: Integer
+  - active: Boolean
+  - status: String
+  - created_at: DateTime
+  - updated_at: DateTime
+  - owner_id: Integer, ForeignKey(users.id)
+
+### Namespaces
+- **namespaces**:
+  - id: Integer, primary key
+  - name: String, unique, index
+  - project_id: Integer, ForeignKey(projects.id)
+  - owner_id: Integer, ForeignKey(users.id)
+  - created_at: DateTime
+  - updated_at: DateTime
+
+### Change Logs
+- **change_logs**:
+  - id: Integer, primary key
+  - user_id: Integer, ForeignKey(users.id)
+  - action: String, index
+  - resource: String, index
+  - resource_id: Integer, index
+  - resource_name: String, index
+  - project_name: String, index
+  - timestamp: DateTime
+  - details: String, nullable
+
+### Audit Logs
+- **audit_logs**:
+  - id: Integer, primary key
+  - user_id: Integer, ForeignKey(users.id)
+  - action: String, index
+  - resource: String, index
+  - resource_id: Integer, index
+  - resource_name: String, index
+  - timestamp: DateTime
+  - details: String, nullable
