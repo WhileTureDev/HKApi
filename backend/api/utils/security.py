@@ -8,7 +8,8 @@ from models.userModel import User as UserModel
 from models.userRoleModel import UserRole
 from utils.auth import get_current_active_user
 from utils.database import get_db
-from utils.shared_utils import create_access_token, get_password_hash, verify_password, decode_access_token
+from models.changeLogModel import ChangeLog
+
 
 def check_project_and_namespace_ownership(db: Session, project: Optional[str], namespace: str, current_user: UserModel):
     project_obj = None
@@ -29,7 +30,8 @@ def check_project_and_namespace_ownership(db: Session, project: Optional[str], n
     return project_obj, namespace_obj
 
 
-def get_current_user_roles(current_user: UserModel = Depends(get_current_active_user), db: Session = Depends(get_db)) -> List[str]:
+def get_current_user_roles(current_user: UserModel = Depends(get_current_active_user), db: Session = Depends(get_db)) -> \
+List[str]:
     roles = db.query(Role.name).join(UserRole).filter(UserRole.user_id == current_user.id).all()
     return [role.name for role in roles]
 
@@ -38,8 +40,24 @@ def has_role(required_role: str):
     def role_checker(current_user_roles: List[str] = Depends(get_current_user_roles)):
         if required_role not in current_user_roles:
             raise HTTPException(status_code=403, detail="Not enough permissions")
+
     return role_checker
 
 
 def is_admin(current_user_roles: List[str] = Depends(get_current_user_roles)):
     return "admin" in current_user_roles
+
+
+def log_change(db: Session, user_id: int, action: str, resource: str, resource_id: int, resource_name: str,
+               project_name: str = None, details: str = None):
+    change_log = ChangeLog(
+        user_id=user_id,
+        action=action,
+        resource=resource,
+        resource_id=resource_id,
+        resource_name=resource_name,
+        project_name=project_name,
+        details=details
+    )
+    db.add(change_log)
+    db.commit()

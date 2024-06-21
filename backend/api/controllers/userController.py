@@ -6,7 +6,7 @@ from models.userModel import User as UserModel
 from schemas.userSchema import UserCreate, User as UserSchema
 from utils.database import get_db
 from utils.auth import get_current_active_user
-from utils.security import get_password_hash
+from utils.shared_utils import get_password_hash
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

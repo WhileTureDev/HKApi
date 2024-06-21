@@ -4,6 +4,7 @@ from sqlalchemy import Column, String, DateTime, Integer, Boolean
 from sqlalchemy.orm import relationship
 from utils.database import Base  # Use absolute import
 
+
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
@@ -18,3 +19,4 @@ class User(Base):
     projects = relationship("Project", back_populates="owner")
     user_projects = relationship("UserProject", back_populates="user")
     roles = relationship("UserRole", back_populates="user")  # New relationship
+    change_logs = relationship("ChangeLog", back_populates="user")  # New relationship
