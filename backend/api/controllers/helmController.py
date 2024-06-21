@@ -182,8 +182,9 @@ async def create_release(
         db.commit()
         db.refresh(new_deployment)
 
-        # Log the change with resource_name and project_name
-        log_change(db, current_user.id, "create", "release", new_deployment.id, release_name, project, details=None)
+        # Log the change with resource_name and project_name, including additional details
+        details = f"Created release '{release_name}' using chart '{chart_name}' from repo '{chart_repo_url}' in namespace '{namespace}' with revision {revision}."
+        log_change(db, current_user.id, action="create", resource="release", resource_id=new_deployment.id, resource_name=release_name, project_name=project, details=details)
 
         logger.info(f"Successfully created release: {release_name}")
         return new_deployment
@@ -192,6 +193,7 @@ async def create_release(
     except Exception as e:
         logger.error(f"Error deploying Helm chart: {e}")
         raise HTTPException(status_code=500, detail=f"Error deploying Helm chart: {str(e)}")
+
 
 
 @router.delete("/helm/releases", response_model=DeploymentSchema)
