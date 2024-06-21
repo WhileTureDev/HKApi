@@ -5,7 +5,9 @@ import logging.config
 from fastapi import FastAPI
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from controllers import authController, projectController, helmController, helmRepositoryController, userController, changeLogController
+from controllers import authController, projectController, helmController, helmRepositoryController, userController, \
+    changeLogController
+from controllers.adminControllers import adminHelmController
 from utils.database import create_database_if_not_exists, create_tables, get_db
 from utils.logging_config import LOGGING_CONFIG
 from utils.exception_handlers import ExceptionMiddleware
@@ -22,6 +24,7 @@ app = FastAPI()
 logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
 
+
 # Middleware to log requests
 class LogRequestsMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -29,6 +32,7 @@ class LogRequestsMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         logger.info(f"Response: {response.status_code}")
         return response
+
 
 # Add middleware for logging and exception handling
 app.add_middleware(LogRequestsMiddleware)
@@ -39,6 +43,7 @@ create_database_if_not_exists()
 
 # Ensure this runs only once and in a single-threaded context
 create_tables()
+
 
 def create_initial_admin(db: Session):
     admin_username = "admin"
@@ -69,6 +74,7 @@ def create_initial_admin(db: Session):
         db.add(user_role)
         db.commit()
 
+
 # Initialize the database session and create the initial admin
 with next(get_db()) as db:
     create_initial_admin(db)
@@ -80,6 +86,8 @@ app.include_router(projectController.router, tags=["projects"])
 app.include_router(helmController.router, tags=["helm"])
 app.include_router(helmRepositoryController.router, tags=["repositories"])
 app.include_router(changeLogController.router, tags=["changelogs"])
+app.include_router(adminHelmController.router, tags=["admin"])
+
 
 @app.get("/")
 def read_root():
