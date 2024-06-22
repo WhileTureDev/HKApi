@@ -6,7 +6,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from controllers.logControllers import changeLogController
 from controllers.helmControllers import helmRepositoryController, helmController
-from controllers.userControllers import userController, projectController
+from controllers.userControllers import userController, projectController, authController
 from controllers.adminControllers import adminHelmController, auditLogController
 from utils.database import create_database_if_not_exists, create_tables, get_db
 from utils.logging_config import LOGGING_CONFIG
@@ -18,6 +18,8 @@ from utils.shared_utils import get_password_hash
 from sqlalchemy.orm import Session
 import os
 from utils.limiter import limiter
+from controllers.healthCheckController import router as health_check_router
+from controllers.metricsController import router as metrics_router
 
 app = FastAPI()
 
@@ -85,13 +87,15 @@ app.add_middleware(SlowAPIMiddleware)
 
 # Include routes
 app.include_router(userController.router, tags=["users"])
-app.include_router(userController.router, tags=["auth"])
+app.include_router(authController.router, tags=["auth"])
 app.include_router(projectController.router, tags=["projects"])
 app.include_router(helmController.router, tags=["helm"])
 app.include_router(helmRepositoryController.router, tags=["repositories"])
 app.include_router(changeLogController.router, tags=["changelogs"])
 app.include_router(adminHelmController.router, tags=["admin"])
 app.include_router(auditLogController.router, tags=["auditlogs"])
+app.include_router(health_check_router, tags=["health"])
+app.include_router(metrics_router, tags=["metrics"])
 
 
 @app.get("/")

@@ -1,13 +1,17 @@
 # controllers/adminControllers/adminHelmController.py
 
+import time
 import logging
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 from models.deploymentModel import Deployment as DeploymentModel
 from utils.database import get_db
 from utils.auth import get_current_active_user, get_current_user_roles, is_admin
 from models.userModel import User as UserModel
 from typing import List
+from controllers.metricsController import (
+    REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -33,15 +37,23 @@ def deployment_to_dict(deployment: DeploymentModel) -> dict:
 
 @router.get("/admin/helm/releases/all", response_model=List[dict])
 async def list_all_releases(
+        request: Request,
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
+    method = "GET"
+    endpoint = "/admin/helm/releases/all"
+    start_time = time.time()
+    REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
     logger.info("Listing all releases across all namespaces")
 
     try:
         if not is_admin(current_user_roles):
             logger.warning(f"User {current_user.username} attempted to access admin-only endpoint")
+            ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
             raise HTTPException(status_code=403, detail="Not authorized")
 
         releases = db.query(DeploymentModel).all()
@@ -54,5 +66,10 @@ async def list_all_releases(
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         logger.error(f"An error occurred while listing releases: {str(e)}")
         raise HTTPException(status_code=500, detail="An internal error occurred")
+    finally:
+        latency = time.time() - start_time
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()

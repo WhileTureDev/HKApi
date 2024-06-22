@@ -11,6 +11,10 @@ from models.namespaceModel import Namespace as NamespaceModel
 from models.projectModel import Project as ProjectModel
 from utils.security import get_current_user_roles, is_admin
 from utils.circuit_breaker import call_database_operation
+from controllers.metricsController import (
+    REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
+)
+import time
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -38,6 +42,11 @@ async def get_all_change_logs(
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
+    start_time = time.time()
+    method = request.method
+    endpoint = request.url.path
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
     if not is_admin(current_user_roles):
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
@@ -68,7 +77,12 @@ async def get_all_change_logs(
         return result
     except Exception as e:
         logger.error(f"Error querying change logs: {e}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise HTTPException(status_code=500, detail=f"Error querying change logs: {str(e)}")
+    finally:
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
 
 @router.get("/changelogs/user/{user_id}", response_model=List[ChangeLogSchema])
 async def get_change_logs_for_user(
@@ -78,6 +92,11 @@ async def get_change_logs_for_user(
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
+    start_time = time.time()
+    method = request.method
+    endpoint = request.url.path
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
     if not is_admin(current_user_roles) and current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
@@ -107,7 +126,12 @@ async def get_change_logs_for_user(
         return result
     except Exception as e:
         logger.error(f"Error querying change logs: {e}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise HTTPException(status_code=500, detail=f"Error querying change logs: {str(e)}")
+    finally:
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
 
 @router.get("/changelogs/resource/{resource}/{resource_name}", response_model=List[ChangeLogSchema])
 async def get_change_logs_for_resource(
@@ -118,6 +142,11 @@ async def get_change_logs_for_resource(
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
+    start_time = time.time()
+    method = request.method
+    endpoint = request.url.path
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
     if not is_admin(current_user_roles):
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
@@ -151,7 +180,12 @@ async def get_change_logs_for_resource(
         return result
     except Exception as e:
         logger.error(f"Error querying change logs: {e}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise HTTPException(status_code=500, detail=f"Error querying change logs: {str(e)}")
+    finally:
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
 
 def get_resource_id_by_name(db: Session, resource: str, resource_name: str) -> Optional[int]:
     try:
