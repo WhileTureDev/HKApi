@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Request, Form
 import json
 import yaml
 from sqlalchemy.orm import Session
@@ -59,14 +59,14 @@ def deployment_to_dict(deployment: DeploymentModel) -> dict:
 @router.post("/helm/releases", response_model=DeploymentSchema)
 async def create_release(
         request: Request,
-        release_name: str = Query(..., description="The name of the release"),
-        chart_name: str = Query(..., description="The name of the chart"),
-        chart_repo_url: str = Query(..., description="The URL of the chart repository"),
-        namespace: str = Query(..., description="The namespace of the release"),
-        project: Optional[str] = Query(None, description="The project name"),
-        values: Optional[str] = Query(None, description="The values for the chart in JSON format"),
-        version: Optional[str] = Query(None, description="The version of the chart"),
-        debug: Optional[bool] = Query(False, description="Enable debug mode"),
+        release_name: str = Form(..., description="The name of the release"),
+        chart_name: str = Form(..., description="The name of the chart"),
+        chart_repo_url: str = Form(..., description="The URL of the chart repository"),
+        namespace: str = Form(..., description="The namespace of the release"),
+        project: Optional[str] = Form(None, description="The project name"),
+        values: Optional[str] = Form(None, description="The values for the chart in JSON format"),
+        version: Optional[str] = Form(None, description="The version of the chart"),
+        debug: Optional[bool] = Form(False, description="Enable debug mode"),
         values_file: Optional[UploadFile] = File(None),
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user),
@@ -191,7 +191,6 @@ async def create_release(
     except Exception as e:
         logger.error(f"Error deploying Helm chart: {e}")
         raise HTTPException(status_code=500, detail=f"Error deploying Helm chart: {str(e)}")
-
 
 @router.delete("/helm/releases", response_model=DeploymentSchema)
 def delete_release(
