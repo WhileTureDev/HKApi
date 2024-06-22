@@ -1,4 +1,5 @@
 import logging
+import time
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Request, Form
 import json
 import yaml
@@ -33,6 +34,9 @@ from utils.helm import (
     get_helm_release_notes,
     export_helm_release_values_to_file
 )
+from controllers.metricsController import (
+    REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -59,19 +63,24 @@ def deployment_to_dict(deployment: DeploymentModel) -> dict:
 @router.post("/helm/releases", response_model=DeploymentSchema)
 async def create_release(
         request: Request,
-        release_name: str = Form(..., description="The name of the release"),
-        chart_name: str = Form(..., description="The name of the chart"),
-        chart_repo_url: str = Form(..., description="The URL of the chart repository"),
-        namespace: str = Form(..., description="The namespace of the release"),
-        project: Optional[str] = Form(None, description="The project name"),
-        values: Optional[str] = Form(None, description="The values for the chart in JSON format"),
-        version: Optional[str] = Form(None, description="The version of the chart"),
-        debug: Optional[bool] = Form(False, description="Enable debug mode"),
+        release_name: str = Query(..., description="The name of the release"),
+        chart_name: str = Query(..., description="The name of the chart"),
+        chart_repo_url: str = Query(..., description="The URL of the chart repository"),
+        namespace: str = Query(..., description="The namespace of the release"),
+        project: Optional[str] = Query(None, description="The project name"),
+        values: Optional[str] = Query(None, description="The values for the chart in JSON format"),
+        version: Optional[str] = Query(None, description="The version of the chart"),
+        debug: Optional[bool] = Query(False, description="Enable debug mode"),
         values_file: Optional[UploadFile] = File(None),
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
+    start_time = time.time()
+    method = request.method
+    endpoint = request.url.path
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
     try:
         logger.info(f"Starting release creation process for {release_name} in project {project if project else 'N/A'}")
 
@@ -191,6 +200,10 @@ async def create_release(
     except Exception as e:
         logger.error(f"Error deploying Helm chart: {e}")
         raise HTTPException(status_code=500, detail=f"Error deploying Helm chart: {str(e)}")
+    finally:
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
 
 @router.delete("/helm/releases", response_model=DeploymentSchema)
 def delete_release(
@@ -201,50 +214,63 @@ def delete_release(
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
-    logger.info(f"Attempting to delete release {release_name} in namespace {namespace}")
+    method = "DELETE"
+    endpoint = "/helm/releases"
+    start_time = time.time()
+    REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
 
-    # Use the reusable function to check namespace ownership
-    if not is_admin(current_user_roles):
-        _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
-        # Check if the deployment belongs to the current user
-        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
-            release_name=release_name,
-            namespace_name=namespace,
-            owner_id=current_user.id,
-            active=True
-        ).first())
-        if not deployment:
-            logger.error(
-                f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+    try:
+        logger.info(f"Attempting to delete release {release_name} in namespace {namespace}")
+
+        if not is_admin(current_user_roles):
+            _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
+            deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
+                release_name=release_name,
+                namespace_name=namespace,
+                owner_id=current_user.id,
+                active=True
+            ).first())
+            if not deployment:
+                logger.error(
+                    f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+                raise HTTPException(status_code=404, detail="Helm release not found")
+        else:
+            deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
+                release_name=release_name,
+                namespace_name=namespace,
+                active=True
+            ).first())
+            if not deployment:
+                logger.error(f"Deployment {release_name} not found in namespace {namespace}")
+                raise HTTPException(status_code=404, detail="Helm release not found")
+
+        success = delete_helm_release(release_name, namespace)
+        if not success:
+            logger.error(f"Helm release {release_name} not found in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
-    else:
-        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
-            release_name=release_name,
-            namespace_name=namespace,
-            active=True
-        ).first())
-        if not deployment:
-            logger.error(f"Deployment {release_name} not found in namespace {namespace}")
-            raise HTTPException(status_code=404, detail="Helm release not found")
 
-    # Delete Helm release using utility function
-    success = delete_helm_release(release_name, namespace)
-    if not success:
-        logger.error(f"Helm release {release_name} not found in namespace {namespace}")
-        raise HTTPException(status_code=404, detail="Helm release not found")
+        deployment.active = False
+        deployment.status = "deleted"
+        deployment.updated_at = datetime.utcnow()
+        call_database_operation(lambda: db.commit())
+        call_database_operation(lambda: db.refresh(deployment))
+        logger.info(f"Marked deployment {release_name} as deleted in database")
 
-    # Mark the deployment as inactive
-    deployment.active = False
-    deployment.status = "deleted"
-    deployment.updated_at = datetime.utcnow()
-    call_database_operation(lambda: db.commit())
-    call_database_operation(lambda: db.refresh(deployment))
-    logger.info(f"Marked deployment {release_name} as deleted in database")
+        log_change(db, current_user.id, "delete", "release", deployment.id, release_name, deployment.project)
 
-    # Log the change with resource_name and project_name
-    log_change(db, current_user.id, "delete", "release", deployment.id, release_name, deployment.project)
-
-    return deployment
+        return deployment
+    except HTTPException as http_exc:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error deleting Helm chart: {e}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=500, detail=f"Error deleting Helm chart: {str(e)}")
+    finally:
+        latency = time.time() - start_time
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
 
 @router.get("/helm/releases", response_model=List[dict])
 async def list_releases(
@@ -254,30 +280,45 @@ async def list_releases(
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
-    logger.info(f"Listing releases in namespace {namespace if namespace else 'all namespaces'}")
+    method = "GET"
+    endpoint = "/helm/releases"
+    start_time = time.time()
+    REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
 
-    releases = []
-    if namespace:
-        # Admins can access any namespace
-        if not is_admin(current_user_roles):
-            # Use the reusable function to check namespace ownership
-            _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
-            releases = list_helm_releases(namespace)
-        else:
-            releases = list_helm_releases(namespace)
-    else:
-        # List releases in all namespaces owned by the current user or all namespaces if admin
-        if not is_admin(current_user_roles):
-            namespaces = call_database_operation(lambda: db.query(NamespaceModel).filter_by(owner_id=current_user.id).all())
-            for ns in namespaces:
-                releases.extend(list_helm_releases(ns.name))
-        else:
-            releases = list_all_helm_releases()
+    try:
+        logger.info(f"Listing releases in namespace {namespace if namespace else 'all namespaces'}")
 
-    if not releases:
-        logger.warning(f"No releases found in namespace {namespace if namespace else 'all namespaces'}")
-        raise HTTPException(status_code=404, detail="No releases found")
-    return releases
+        releases = []
+        if namespace:
+            if not is_admin(current_user_roles):
+                _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
+                releases = list_helm_releases(namespace)
+            else:
+                releases = list_helm_releases(namespace)
+        else:
+            if not is_admin(current_user_roles):
+                namespaces = call_database_operation(lambda: db.query(NamespaceModel).filter_by(owner_id=current_user.id).all())
+                for ns in namespaces:
+                    releases.extend(list_helm_releases(ns.name))
+            else:
+                releases = list_all_helm_releases()
+
+        if not releases:
+            logger.warning(f"No releases found in namespace {namespace if namespace else 'all namespaces'}")
+            raise HTTPException(status_code=404, detail="No releases found")
+        return releases
+    except HTTPException as http_exc:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error listing Helm releases: {e}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=500, detail=f"Error listing Helm releases: {str(e)}")
+    finally:
+        latency = time.time() - start_time
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
 
 @router.get("/helm/releases/values", response_model=dict)
 async def get_release_values(
@@ -288,37 +329,52 @@ async def get_release_values(
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
-    logger.info(f"Getting values for release {release_name} in namespace {namespace}")
+    method = "GET"
+    endpoint = "/helm/releases/values"
+    start_time = time.time()
+    REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
 
-    # Admins can access any namespace
-    if not is_admin(current_user_roles):
-        # Use the reusable function to check namespace ownership
-        _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
+    try:
+        logger.info(f"Getting values for release {release_name} in namespace {namespace}")
 
-        # Check if the deployment belongs to the current user
-        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
-            release_name=release_name,
-            namespace_name=namespace,
-            owner_id=current_user.id
-        ).first())
-        if not deployment:
-            logger.error(
-                f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
-            raise HTTPException(status_code=404, detail="Helm release not found")
-    else:
-        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
-            release_name=release_name,
-            namespace_name=namespace
-        ).first())
-        if not deployment:
-            logger.error(f"Deployment {release_name} not found in namespace {namespace}")
-            raise HTTPException(status_code=404, detail="Helm release not found")
+        if not is_admin(current_user_roles):
+            _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
 
-    values = get_helm_values(release_name, namespace)
-    if not values:
-        logger.warning(f"Values not found for release {release_name} in namespace {namespace}")
-        raise HTTPException(status_code=404, detail="Release values not found")
-    return values
+            deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
+                release_name=release_name,
+                namespace_name=namespace,
+                owner_id=current_user.id
+            ).first())
+            if not deployment:
+                logger.error(
+                    f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+                raise HTTPException(status_code=404, detail="Helm release not found")
+        else:
+            deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
+                release_name=release_name,
+                namespace_name=namespace
+            ).first())
+            if not deployment:
+                logger.error(f"Deployment {release_name} not found in namespace {namespace}")
+                raise HTTPException(status_code=404, detail="Helm release not found")
+
+        values = get_helm_values(release_name, namespace)
+        if not values:
+            logger.warning(f"Values not found for release {release_name} in namespace {namespace}")
+            raise HTTPException(status_code=404, detail="Release values not found")
+        return values
+    except HTTPException as http_exc:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error getting Helm release values: {e}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=500, detail=f"Error getting Helm release values: {str(e)}")
+    finally:
+        latency = time.time() - start_time
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
 
 @router.post("/helm/releases/rollback")
 async def rollback_release(
@@ -331,46 +387,60 @@ async def rollback_release(
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
-    logger.info(f"Rolling back release {release_name} in namespace {namespace} to revision {revision}")
+    method = "POST"
+    endpoint = "/helm/releases/rollback"
+    start_time = time.time()
+    REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
 
-    # Admins can access any namespace
-    if not is_admin(current_user_roles):
-        # Use the reusable function to check namespace ownership
-        _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
+    try:
+        logger.info(f"Rolling back release {release_name} in namespace {namespace} to revision {revision}")
 
-        # Check if the deployment belongs to the current user
-        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
-            release_name=release_name,
-            namespace_name=namespace,
-            owner_id=current_user.id
-        ).first())
-        if not deployment:
-            logger.error(
-                f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
-            raise HTTPException(status_code=404, detail="Helm release not found")
-    else:
-        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
-            release_name=release_name,
-            namespace_name=namespace
-        ).first())
-        if not deployment:
-            logger.error(f"Deployment {release_name} not found in namespace {namespace}")
-            raise HTTPException(status_code=404, detail="Helm release not found")
+        if not is_admin(current_user_roles):
+            _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
 
-    success = rollback_helm_release(
-        release_name, revision, namespace, force=options.force, recreate_pods=options.recreate_pods
-    )
-    if not success:
-        logger.error(f"Rollback failed for release {release_name} to revision {revision} in namespace {namespace}")
-        raise HTTPException(status_code=500, detail="Rollback failed")
+            deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
+                release_name=release_name,
+                namespace_name=namespace,
+                owner_id=current_user.id
+            ).first())
+            if not deployment:
+                logger.error(
+                    f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+                raise HTTPException(status_code=404, detail="Helm release not found")
+        else:
+            deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
+                release_name=release_name,
+                namespace_name=namespace
+            ).first())
+            if not deployment:
+                logger.error(f"Deployment {release_name} not found in namespace {namespace}")
+                raise HTTPException(status_code=404, detail="Helm release not found")
 
-    # Update the deployment record to reflect the rollback
-    deployment.updated_at = datetime.utcnow()
-    call_database_operation(lambda: db.commit())
-    call_database_operation(lambda: db.refresh(deployment))
-    logger.info(f"Updated deployment {release_name} to reflect rollback to revision {revision}")
+        success = rollback_helm_release(
+            release_name, revision, namespace, force=options.force, recreate_pods=options.recreate_pods
+        )
+        if not success:
+            logger.error(f"Rollback failed for release {release_name} to revision {revision} in namespace {namespace}")
+            raise HTTPException(status_code=500, detail="Rollback failed")
 
-    return {"message": "Rollback successful"}
+        deployment.updated_at = datetime.utcnow()
+        call_database_operation(lambda: db.commit())
+        call_database_operation(lambda: db.refresh(deployment))
+        logger.info(f"Updated deployment {release_name} to reflect rollback to revision {revision}")
+
+        return {"message": "Rollback successful"}
+    except HTTPException as http_exc:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error rolling back Helm release: {e}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=500, detail=f"Error rolling back Helm release: {str(e)}")
+    finally:
+        latency = time.time() - start_time
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
 
 @router.get("/helm/releases/status", response_model=dict)
 async def get_release_status(
@@ -381,37 +451,52 @@ async def get_release_status(
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
-    logger.info(f"Getting status for release {release_name} in namespace {namespace}")
+    method = "GET"
+    endpoint = "/helm/releases/status"
+    start_time = time.time()
+    REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
 
-    # Admins can access any namespace
-    if not is_admin(current_user_roles):
-        # Use the reusable function to check namespace ownership
-        _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
+    try:
+        logger.info(f"Getting status for release {release_name} in namespace {namespace}")
 
-        # Check if the deployment belongs to the current user
-        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
-            release_name=release_name,
-            namespace_name=namespace,
-            owner_id=current_user.id
-        ).first())
-        if not deployment:
-            logger.error(
-                f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
-            raise HTTPException(status_code=404, detail="Helm release not found")
-    else:
-        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
-            release_name=release_name,
-            namespace_name=namespace
-        ).first())
-        if not deployment:
-            logger.error(f"Deployment {release_name} not found in namespace {namespace}")
-            raise HTTPException(status_code=404, detail="Helm release not found")
+        if not is_admin(current_user_roles):
+            _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
 
-    status = get_helm_status(release_name, namespace)
-    if not status:
-        logger.warning(f"Status not found for release {release_name} in namespace {namespace}")
-        raise HTTPException(status_code=404, detail="Release status not found")
-    return status
+            deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
+                release_name=release_name,
+                namespace_name=namespace,
+                owner_id=current_user.id
+            ).first())
+            if not deployment:
+                logger.error(
+                    f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+                raise HTTPException(status_code=404, detail="Helm release not found")
+        else:
+            deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
+                release_name=release_name,
+                namespace_name=namespace
+            ).first())
+            if not deployment:
+                logger.error(f"Deployment {release_name} not found in namespace {namespace}")
+                raise HTTPException(status_code=404, detail="Helm release not found")
+
+        status = get_helm_status(release_name, namespace)
+        if not status:
+            logger.warning(f"Status not found for release {release_name} in namespace {namespace}")
+            raise HTTPException(status_code=404, detail="Release status not found")
+        return status
+    except HTTPException as http_exc:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error getting Helm release status: {e}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=500, detail=f"Error getting Helm release status: {str(e)}")
+    finally:
+        latency = time.time() - start_time
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
 
 @router.get("/helm/releases/history", response_model=List[dict])
 async def get_release_history(
@@ -422,37 +507,52 @@ async def get_release_history(
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
-    logger.info(f"Getting history for release {release_name} in namespace {namespace}")
+    method = "GET"
+    endpoint = "/helm/releases/history"
+    start_time = time.time()
+    REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
 
-    # Admins can access any namespace
-    if not is_admin(current_user_roles):
-        # Use the reusable function to check namespace ownership
-        _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
+    try:
+        logger.info(f"Getting history for release {release_name} in namespace {namespace}")
 
-        # Check if the deployment belongs to the current user
-        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
-            release_name=release_name,
-            namespace_name=namespace,
-            owner_id=current_user.id
-        ).first())
-        if not deployment:
-            logger.error(
-                f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
-            raise HTTPException(status_code=404, detail="Helm release not found")
-    else:
-        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
-            release_name=release_name,
-            namespace_name=namespace
-        ).first())
-        if not deployment:
-            logger.error(f"Deployment {release_name} not found in namespace {namespace}")
-            raise HTTPException(status_code=404, detail="Helm release not found")
+        if not is_admin(current_user_roles):
+            _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
 
-    history = get_helm_release_history(release_name, namespace)
-    if not history:
-        logger.warning(f"History not found for release {release_name} in namespace {namespace}")
-        raise HTTPException(status_code=404, detail="Release history not found")
-    return history
+            deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
+                release_name=release_name,
+                namespace_name=namespace,
+                owner_id=current_user.id
+            ).first())
+            if not deployment:
+                logger.error(
+                    f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+                raise HTTPException(status_code=404, detail="Helm release not found")
+        else:
+            deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
+                release_name=release_name,
+                namespace_name=namespace
+            ).first())
+            if not deployment:
+                logger.error(f"Deployment {release_name} not found in namespace {namespace}")
+                raise HTTPException(status_code=404, detail="Helm release not found")
+
+        history = get_helm_release_history(release_name, namespace)
+        if not history:
+            logger.warning(f"History not found for release {release_name} in namespace {namespace}")
+            raise HTTPException(status_code=404, detail="Release history not found")
+        return history
+    except HTTPException as http_exc:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error getting Helm release history: {e}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=500, detail=f"Error getting Helm release history: {str(e)}")
+    finally:
+        latency = time.time() - start_time
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
 
 @router.get("/helm/releases/notes", response_model=dict)
 async def get_release_notes(
@@ -464,37 +564,52 @@ async def get_release_notes(
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
-    logger.info(f"Getting notes for release {release_name}, revision {revision} in namespace {namespace}")
+    method = "GET"
+    endpoint = "/helm/releases/notes"
+    start_time = time.time()
+    REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
 
-    # Admins can access any namespace
-    if not is_admin(current_user_roles):
-        # Use the reusable function to check namespace ownership
-        _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
+    try:
+        logger.info(f"Getting notes for release {release_name}, revision {revision} in namespace {namespace}")
 
-        # Check if the deployment belongs to the current user
-        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
-            release_name=release_name,
-            namespace_name=namespace,
-            owner_id=current_user.id
-        ).first())
-        if not deployment:
-            logger.error(
-                f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
-            raise HTTPException(status_code=404, detail="Helm release not found")
-    else:
-        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
-            release_name=release_name,
-            namespace_name=namespace
-        ).first())
-        if not deployment:
-            logger.error(f"Deployment {release_name} not found in namespace {namespace}")
-            raise HTTPException(status_code=404, detail="Helm release not found")
+        if not is_admin(current_user_roles):
+            _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
 
-    notes = get_helm_release_notes(release_name, revision, namespace)
-    if not notes:
-        logger.warning(f"Notes not found for release {release_name}, revision {revision} in namespace {namespace}")
-        raise HTTPException(status_code=404, detail="Release notes not found")
-    return {"notes": notes}
+            deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
+                release_name=release_name,
+                namespace_name=namespace,
+                owner_id=current_user.id
+            ).first())
+            if not deployment:
+                logger.error(
+                    f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+                raise HTTPException(status_code=404, detail="Helm release not found")
+        else:
+            deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
+                release_name=release_name,
+                namespace_name=namespace
+            ).first())
+            if not deployment:
+                logger.error(f"Deployment {release_name} not found in namespace {namespace}")
+                raise HTTPException(status_code=404, detail="Helm release not found")
+
+        notes = get_helm_release_notes(release_name, revision, namespace)
+        if not notes:
+            logger.warning(f"Notes not found for release {release_name}, revision {revision} in namespace {namespace}")
+            raise HTTPException(status_code=404, detail="Release notes not found")
+        return {"notes": notes}
+    except HTTPException as http_exc:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error getting Helm release notes: {e}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=500, detail=f"Error getting Helm release notes: {str(e)}")
+    finally:
+        latency = time.time() - start_time
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
 
 @router.get("/helm/releases/export")
 async def export_release_values(
@@ -505,42 +620,57 @@ async def export_release_values(
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
-    logger.info(f"Exporting values for release {release_name} in namespace {namespace}")
+    method = "GET"
+    endpoint = "/helm/releases/export"
+    start_time = time.time()
+    REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
 
-    # Admins can access any namespace
-    if not is_admin(current_user_roles):
-        # Use the reusable function to check namespace ownership
-        _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
+    try:
+        logger.info(f"Exporting values for release {release_name} in namespace {namespace}")
 
-        # Check if the deployment belongs to the current user
-        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
-            release_name=release_name,
-            namespace_name=namespace,
-            owner_id=current_user.id
-        ).first())
-        if not deployment:
-            logger.error(
-                f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
-            raise HTTPException(status_code=404, detail="Helm release not found")
-    else:
-        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
-            release_name=release_name,
-            namespace_name=namespace
-        ).first())
-        if not deployment:
-            logger.error(f"Deployment {release_name} not found in namespace {namespace}")
-            raise HTTPException(status_code=404, detail="Helm release not found")
+        if not is_admin(current_user_roles):
+            _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
 
-    file_path = export_helm_release_values_to_file(release_name, namespace)
-    if not file_path:
-        logger.error(f"Error exporting values for release {release_name} in namespace {namespace}")
-        raise HTTPException(status_code=500, detail="Error exporting release values")
-    logger.info(f"Successfully exported values for release {release_name} to file {file_path}")
-    return FileResponse(
-        path=file_path,
-        filename=f"{release_name}-values.yaml",
-        media_type='application/octet-stream'
-    )
+            deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
+                release_name=release_name,
+                namespace_name=namespace,
+                owner_id=current_user.id
+            ).first())
+            if not deployment:
+                logger.error(
+                    f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+                raise HTTPException(status_code=404, detail="Helm release not found")
+        else:
+            deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
+                release_name=release_name,
+                namespace_name=namespace
+            ).first())
+            if not deployment:
+                logger.error(f"Deployment {release_name} not found in namespace {namespace}")
+                raise HTTPException(status_code=404, detail="Helm release not found")
+
+        file_path = export_helm_release_values_to_file(release_name, namespace)
+        if not file_path:
+            logger.error(f"Error exporting values for release {release_name} in namespace {namespace}")
+            raise HTTPException(status_code=500, detail="Error exporting release values")
+        logger.info(f"Successfully exported values for release {release_name} to file {file_path}")
+        return FileResponse(
+            path=file_path,
+            filename=f"{release_name}-values.yaml",
+            media_type='application/octet-stream'
+        )
+    except HTTPException as http_exc:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise http_exc
+    except Exception as e:
+        logger.error(f"Error exporting Helm release values: {e}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=500, detail=f"Error exporting Helm release values: {str(e)}")
+    finally:
+        latency = time.time() - start_time
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
 
 @router.get("/helm/releases/all", response_model=List[dict])
 async def list_all_releases(
@@ -549,6 +679,12 @@ async def list_all_releases(
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
+    method = "GET"
+    endpoint = "/helm/releases/all"
+    start_time = time.time()
+    REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
     try:
         logger.info(f"Listing all releases for user {current_user.username}")
 
@@ -564,6 +700,14 @@ async def list_all_releases(
         releases = [deployment_to_dict(deployment) for deployment in deployments]
 
         return releases
+    except HTTPException as http_exc:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise http_exc
     except Exception as e:
-        logger.error(f"An error occurred while listing releases: {str(e)}")
-        raise HTTPException(status_code=500, detail="An internal error occurred")
+        logger.error(f"Error listing all Helm releases: {e}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=500, detail="Error listing all Helm releases: {str(e)}")
+    finally:
+        latency = time.time() - start_time
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
