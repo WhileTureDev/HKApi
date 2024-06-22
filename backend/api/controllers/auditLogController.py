@@ -10,10 +10,10 @@ from utils.database import get_db
 from utils.auth import get_current_active_user
 from models.userModel import User as UserModel
 from utils.security import get_current_user_roles, is_admin
+from utils.circuit_breaker import call_database_operation  # Import the circuit breaker
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
 
 @router.get("/auditlogs", response_model=List[AuditLogSchema])
 async def get_all_audit_logs(
@@ -25,13 +25,13 @@ async def get_all_audit_logs(
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     try:
-        audit_logs = db.query(AuditLogModel).all()
+        audit_logs = call_database_operation(db.query(AuditLogModel).all)
         logger.debug(f"Fetched {len(audit_logs)} audit logs from the database")
 
         result = []
         for log in audit_logs:
             try:
-                user = db.query(UserModel).filter(UserModel.id == log.user_id).first() if log.user_id else None
+                user = call_database_operation(db.query(UserModel).filter(UserModel.id == log.user_id).first) if log.user_id else None
                 result.append({
                     "id": log.id,
                     "user_id": log.user_id,

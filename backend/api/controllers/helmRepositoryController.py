@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
@@ -9,18 +9,20 @@ from utils.database import get_db
 from utils.auth import get_current_active_user
 from models.userModel import User as UserModel
 from utils.helm import add_helm_repo, update_helm_repositories, search_helm_charts, list_helm_charts_in_repo
+from utils.circuit_breaker import call_database_operation
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.post("/helm/repositories", response_model=HelmRepositorySchema)
 def create_helm_repository(
+    request: Request,
     repository: HelmRepositoryCreate,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_active_user)
 ):
     logger.info(f"User {current_user.username} is creating a new Helm repository: {repository.name}")
-    db_repo = db.query(HelmRepositoryModel).filter_by(name=repository.name).first()
+    db_repo = call_database_operation(lambda: db.query(HelmRepositoryModel).filter_by(name=repository.name).first())
     if db_repo:
         logger.warning(f"Repository {repository.name} already exists")
         raise HTTPException(status_code=400, detail="Repository already exists")
@@ -35,48 +37,51 @@ def create_helm_repository(
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
-    db.add(new_repository)
-    db.commit()
-    db.refresh(new_repository)
+    call_database_operation(lambda: db.add(new_repository))
+    call_database_operation(lambda: db.commit())
+    call_database_operation(lambda: db.refresh(new_repository))
     logger.info(f"Helm repository {repository.name} created successfully")
     return new_repository
 
 @router.get("/helm/repositories", response_model=List[HelmRepositorySchema])
 def list_helm_repositories(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_active_user)
 ):
     logger.info(f"User {current_user.username} is listing all Helm repositories")
-    repositories = db.query(HelmRepositoryModel).all()
+    repositories = call_database_operation(lambda: db.query(HelmRepositoryModel).all())
     logger.info(f"Found {len(repositories)} repositories")
     return [HelmRepositorySchema.from_orm(repo) for repo in repositories]
 
 @router.delete("/helm/repositories/{repo_id}", response_model=HelmRepositorySchema)
 def delete_helm_repository(
+    request: Request,
     repo_id: int,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_active_user)
 ):
     logger.info(f"User {current_user.username} is deleting Helm repository with ID {repo_id}")
-    repository = db.query(HelmRepositoryModel).filter_by(id=repo_id).first()
+    repository = call_database_operation(lambda: db.query(HelmRepositoryModel).filter_by(id=repo_id).first())
     if not repository:
         logger.warning(f"Repository with ID {repo_id} not found")
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    db.delete(repository)
-    db.commit()
+    call_database_operation(lambda: db.delete(repository))
+    call_database_operation(lambda: db.commit())
     logger.info(f"Helm repository with ID {repo_id} deleted successfully")
     return repository
 
 @router.get("/helm/charts/search", response_model=List[dict])
 def search_charts(
+    request: Request,
     term: str = Query(..., description="The search term for the charts"),
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_active_user)
 ):
     logger.info(f"User {current_user.username} is searching for charts with term {term}")
     # Get all repository names from the database
-    repositories = db.query(HelmRepositoryModel.name).all()
+    repositories = call_database_operation(lambda: db.query(HelmRepositoryModel.name).all())
     repo_names = [repo[0] for repo in repositories]
 
     # Perform the search
@@ -89,6 +94,7 @@ def search_charts(
 
 @router.post("/helm/repositories/update", response_model=dict)
 def update_repositories(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_active_user)
 ):
@@ -102,13 +108,14 @@ def update_repositories(
 
 @router.get("/helm/repositories/charts", response_model=List[dict])
 def list_charts_in_repo(
+    request: Request,
     repo_name: str = Query(..., description="The name of the repository"),
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_active_user)
 ):
     logger.info(f"User {current_user.username} is listing all charts in repository {repo_name}")
     # Check if the repository exists in the database
-    helm_repo = db.query(HelmRepositoryModel).filter_by(name=repo_name).first()
+    helm_repo = call_database_operation(lambda: db.query(HelmRepositoryModel).filter_by(name=repo_name).first())
     if not helm_repo:
         logger.warning(f"Repository {repo_name} not found")
         raise HTTPException(status_code=404, detail="Repository not found")
