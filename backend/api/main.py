@@ -1,12 +1,12 @@
-import logging
 import logging.config
 from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from controllers import authController, projectController, helmController, helmRepositoryController, userController, \
-    changeLogController
+from controllers.logControllers import changeLogController
+from controllers.helmControllers import helmRepositoryController, helmController
+from controllers.userControllers import userController, projectController
 from controllers.adminControllers import adminHelmController, auditLogController
 from utils.database import create_database_if_not_exists, create_tables, get_db
 from utils.logging_config import LOGGING_CONFIG
@@ -25,6 +25,7 @@ app = FastAPI()
 logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
 
+
 # Middleware to log requests
 class LogRequestsMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -32,6 +33,7 @@ class LogRequestsMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         logger.info(f"Response: {response.status_code}")
         return response
+
 
 # Add middleware for logging and exception handling
 app.add_middleware(LogRequestsMiddleware)
@@ -42,6 +44,7 @@ create_database_if_not_exists()
 
 # Ensure this runs only once and in a single-threaded context
 create_tables()
+
 
 def create_initial_admin(db: Session):
     admin_username = "admin"
@@ -72,6 +75,7 @@ def create_initial_admin(db: Session):
         db.add(user_role)
         db.commit()
 
+
 # Initialize the database session and create the initial admin
 with next(get_db()) as db:
     create_initial_admin(db)
@@ -81,7 +85,7 @@ app.add_middleware(SlowAPIMiddleware)
 
 # Include routes
 app.include_router(userController.router, tags=["users"])
-app.include_router(authController.router, tags=["auth"])
+app.include_router(userController.router, tags=["auth"])
 app.include_router(projectController.router, tags=["projects"])
 app.include_router(helmController.router, tags=["helm"])
 app.include_router(helmRepositoryController.router, tags=["repositories"])
@@ -89,9 +93,11 @@ app.include_router(changeLogController.router, tags=["changelogs"])
 app.include_router(adminHelmController.router, tags=["admin"])
 app.include_router(auditLogController.router, tags=["auditlogs"])
 
+
 @app.get("/")
 def read_root():
     return {"message": "Hello World"}
+
 
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
