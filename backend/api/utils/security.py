@@ -31,7 +31,7 @@ def check_project_and_namespace_ownership(db: Session, project: Optional[str], n
 
 
 def get_current_user_roles(current_user: UserModel = Depends(get_current_active_user), db: Session = Depends(get_db)) -> \
-List[str]:
+        List[str]:
     roles = db.query(Role.name).join(UserRole).filter(UserRole.user_id == current_user.id).all()
     return [role.name for role in roles]
 

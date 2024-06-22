@@ -1,7 +1,5 @@
-# helmController.py
-
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Request
 import json
 import yaml
 from sqlalchemy.orm import Session
@@ -20,6 +18,7 @@ from utils.database import get_db
 from utils.auth import get_current_active_user
 from models.userModel import User as UserModel
 from utils.security import check_project_and_namespace_ownership, get_current_user_roles, is_admin
+from utils.circuit_breaker import call_database_operation
 from utils.helm import (
     deploy_helm_chart_combined,
     delete_helm_release,
@@ -37,7 +36,6 @@ from utils.helm import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
 
 def deployment_to_dict(deployment: DeploymentModel) -> dict:
     return {
@@ -58,9 +56,9 @@ def deployment_to_dict(deployment: DeploymentModel) -> dict:
         "owner_id": deployment.owner_id
     }
 
-
 @router.post("/helm/releases", response_model=DeploymentSchema)
 async def create_release(
+        request: Request,
         release_name: str = Query(..., description="The name of the release"),
         chart_name: str = Query(..., description="The name of the chart"),
         chart_repo_url: str = Query(..., description="The URL of the chart repository"),
@@ -81,8 +79,8 @@ async def create_release(
         if not is_admin(current_user_roles):
             project_obj, namespace_obj = check_project_and_namespace_ownership(db, project, namespace, current_user)
         else:
-            project_obj = db.query(ProjectModel).filter_by(name=project).first()
-            namespace_obj = db.query(NamespaceModel).filter_by(name=namespace).first()
+            project_obj = call_database_operation(lambda: db.query(ProjectModel).filter_by(name=project).first())
+            namespace_obj = call_database_operation(lambda: db.query(NamespaceModel).filter_by(name=namespace).first())
 
         # Parse the values JSON if provided
         values_dict = json.loads(values) if values else {}
@@ -111,9 +109,9 @@ async def create_release(
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
-            db.add(namespace_obj)
-            db.commit()
-            db.refresh(namespace_obj)
+            call_database_operation(lambda: db.add(namespace_obj))
+            call_database_operation(lambda: db.commit())
+            call_database_operation(lambda: db.refresh(namespace_obj))
             logger.info(f"Created new namespace: {namespace}")
 
         # Extract the repository name from the URL
@@ -121,7 +119,7 @@ async def create_release(
         logger.debug(f"Extracted repo name: {repo_name}")
 
         # Check if the Helm repository exists in the database
-        helm_repo = db.query(HelmRepositoryModel).filter_by(name=repo_name).first()
+        helm_repo = call_database_operation(lambda: db.query(HelmRepositoryModel).filter_by(name=repo_name).first())
         if not helm_repo:
             # Add the repository to the database
             new_repo = HelmRepositoryModel(
@@ -130,9 +128,9 @@ async def create_release(
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
-            db.add(new_repo)
-            db.commit()
-            db.refresh(new_repo)
+            call_database_operation(lambda: db.add(new_repo))
+            call_database_operation(lambda: db.commit())
+            call_database_operation(lambda: db.refresh(new_repo))
             logger.info(f"Added new Helm repository: {repo_name}")
 
             # Add the repository to Helm
@@ -178,9 +176,9 @@ async def create_release(
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
-        db.add(new_deployment)
-        db.commit()
-        db.refresh(new_deployment)
+        call_database_operation(lambda: db.add(new_deployment))
+        call_database_operation(lambda: db.commit())
+        call_database_operation(lambda: db.refresh(new_deployment))
 
         # Log the change with resource_name and project_name, including additional details
         details = f"Created release '{release_name}' using chart '{chart_name}' from repo '{chart_repo_url}' in namespace '{namespace}' with revision {revision}."
@@ -195,9 +193,9 @@ async def create_release(
         raise HTTPException(status_code=500, detail=f"Error deploying Helm chart: {str(e)}")
 
 
-
 @router.delete("/helm/releases", response_model=DeploymentSchema)
 def delete_release(
+        request: Request,
         release_name: str = Query(..., description="The name of the release to delete"),
         namespace: str = Query(..., description="The namespace of the release"),
         db: Session = Depends(get_db),
@@ -210,22 +208,22 @@ def delete_release(
     if not is_admin(current_user_roles):
         _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
         # Check if the deployment belongs to the current user
-        deployment = db.query(DeploymentModel).filter_by(
+        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
             release_name=release_name,
             namespace_name=namespace,
             owner_id=current_user.id,
             active=True
-        ).first()
+        ).first())
         if not deployment:
             logger.error(
                 f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
     else:
-        deployment = db.query(DeploymentModel).filter_by(
+        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
             release_name=release_name,
             namespace_name=namespace,
             active=True
-        ).first()
+        ).first())
         if not deployment:
             logger.error(f"Deployment {release_name} not found in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
@@ -240,8 +238,8 @@ def delete_release(
     deployment.active = False
     deployment.status = "deleted"
     deployment.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(deployment)
+    call_database_operation(lambda: db.commit())
+    call_database_operation(lambda: db.refresh(deployment))
     logger.info(f"Marked deployment {release_name} as deleted in database")
 
     # Log the change with resource_name and project_name
@@ -249,9 +247,9 @@ def delete_release(
 
     return deployment
 
-
 @router.get("/helm/releases", response_model=List[dict])
 async def list_releases(
+        request: Request,
         namespace: Optional[str] = None,
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user),
@@ -271,7 +269,7 @@ async def list_releases(
     else:
         # List releases in all namespaces owned by the current user or all namespaces if admin
         if not is_admin(current_user_roles):
-            namespaces = db.query(NamespaceModel).filter_by(owner_id=current_user.id).all()
+            namespaces = call_database_operation(lambda: db.query(NamespaceModel).filter_by(owner_id=current_user.id).all())
             for ns in namespaces:
                 releases.extend(list_helm_releases(ns.name))
         else:
@@ -282,9 +280,9 @@ async def list_releases(
         raise HTTPException(status_code=404, detail="No releases found")
     return releases
 
-
 @router.get("/helm/releases/values", response_model=dict)
 async def get_release_values(
+        request: Request,
         release_name: str = Query(..., description="The name of the release"),
         namespace: str = Query(..., description="The namespace of the release"),
         db: Session = Depends(get_db),
@@ -299,20 +297,20 @@ async def get_release_values(
         _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
 
         # Check if the deployment belongs to the current user
-        deployment = db.query(DeploymentModel).filter_by(
+        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
             release_name=release_name,
             namespace_name=namespace,
             owner_id=current_user.id
-        ).first()
+        ).first())
         if not deployment:
             logger.error(
                 f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
     else:
-        deployment = db.query(DeploymentModel).filter_by(
+        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
             release_name=release_name,
             namespace_name=namespace
-        ).first()
+        ).first())
         if not deployment:
             logger.error(f"Deployment {release_name} not found in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
@@ -323,9 +321,9 @@ async def get_release_values(
         raise HTTPException(status_code=404, detail="Release values not found")
     return values
 
-
 @router.post("/helm/releases/rollback")
 async def rollback_release(
+        request: Request,
         release_name: str = Query(..., description="The name of the release"),
         revision: int = Query(..., description="The revision number to rollback to"),
         namespace: str = Query(..., description="The namespace of the release"),
@@ -342,20 +340,20 @@ async def rollback_release(
         _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
 
         # Check if the deployment belongs to the current user
-        deployment = db.query(DeploymentModel).filter_by(
+        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
             release_name=release_name,
             namespace_name=namespace,
             owner_id=current_user.id
-        ).first()
+        ).first())
         if not deployment:
             logger.error(
                 f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
     else:
-        deployment = db.query(DeploymentModel).filter_by(
+        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
             release_name=release_name,
             namespace_name=namespace
-        ).first()
+        ).first())
         if not deployment:
             logger.error(f"Deployment {release_name} not found in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
@@ -369,15 +367,15 @@ async def rollback_release(
 
     # Update the deployment record to reflect the rollback
     deployment.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(deployment)
+    call_database_operation(lambda: db.commit())
+    call_database_operation(lambda: db.refresh(deployment))
     logger.info(f"Updated deployment {release_name} to reflect rollback to revision {revision}")
 
     return {"message": "Rollback successful"}
 
-
 @router.get("/helm/releases/status", response_model=dict)
 async def get_release_status(
+        request: Request,
         release_name: str = Query(..., description="The name of the release"),
         namespace: str = Query(..., description="The namespace of the release"),
         db: Session = Depends(get_db),
@@ -392,20 +390,20 @@ async def get_release_status(
         _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
 
         # Check if the deployment belongs to the current user
-        deployment = db.query(DeploymentModel).filter_by(
+        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
             release_name=release_name,
             namespace_name=namespace,
             owner_id=current_user.id
-        ).first()
+        ).first())
         if not deployment:
             logger.error(
                 f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
     else:
-        deployment = db.query(DeploymentModel).filter_by(
+        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
             release_name=release_name,
             namespace_name=namespace
-        ).first()
+        ).first())
         if not deployment:
             logger.error(f"Deployment {release_name} not found in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
@@ -416,9 +414,9 @@ async def get_release_status(
         raise HTTPException(status_code=404, detail="Release status not found")
     return status
 
-
 @router.get("/helm/releases/history", response_model=List[dict])
 async def get_release_history(
+        request: Request,
         release_name: str = Query(..., description="The name of the release"),
         namespace: str = Query(..., description="The namespace of the release"),
         db: Session = Depends(get_db),
@@ -433,20 +431,20 @@ async def get_release_history(
         _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
 
         # Check if the deployment belongs to the current user
-        deployment = db.query(DeploymentModel).filter_by(
+        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
             release_name=release_name,
             namespace_name=namespace,
             owner_id=current_user.id
-        ).first()
+        ).first())
         if not deployment:
             logger.error(
                 f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
     else:
-        deployment = db.query(DeploymentModel).filter_by(
+        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
             release_name=release_name,
             namespace_name=namespace
-        ).first()
+        ).first())
         if not deployment:
             logger.error(f"Deployment {release_name} not found in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
@@ -457,9 +455,9 @@ async def get_release_history(
         raise HTTPException(status_code=404, detail="Release history not found")
     return history
 
-
 @router.get("/helm/releases/notes", response_model=dict)
 async def get_release_notes(
+        request: Request,
         release_name: str = Query(..., description="The name of the release"),
         revision: int = Query(..., description="The revision number"),
         namespace: str = Query(..., description="The namespace of the release"),
@@ -475,20 +473,20 @@ async def get_release_notes(
         _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
 
         # Check if the deployment belongs to the current user
-        deployment = db.query(DeploymentModel).filter_by(
+        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
             release_name=release_name,
             namespace_name=namespace,
             owner_id=current_user.id
-        ).first()
+        ).first())
         if not deployment:
             logger.error(
                 f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
     else:
-        deployment = db.query(DeploymentModel).filter_by(
+        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
             release_name=release_name,
             namespace_name=namespace
-        ).first()
+        ).first())
         if not deployment:
             logger.error(f"Deployment {release_name} not found in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
@@ -499,9 +497,9 @@ async def get_release_notes(
         raise HTTPException(status_code=404, detail="Release notes not found")
     return {"notes": notes}
 
-
 @router.get("/helm/releases/export")
 async def export_release_values(
+        request: Request,
         release_name: str = Query(..., description="The name of the release"),
         namespace: str = Query(..., description="The namespace of the release"),
         db: Session = Depends(get_db),
@@ -516,20 +514,20 @@ async def export_release_values(
         _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
 
         # Check if the deployment belongs to the current user
-        deployment = db.query(DeploymentModel).filter_by(
+        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
             release_name=release_name,
             namespace_name=namespace,
             owner_id=current_user.id
-        ).first()
+        ).first())
         if not deployment:
             logger.error(
                 f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
     else:
-        deployment = db.query(DeploymentModel).filter_by(
+        deployment = call_database_operation(lambda: db.query(DeploymentModel).filter_by(
             release_name=release_name,
             namespace_name=namespace
-        ).first()
+        ).first())
         if not deployment:
             logger.error(f"Deployment {release_name} not found in namespace {namespace}")
             raise HTTPException(status_code=404, detail="Helm release not found")
@@ -545,9 +543,9 @@ async def export_release_values(
         media_type='application/octet-stream'
     )
 
-
 @router.get("/helm/releases/all", response_model=List[dict])
 async def list_all_releases(
+        request: Request,
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
@@ -556,9 +554,9 @@ async def list_all_releases(
         logger.info(f"Listing all releases for user {current_user.username}")
 
         if not is_admin(current_user_roles):
-            deployments = db.query(DeploymentModel).filter_by(owner_id=current_user.id).all()
+            deployments = call_database_operation(lambda: db.query(DeploymentModel).filter_by(owner_id=current_user.id).all())
         else:
-            deployments = db.query(DeploymentModel).all()
+            deployments = call_database_operation(lambda: db.query(DeploymentModel).all())
 
         if not deployments:
             logger.warning(f"No releases found for user {current_user.username}")
