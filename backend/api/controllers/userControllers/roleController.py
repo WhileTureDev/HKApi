@@ -8,7 +8,7 @@ from models.userModel import User
 from utils.database import get_db
 from utils.auth import get_current_active_user
 from utils.circuit_breaker import call_database_operation
-from controllers.metricsController import (
+from controllers.monitorControllers.metricsController import (
     REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
 )
 

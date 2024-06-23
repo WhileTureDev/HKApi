@@ -10,8 +10,8 @@ from utils.auth import get_current_active_user
 from models.userModel import User as UserModel
 from utils.helm import add_helm_repo, update_helm_repositories, search_helm_charts, list_helm_charts_in_repo
 from utils.circuit_breaker import call_database_operation
-from controllers.metricsController import (
-    REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
+from controllers.monitorControllers.metricsController import (
+    REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS
 )
 
 import time

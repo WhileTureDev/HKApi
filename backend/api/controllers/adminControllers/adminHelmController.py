@@ -9,7 +9,7 @@ from utils.database import get_db
 from utils.auth import get_current_active_user, get_current_user_roles, is_admin
 from models.userModel import User as UserModel
 from typing import List
-from controllers.metricsController import (
+from controllers.monitorControllers.metricsController import (
     REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
 )
 

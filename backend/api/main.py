@@ -18,8 +18,8 @@ from utils.shared_utils import get_password_hash
 from sqlalchemy.orm import Session
 import os
 from utils.limiter import limiter
-from controllers.healthCheckController import router as health_check_router
-from controllers.metricsController import router as metrics_router
+from controllers.monitorControllers.healthCheckController import router as health_check_router
+from controllers.monitorControllers.metricsController import router as metrics_router
 
 app = FastAPI()
 
