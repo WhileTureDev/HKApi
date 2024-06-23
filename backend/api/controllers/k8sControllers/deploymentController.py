@@ -220,7 +220,8 @@ async def create_deployment(
         try:
             deployment = apps_v1.create_namespaced_deployment(namespace=namespace, body=deployment_yaml)
             logger.info(
-                f"User {current_user.username} successfully created deployment {deployment.metadata.name} in namespace {namespace}")
+                f"User {current_user.username} successfully created deployment {deployment.metadata.name} in namespace"
+                f" {namespace}")
 
             # Log the change with resource_name and project_name, including additional details
             namespace_obj = db.query(NamespaceModel).filter_by(name=namespace).first()
@@ -276,3 +277,4 @@ async def create_deployment(
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
         IN_PROGRESS.labels(endpoint=endpoint).dec()
+        
