@@ -9,7 +9,7 @@ class ChangeLog(BaseModel):
     user_name: str
     action: str
     resource: str
-    resource_id: int
+    resource_id: str
     timestamp: datetime
     details: Optional[str]
 
