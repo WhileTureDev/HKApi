@@ -73,6 +73,18 @@ async def get_all_change_logs(
                 })
             except Exception as e:
                 logger.error(f"Error processing log entry {log.id}: {e}")
+                result.append({
+                    "id": log.id,
+                    "user_id": log.user_id,
+                    "user_name": "Unknown",
+                    "action": log.action,
+                    "resource": log.resource,
+                    "resource_id": log.resource_id,
+                    "resource_name": "Unknown",
+                    "project_name": "Unknown",
+                    "timestamp": log.timestamp,
+                    "details": log.details
+                })
 
         return result
     except Exception as e:
@@ -83,6 +95,7 @@ async def get_all_change_logs(
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
         IN_PROGRESS.labels(endpoint=endpoint).dec()
+
 
 @router.get("/changelogs/user/{user_id}", response_model=List[ChangeLogSchema])
 async def get_change_logs_for_user(
