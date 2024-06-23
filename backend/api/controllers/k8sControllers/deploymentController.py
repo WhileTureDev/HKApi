@@ -277,4 +277,112 @@ async def create_deployment(
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
         IN_PROGRESS.labels(endpoint=endpoint).dec()
-        
+
+
+@router.put("/deployment")
+async def update_deployment(
+        namespace: str = Form(..., description="The namespace to update the deployment in"),
+        deployment_name: Optional[str] = Form(None, description="The name of the deployment"),
+        image: Optional[str] = Form(None, description="The image for the deployment"),
+        replicas: Optional[int] = Form(None, description="The number of replicas"),
+        yaml_file: Optional[UploadFile] = File(None),
+        db: Session = Depends(get_db),
+        current_user: UserModel = Depends(get_current_active_user),
+        current_user_roles: List[str] = Depends(get_current_user_roles)
+):
+    start_time = time.time()
+    method = "PUT"
+    endpoint = "/deployment"
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
+    try:
+        logger.info(f"User {current_user.username} is updating a deployment in namespace {namespace}")
+
+        if not is_admin(current_user_roles):
+            _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
+            if not namespace_obj:
+                raise HTTPException(status_code=403, detail="Not enough permissions to access this namespace")
+
+        apps_v1 = client.AppsV1Api()
+
+        if yaml_file:
+            try:
+                deployment_yaml = yaml.safe_load(yaml_file.file.read())
+            except yaml.YAMLError as e:
+                logger.error(f"Error parsing YAML file: {str(e)}")
+                raise HTTPException(status_code=400, detail="Invalid YAML file")
+        else:
+            if not deployment_name or not image or replicas is None:
+                raise HTTPException(status_code=400,
+                                    detail="Deployment name, image, and replicas are required if no YAML file is "
+                                           "provided")
+
+            deployment = apps_v1.read_namespaced_deployment(name=deployment_name, namespace=namespace)
+            deployment.spec.replicas = replicas
+            for container in deployment.spec.template.spec.containers:
+                if container.name == deployment_name:
+                    container.image = image
+
+            deployment_yaml = deployment
+
+        try:
+            updated_deployment = apps_v1.patch_namespaced_deployment(name=deployment_name, namespace=namespace,
+                                                                     body=deployment_yaml)
+            logger.info(
+                f"User {current_user.username} successfully updated deployment {updated_deployment.metadata.name} in "
+                f"namespace {namespace}")
+
+            # Log the change with resource_name and project_name, including additional details
+            namespace_obj = db.query(NamespaceModel).filter_by(name=namespace).first()
+            project_obj = db.query(ProjectModel).filter_by(id=namespace_obj.project_id).first()
+            log_change(
+                db,
+                current_user.id,
+                action="update",
+                resource="deployment",
+                resource_id=updated_deployment.metadata.uid,  # Use updated_deployment.metadata.uid as resource_id
+                resource_name=updated_deployment.metadata.name,
+                project_name=project_obj.name if project_obj else "N/A",
+                details=f"Deployment {updated_deployment.metadata.name} updated in namespace {namespace}"
+            )
+
+            deployment_details = {
+                "name": updated_deployment.metadata.name,
+                "namespace": updated_deployment.metadata.namespace,
+                "replicas": updated_deployment.spec.replicas,
+                "available_replicas": updated_deployment.status.available_replicas,
+                "unavailable_replicas": updated_deployment.status.unavailable_replicas,
+                "updated_replicas": updated_deployment.status.updated_replicas,
+                "strategy": updated_deployment.spec.strategy.type,
+                "conditions": [
+                    {
+                        "type": condition.type,
+                        "status": condition.status,
+                        "last_update_time": condition.last_update_time,
+                        "last_transition_time": condition.last_transition_time,
+                        "reason": condition.reason,
+                        "message": condition.message
+                    } for condition in updated_deployment.status.conditions or []
+                ]
+            }
+
+            return deployment_details
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                logger.error(f"Deployment {deployment_name} not found in namespace {namespace}")
+                raise HTTPException(status_code=404,
+                                    detail=f"Deployment {deployment_name} not found in namespace {namespace}")
+            else:
+                logger.error(f"Error updating deployment {deployment_name} in namespace {namespace}: {str(e)}")
+                raise HTTPException(status_code=500, detail="Internal server error")
+    except HTTPException as http_exc:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise http_exc
+    except Exception as e:
+        logger.error(f"An error occurred while updating the deployment: {str(e)}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+    finally:
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
