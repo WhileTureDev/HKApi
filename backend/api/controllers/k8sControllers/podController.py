@@ -2,7 +2,7 @@
 
 import logging
 import time
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from kubernetes import client, config
@@ -223,7 +223,7 @@ async def create_pod(
             logger.error(f"Pod {pod_name} already exists in namespace {namespace}: {e}")
             raise HTTPException(status_code=409, detail=f"Pod {pod_name} already exists in namespace {namespace}")
         elif e.status == 404:
-            logger.error(f"Namespace {namespace} not found: {e}")
+            logger.error(f"Namespace {namespace} not found")
             raise HTTPException(status_code=404, detail=f"Namespace {namespace} not found")
         else:
             logger.error(f"Error creating pod {pod_name} in namespace {namespace}: {e}")
@@ -375,6 +375,57 @@ async def delete_pod(
         logger.error(f"An error occurred while deleting the pod: {str(e)}")
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise HTTPException(status_code=500, detail="An internal error occurred")
+    finally:
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
+
+@router.get("/pod/logs", response_model=dict)
+async def get_pod_logs(
+    request: Request,
+    namespace: str = Query(..., description="The namespace of the pod"),
+    pod_name: str = Query(..., description="The name of the pod"),
+    container: Optional[str] = Query(None, description="The name of the container (optional)"),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
+    current_user_roles: List[str] = Depends(get_current_user_roles)
+):
+    start_time = time.time()
+    method = "GET"
+    endpoint = "/pod/logs"
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
+    try:
+        logger.info(f"User {current_user.username} is fetching logs for pod {pod_name} in namespace {namespace}")
+
+        if not is_admin(current_user_roles):
+            _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
+            if not namespace_obj:
+                raise HTTPException(status_code=403, detail="Not enough permissions to access this namespace")
+
+        core_v1 = client.CoreV1Api()
+        if container:
+            logs = core_v1.read_namespaced_pod_log(name=pod_name, namespace=namespace, container=container)
+        else:
+            logs = core_v1.read_namespaced_pod_log(name=pod_name, namespace=namespace)
+
+        logger.info(f"User {current_user.username} successfully fetched logs for pod {pod_name} in namespace {namespace}")
+
+        return {"logs": logs}
+
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            logger.error(f"Pod {pod_name} not found in namespace {namespace}")
+            raise HTTPException(status_code=404, detail=f"Pod {pod_name} not found in namespace {namespace}")
+        else:
+            logger.error(f"Error fetching logs for pod {pod_name} in namespace {namespace}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    except Exception as e:
+        logger.error(f"An error occurred while fetching pod logs: {str(e)}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
