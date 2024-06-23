@@ -10,7 +10,7 @@ from utils.shared_utils import create_access_token
 from utils.auth import authenticate_user
 from schemas.tokenSchema import Token
 from utils.circuit_breaker import call_database_operation
-from controllers.metricsController import (
+from controllers.monitorControllers.metricsController import (
     REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
 )
 

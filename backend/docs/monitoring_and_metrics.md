@@ -48,54 +48,57 @@ async def health_check(db: Session = Depends(get_db)):
 All existing controllers have been updated to include the collection of metrics. This involves tracking the number of requests, latency, in-progress requests, and errors for each endpoint. The metrics are collected using the Prometheus client and are exposed at the /metrics endpoint for Prometheus to scrape.
 
 Example Update in Controllers:
+
 ```python
-from controllers.metricsController import (
-    REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
+from controllers.monitorControllers.metricsController import (
+  REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
 )
+
 
 @router.post("/projects/", response_model=ProjectSchema)
 def create_project(
-    request: Request,
-    project: ProjectCreate,
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
+        request: Request,
+        project: ProjectCreate,
+        db: Session = Depends(get_db),
+        current_user: UserModel = Depends(get_current_active_user)
 ):
-    start_time = time.time()
-    method = "POST"
-    endpoint = "/projects/"
-    IN_PROGRESS.labels(endpoint=endpoint).inc()
+  start_time = time.time()
+  method = "POST"
+  endpoint = "/projects/"
+  IN_PROGRESS.labels(endpoint=endpoint).inc()
 
-    try:
-        logger.info(f"User {current_user.username} is creating a new project: {project.name}")
+  try:
+    logger.info(f"User {current_user.username} is creating a new project: {project.name}")
 
-        existing_project = call_database_operation(lambda: db.query(ProjectModel).filter(ProjectModel.name == project.name).first())
-        if existing_project:
-            logger.warning(f"Project with name {project.name} already exists")
-            raise HTTPException(status_code=400, detail="Project with this name already exists")
+    existing_project = call_database_operation(
+      lambda: db.query(ProjectModel).filter(ProjectModel.name == project.name).first())
+    if existing_project:
+      logger.warning(f"Project with name {project.name} already exists")
+      raise HTTPException(status_code=400, detail="Project with this name already exists")
 
-        new_project = ProjectModel(
-            name=project.name,
-            description=project.description,
-            owner_id=current_user.id,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        call_database_operation(lambda: db.add(new_project))
-        call_database_operation(lambda: db.commit())
-        call_database_operation(lambda: db.refresh(new_project))
-        logger.info(f"Project {project.name} created successfully")
-        return new_project
-    except HTTPException as http_exc:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise http_exc
-    except Exception as e:
-        logger.error(f"An error occurred while creating project: {str(e)}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail="An internal error occurred")
-    finally:
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
-        IN_PROGRESS.labels(endpoint=endpoint).dec()
+    new_project = ProjectModel(
+      name=project.name,
+      description=project.description,
+      owner_id=current_user.id,
+      created_at=datetime.utcnow(),
+      updated_at=datetime.utcnow()
+    )
+    call_database_operation(lambda: db.add(new_project))
+    call_database_operation(lambda: db.commit())
+    call_database_operation(lambda: db.refresh(new_project))
+    logger.info(f"Project {project.name} created successfully")
+    return new_project
+  except HTTPException as http_exc:
+    ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+    raise http_exc
+  except Exception as e:
+    logger.error(f"An error occurred while creating project: {str(e)}")
+    ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+    raise HTTPException(status_code=500, detail="An internal error occurred")
+  finally:
+    REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+    REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+    IN_PROGRESS.labels(endpoint=endpoint).dec()
 
 ```
 
