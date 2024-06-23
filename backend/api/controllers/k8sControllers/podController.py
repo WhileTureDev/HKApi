@@ -2,9 +2,9 @@
 
 import logging
 import time
-from typing import List, Optional
+from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from kubernetes import client, config
 from sqlalchemy.orm import Session
 
@@ -313,6 +313,66 @@ async def update_pod(
         raise http_exc
     except Exception as e:
         logger.error(f"An error occurred while updating the pod: {str(e)}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+    finally:
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
+
+@router.delete("/pod")
+async def delete_pod(
+    request: Request,
+    namespace: str,
+    pod_name: str,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
+    current_user_roles: List[str] = Depends(get_current_user_roles)
+):
+    start_time = time.time()
+    method = "DELETE"
+    endpoint = "/pod"
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
+    try:
+        logger.info(f"User {current_user.username} is deleting pod {pod_name} in namespace {namespace}")
+
+        if not is_admin(current_user_roles):
+            _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
+            if not namespace_obj:
+                raise HTTPException(status_code=403, detail="Not enough permissions to access this namespace")
+
+        core_v1 = client.CoreV1Api()
+        core_v1.delete_namespaced_pod(name=pod_name, namespace=namespace)
+        logger.info(f"User {current_user.username} successfully deleted pod {pod_name} in namespace {namespace}")
+
+        # Log the change with resource_name and project_name, including additional details
+        namespace_obj = db.query(NamespaceModel).filter_by(name=namespace).first()
+        project_obj = db.query(ProjectModel).filter_by(id=namespace_obj.project_id).first()
+        log_change(
+            db,
+            current_user.id,
+            action="delete",
+            resource="pod",
+            resource_id=pod_name,
+            resource_name=pod_name,
+            project_name=project_obj.name if project_obj else "N/A",
+            details=f"Pod {pod_name} deleted in namespace {namespace}"
+        )
+
+        return {"message": f"Pod {pod_name} deleted successfully"}
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            logger.error(f"Pod {pod_name} not found in namespace {namespace}: {e}")
+            raise HTTPException(status_code=404, detail=f"Pod {pod_name} not found in namespace {namespace}")
+        else:
+            logger.error(f"Error deleting pod {pod_name} in namespace {namespace}: {e}")
+            raise HTTPException(status_code=e.status, detail=e.body)
+    except HTTPException as http_exc:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise http_exc
+    except Exception as e:
+        logger.error(f"An error occurred while deleting the pod: {str(e)}")
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise HTTPException(status_code=500, detail="An internal error occurred")
     finally:
