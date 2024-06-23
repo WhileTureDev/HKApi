@@ -37,5 +37,7 @@ Start the application and open your browser to `http://your-kubernetes-cluster-u
 - [Authentication](docs/authentication.md)
 - [Database Schema](docs/database_schema.md)
 - [Helm Integration](docs/helm_integration.md)
+- [Pods](docs/pods.md)
+- [Deployments](docs/deployments.md)
 - [Contributing](docs/contributing.md)
 - [License](docs/license.md)
