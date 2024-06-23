@@ -20,6 +20,7 @@ import os
 from utils.limiter import limiter
 from controllers.monitorControllers.healthCheckController import router as health_check_router
 from controllers.monitorControllers.metricsController import router as metrics_router
+from controllers.k8sControllers import podController
 
 app = FastAPI()
 
@@ -96,6 +97,7 @@ app.include_router(adminHelmController.router, tags=["admin"])
 app.include_router(auditLogController.router, tags=["auditlogs"])
 app.include_router(health_check_router, tags=["health"])
 app.include_router(metrics_router, tags=["metrics"])
+app.include_router(podController.router, prefix="/api/v1", tags=["pods"])
 
 
 @app.get("/")
