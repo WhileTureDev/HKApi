@@ -5,8 +5,9 @@ import logging
 import time
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, Form, status
 from kubernetes import client, config
+from kubernetes.client import ApiException
 from sqlalchemy.orm import Session
 
 from controllers.monitorControllers.metricsController import (
@@ -160,6 +161,56 @@ async def create_configmap(
             "created_at": configmap.metadata.creation_timestamp
         }
     except client.exceptions.ApiException as e:
+        handle_k8s_exception(e)
+    except Exception as e:
+        handle_general_exception(e)
+    finally:
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
+
+@router.put("/configmap")
+async def update_configmap(
+    namespace: str = Form(..., description="The namespace of the ConfigMap"),
+    configmap_name: str = Form(..., description="The name of the ConfigMap"),
+    data: str = Form(..., description="The new data for the ConfigMap in JSON format"),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
+    current_user_roles: List[str] = Depends(get_current_user_roles)
+):
+    start_time = time.time()
+    method = "PUT"
+    endpoint = "/configmap"
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
+    try:
+        logger.info(f"User {current_user.username} is updating ConfigMap {configmap_name} in namespace {namespace}")
+
+        if not is_admin(current_user_roles):
+            _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
+            if not namespace_obj:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions to access this namespace")
+
+        core_v1 = client.CoreV1Api()
+        configmap_data = json.loads(data)
+
+        # Fetch existing ConfigMap
+        existing_configmap = core_v1.read_namespaced_config_map(name=configmap_name, namespace=namespace)
+
+        # Update data
+        existing_configmap.data = configmap_data
+
+        # Update the ConfigMap
+        updated_configmap = core_v1.patch_namespaced_config_map(name=configmap_name, namespace=namespace, body=existing_configmap)
+        logger.info(f"User {current_user.username} successfully updated ConfigMap {configmap_name} in namespace {namespace}")
+
+        return {
+            "name": updated_configmap.metadata.name,
+            "namespace": updated_configmap.metadata.namespace,
+            "data": updated_configmap.data,
+            "updated_at": updated_configmap.metadata.creation_timestamp
+        }
+    except ApiException as e:
         handle_k8s_exception(e)
     except Exception as e:
         handle_general_exception(e)
