@@ -2,16 +2,17 @@
 
 import time
 import logging
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import List
 from models.deploymentModel import Deployment as DeploymentModel
 from utils.database import get_db
 from utils.auth import get_current_active_user, get_current_user_roles, is_admin
 from models.userModel import User as UserModel
-from typing import List
 from controllers.monitorControllers.metricsController import (
     REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
 )
+from utils.error_handling import handle_general_exception
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -37,7 +38,6 @@ def deployment_to_dict(deployment: DeploymentModel) -> dict:
 
 @router.get("/admin/helm/releases/all", response_model=List[dict])
 async def list_all_releases(
-        request: Request,
         db: Session = Depends(get_db),
         current_user: UserModel = Depends(get_current_active_user),
         current_user_roles: List[str] = Depends(get_current_user_roles)
@@ -66,9 +66,7 @@ async def list_all_releases(
     except HTTPException as http_exc:
         raise http_exc
     except Exception as e:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        logger.error(f"An error occurred while listing releases: {str(e)}")
-        raise HTTPException(status_code=500, detail="An internal error occurred")
+        handle_general_exception(e)
     finally:
         latency = time.time() - start_time
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)

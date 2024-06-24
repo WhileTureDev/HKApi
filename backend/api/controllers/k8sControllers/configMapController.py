@@ -57,9 +57,11 @@ async def list_configmaps(
         return {"configmaps": configmap_list}
 
     except client.exceptions.ApiException as e:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         handle_k8s_exception(e)
 
     except Exception as e:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         handle_general_exception(e)
 
     finally:

@@ -1,3 +1,5 @@
+# controllers/helmRepositoryController.py
+
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
@@ -13,6 +15,7 @@ from utils.circuit_breaker import call_database_operation
 from controllers.monitorControllers.metricsController import (
     REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS
 )
+from utils.error_handling import handle_general_exception
 
 import time
 
@@ -57,7 +60,7 @@ def create_helm_repository(
         raise http_exc
     except Exception as e:
         logger.error(f"Error creating Helm repository: {e}")
-        raise HTTPException(status_code=500, detail=f"Error creating Helm repository: {str(e)}")
+        handle_general_exception(e)
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
@@ -81,7 +84,7 @@ def list_helm_repositories(
         return [HelmRepositorySchema.from_orm(repo) for repo in repositories]
     except Exception as e:
         logger.error(f"Error listing Helm repositories: {e}")
-        raise HTTPException(status_code=500, detail=f"Error listing Helm repositories: {str(e)}")
+        handle_general_exception(e)
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
@@ -112,7 +115,7 @@ def delete_helm_repository(
         return repository
     except Exception as e:
         logger.error(f"Error deleting Helm repository: {e}")
-        raise HTTPException(status_code=500, detail=f"Error deleting Helm repository: {str(e)}")
+        handle_general_exception(e)
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
@@ -145,7 +148,7 @@ def search_charts(
         return search_results
     except Exception as e:
         logger.error(f"Error searching charts: {e}")
-        raise HTTPException(status_code=500, detail=f"Error searching charts: {str(e)}")
+        handle_general_exception(e)
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
@@ -172,7 +175,7 @@ def update_repositories(
         return {"message": "Helm repositories updated successfully"}
     except Exception as e:
         logger.error(f"Error updating Helm repositories: {e}")
-        raise HTTPException(status_code=500, detail=f"Error updating Helm repositories: {str(e)}")
+        handle_general_exception(e)
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
@@ -207,7 +210,7 @@ def list_charts_in_repo(
         return charts
     except Exception as e:
         logger.error(f"Error listing charts in repository: {e}")
-        raise HTTPException(status_code=500, detail=f"Error listing charts in repository: {str(e)}")
+        handle_general_exception(e)
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)

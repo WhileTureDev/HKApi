@@ -4,7 +4,7 @@ import logging
 import time
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from kubernetes import client, config
 from sqlalchemy.orm import Session
 
@@ -27,7 +27,6 @@ config.load_incluster_config()
 
 @router.get("/pods", response_model=dict)
 async def list_pods(
-    request: Request,
     namespace: str = Query(..., description="The namespace to list pods from"),
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_active_user),
@@ -66,16 +65,17 @@ async def list_pods(
         return {"pods": pod_list}
 
     except client.exceptions.ApiException as e:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         if e.status == 404:
             logger.error(f"Namespace {namespace} not found")
             raise HTTPException(status_code=404, detail=f"Namespace {namespace} not found")
         else:
             logger.error(f"Error listing pods in namespace {namespace}: {str(e)}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=e.status, detail=e.body)
 
     except Exception as e:
-        logger.error(f"An error occurred while listing pods: {str(e)}")
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        logger.error(f"An error occurred while listing pods: {str(e)}")
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
     finally:
@@ -85,7 +85,6 @@ async def list_pods(
 
 @router.get("/pod", response_model=dict)
 async def get_pod_details(
-    request: Request,
     namespace: str = Query(..., description="The namespace of the pod"),
     pod_name: str = Query(..., description="The name of the pod"),
     db: Session = Depends(get_db),
@@ -126,20 +125,22 @@ async def get_pod_details(
             "pod_ip": pod.status.pod_ip
         }
 
-        logger.info(f"User {current_user.username} successfully fetched details for pod {pod_name} in namespace {namespace}")
+        logger.info(f"User {current_user.username} successfully fetched details for pod {pod_name} in namespace "
+                    f"{namespace}")
         return pod_details
 
     except client.exceptions.ApiException as e:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         if e.status == 404:
             logger.error(f"Pod {pod_name} not found in namespace {namespace}")
             raise HTTPException(status_code=404, detail=f"Pod {pod_name} not found in namespace {namespace}")
         else:
             logger.error(f"Error reading pod {pod_name} in namespace {namespace}: {str(e)}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=e.status, detail=e.body)
 
     except Exception as e:
-        logger.error(f"An error occurred while fetching pod details: {str(e)}")
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        logger.error(f"An error occurred while fetching pod details: {str(e)}")
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
     finally:
@@ -149,7 +150,6 @@ async def get_pod_details(
 
 @router.post("/pod")
 async def create_pod(
-    request: Request,
     namespace: str,
     pod_name: str,
     image: str,
@@ -219,6 +219,7 @@ async def create_pod(
 
         return pod_details
     except client.exceptions.ApiException as e:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         if e.status == 409:
             logger.error(f"Pod {pod_name} already exists in namespace {namespace}: {e}")
             raise HTTPException(status_code=409, detail=f"Pod {pod_name} already exists in namespace {namespace}")
@@ -232,8 +233,8 @@ async def create_pod(
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise http_exc
     except Exception as e:
-        logger.error(f"An error occurred while creating the pod: {str(e)}")
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        logger.error(f"An error occurred while creating the pod: {str(e)}")
         raise HTTPException(status_code=500, detail="An internal error occurred")
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
@@ -242,7 +243,6 @@ async def create_pod(
 
 @router.put("/pod")
 async def update_pod(
-    request: Request,
     namespace: str,
     pod_name: str,
     image: str,
@@ -292,7 +292,8 @@ async def update_pod(
             "status": updated_pod.status.phase,
             "node_name": updated_pod.spec.node_name,
             "start_time": updated_pod.status.start_time,
-            "containers": [{"name": container.name, "image": container.image} for container in updated_pod.spec.containers],
+            "containers": [{"name": container.name, "image": container.image} for container
+                           in updated_pod.spec.containers],
             "host_ip": updated_pod.status.host_ip,
             "pod_ip": updated_pod.status.pod_ip
         }
@@ -302,6 +303,7 @@ async def update_pod(
 
         return updated_pod_details
     except client.exceptions.ApiException as e:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         if e.status == 404:
             logger.error(f"Pod {pod_name} not found in namespace {namespace}: {e}")
             raise HTTPException(status_code=404, detail=f"Pod {pod_name} not found in namespace {namespace}")
@@ -312,8 +314,8 @@ async def update_pod(
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise http_exc
     except Exception as e:
-        logger.error(f"An error occurred while updating the pod: {str(e)}")
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        logger.error(f"An error occurred while updating the pod: {str(e)}")
         raise HTTPException(status_code=500, detail="An internal error occurred")
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
@@ -322,7 +324,6 @@ async def update_pod(
 
 @router.delete("/pod")
 async def delete_pod(
-    request: Request,
     namespace: str,
     pod_name: str,
     db: Session = Depends(get_db),
@@ -362,6 +363,7 @@ async def delete_pod(
 
         return {"message": f"Pod {pod_name} deleted successfully"}
     except client.exceptions.ApiException as e:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         if e.status == 404:
             logger.error(f"Pod {pod_name} not found in namespace {namespace}: {e}")
             raise HTTPException(status_code=404, detail=f"Pod {pod_name} not found in namespace {namespace}")
@@ -372,8 +374,8 @@ async def delete_pod(
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise http_exc
     except Exception as e:
-        logger.error(f"An error occurred while deleting the pod: {str(e)}")
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        logger.error(f"An error occurred while deleting the pod: {str(e)}")
         raise HTTPException(status_code=500, detail="An internal error occurred")
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
@@ -382,7 +384,6 @@ async def delete_pod(
 
 @router.get("/pod/logs", response_model=dict)
 async def get_pod_logs(
-    request: Request,
     namespace: str = Query(..., description="The namespace of the pod"),
     pod_name: str = Query(..., description="The name of the pod"),
     container: Optional[str] = Query(None, description="The name of the container (optional)"),
@@ -409,21 +410,23 @@ async def get_pod_logs(
         else:
             logs = core_v1.read_namespaced_pod_log(name=pod_name, namespace=namespace)
 
-        logger.info(f"User {current_user.username} successfully fetched logs for pod {pod_name} in namespace {namespace}")
+        logger.info(f"User {current_user.username} successfully fetched logs for pod {pod_name} "
+                    f"in namespace {namespace}")
 
         return {"logs": logs}
 
     except client.exceptions.ApiException as e:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         if e.status == 404:
             logger.error(f"Pod {pod_name} not found in namespace {namespace}")
             raise HTTPException(status_code=404, detail=f"Pod {pod_name} not found in namespace {namespace}")
         else:
             logger.error(f"Error fetching logs for pod {pod_name} in namespace {namespace}: {str(e)}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=e.status, detail=e.body)
 
     except Exception as e:
-        logger.error(f"An error occurred while fetching pod logs: {str(e)}")
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        logger.error(f"An error occurred while fetching pod logs: {str(e)}")
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
     finally:
