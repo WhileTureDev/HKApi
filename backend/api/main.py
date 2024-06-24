@@ -22,6 +22,7 @@ from controllers.monitorControllers.healthCheckController import router as healt
 from controllers.monitorControllers.metricsController import router as metrics_router
 from controllers.k8sControllers import podController
 from controllers.k8sControllers import deploymentController
+from controllers.k8sControllers import configMapController
 
 app = FastAPI()
 
@@ -100,6 +101,7 @@ app.include_router(health_check_router, tags=["health"])
 app.include_router(metrics_router, tags=["metrics"])
 app.include_router(podController.router, prefix="/api/v1", tags=["pods"])
 app.include_router(deploymentController.router, prefix="/api/v1", tags=["deployments"])
+app.include_router(configMapController.router, prefix="/api/v1", tags=["configmaps"])
 
 
 @app.get("/")
