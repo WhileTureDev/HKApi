@@ -1,3 +1,5 @@
+# controllers/userControllers/userController.py
+
 import logging
 import time
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -20,7 +22,6 @@ from controllers.monitorControllers.metricsController import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
 
 @router.post("/users/", response_model=UserSchema)
 def create_user(user: UserCreate, request: Request, db: Session = Depends(get_db)):
@@ -65,7 +66,6 @@ def create_user(user: UserCreate, request: Request, db: Session = Depends(get_db
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
         IN_PROGRESS.labels(endpoint=endpoint).dec()
 
-
 @router.get("/users/me", response_model=UserSchema)
 def read_users_me(request: Request, current_user: UserModel = Depends(get_current_active_user)):
     start_time = time.time()
@@ -87,7 +87,6 @@ def read_users_me(request: Request, current_user: UserModel = Depends(get_curren
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
         IN_PROGRESS.labels(endpoint=endpoint).dec()
-
 
 @router.post("/users/{user_id}/roles/{role_id}")
 async def assign_role_to_user(user_id: int, role_id: int, request: Request, db: Session = Depends(get_db),
@@ -113,6 +112,7 @@ async def assign_role_to_user(user_id: int, role_id: int, request: Request, db: 
         user_role = UserRoleModel(user_id=user_id, role_id=role_id)
         call_database_operation(lambda: db.add(user_role))
         call_database_operation(lambda: db.commit())
+        logger.info(f"Assigned role {role.name} to user {user.username}")
         log_change(db, current_user.id, action="assign_role", resource="user_role", resource_id=user_role.id,
                    resource_name=user.username, project_name="N/A",
                    details=f"Assigned role {role.name} to user {user.username}")

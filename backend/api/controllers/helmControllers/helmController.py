@@ -1,3 +1,5 @@
+# controllers/helmController.py
+
 import logging
 import time
 from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile, Request
@@ -37,6 +39,7 @@ from utils.helm import (
 from controllers.monitorControllers.metricsController import (
     REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
 )
+from utils.error_handling import handle_general_exception
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -190,8 +193,10 @@ async def create_release(
         call_database_operation(lambda: db.refresh(new_deployment))
 
         # Log the change with resource_name and project_name, including additional details
-        details = f"Created release '{release_name}' using chart '{chart_name}' from repo '{chart_repo_url}' in namespace '{namespace}' with revision {revision}."
-        log_change(db, current_user.id, action="create", resource="release", resource_id=new_deployment.id, resource_name=release_name, project_name=project, details=details)
+        details = (f"Created release '{release_name}' using chart '{chart_name}' from repo '{chart_repo_url}' in "
+                   f"namespace '{namespace}' with revision {revision}.")
+        log_change(db, current_user.id, action="create", resource="release", resource_id=str(new_deployment.id),
+                   resource_name=release_name, project_name=project, details=details)
 
         logger.info(f"Successfully created release: {release_name}")
         return new_deployment
@@ -199,7 +204,7 @@ async def create_release(
         raise http_exc
     except Exception as e:
         logger.error(f"Error deploying Helm chart: {e}")
-        raise HTTPException(status_code=500, detail=f"Error deploying Helm chart: {str(e)}")
+        handle_general_exception(e)
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
@@ -265,8 +270,7 @@ def delete_release(
         raise http_exc
     except Exception as e:
         logger.error(f"Error deleting Helm chart: {e}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail=f"Error deleting Helm chart: {str(e)}")
+        handle_general_exception(e)
     finally:
         latency = time.time() - start_time
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
@@ -313,8 +317,7 @@ async def list_releases(
         raise http_exc
     except Exception as e:
         logger.error(f"Error listing Helm releases: {e}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail=f"Error listing Helm releases: {str(e)}")
+        handle_general_exception(e)
     finally:
         latency = time.time() - start_time
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
@@ -369,8 +372,7 @@ async def get_release_values(
         raise http_exc
     except Exception as e:
         logger.error(f"Error getting Helm release values: {e}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail=f"Error getting Helm release values: {str(e)}")
+        handle_general_exception(e)
     finally:
         latency = time.time() - start_time
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
@@ -435,8 +437,7 @@ async def rollback_release(
         raise http_exc
     except Exception as e:
         logger.error(f"Error rolling back Helm release: {e}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail=f"Error rolling back Helm release: {str(e)}")
+        handle_general_exception(e)
     finally:
         latency = time.time() - start_time
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
@@ -491,8 +492,7 @@ async def get_release_status(
         raise http_exc
     except Exception as e:
         logger.error(f"Error getting Helm release status: {e}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail=f"Error getting Helm release status: {str(e)}")
+        handle_general_exception(e)
     finally:
         latency = time.time() - start_time
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
@@ -547,8 +547,7 @@ async def get_release_history(
         raise http_exc
     except Exception as e:
         logger.error(f"Error getting Helm release history: {e}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail=f"Error getting Helm release history: {str(e)}")
+        handle_general_exception(e)
     finally:
         latency = time.time() - start_time
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
@@ -604,8 +603,7 @@ async def get_release_notes(
         raise http_exc
     except Exception as e:
         logger.error(f"Error getting Helm release notes: {e}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail=f"Error getting Helm release notes: {str(e)}")
+        handle_general_exception(e)
     finally:
         latency = time.time() - start_time
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
@@ -665,8 +663,7 @@ async def export_release_values(
         raise http_exc
     except Exception as e:
         logger.error(f"Error exporting Helm release values: {e}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail=f"Error exporting Helm release values: {str(e)}")
+        handle_general_exception(e)
     finally:
         latency = time.time() - start_time
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)
@@ -705,8 +702,7 @@ async def list_all_releases(
         raise http_exc
     except Exception as e:
         logger.error(f"Error listing all Helm releases: {e}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail="Error listing all Helm releases: {str(e)}")
+        handle_general_exception(e)
     finally:
         latency = time.time() - start_time
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(latency)

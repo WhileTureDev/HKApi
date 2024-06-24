@@ -1,4 +1,7 @@
+# controllers/k8sControllers/changeLogController.py
+
 import logging
+import time
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -14,7 +17,6 @@ from utils.circuit_breaker import call_database_operation
 from controllers.monitorControllers.metricsController import (
     REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
 )
-import time
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -48,6 +50,7 @@ async def get_all_change_logs(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     if not is_admin(current_user_roles):
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     try:
@@ -96,7 +99,6 @@ async def get_all_change_logs(
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
         IN_PROGRESS.labels(endpoint=endpoint).dec()
 
-
 @router.get("/changelogs/user/{user_id}", response_model=List[ChangeLogSchema])
 async def get_change_logs_for_user(
         request: Request,
@@ -111,6 +113,7 @@ async def get_change_logs_for_user(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     if not is_admin(current_user_roles) and current_user.id != user_id:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     try:
@@ -161,10 +164,12 @@ async def get_change_logs_for_resource(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     if not is_admin(current_user_roles):
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     resource_id = call_database_operation(lambda: get_resource_id_by_name(db, resource, resource_name))
     if resource_id is None:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise HTTPException(status_code=404, detail=f"{resource} with name {resource_name} not found")
 
     try:

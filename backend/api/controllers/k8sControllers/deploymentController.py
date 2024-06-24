@@ -19,7 +19,7 @@ from utils.security import get_current_user_roles, is_admin, check_project_and_n
 from utils.change_logger import log_change
 from models.namespaceModel import Namespace as NamespaceModel
 from models.projectModel import Project as ProjectModel
-
+from utils.error_handling import handle_general_exception
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -67,13 +67,11 @@ async def list_deployments(
             raise HTTPException(status_code=404, detail=f"Namespace {namespace} not found")
         else:
             logger.error(f"Error listing deployments in namespace {namespace}: {str(e)}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=e.status, detail=e.body)
 
     except Exception as e:
         logger.error(f"An error occurred while listing deployments: {str(e)}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail="An internal error occurred")
-
+        handle_general_exception(e)
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
@@ -135,13 +133,11 @@ async def get_deployment_details(
                                                         f"{namespace}")
         else:
             logger.error(f"Error reading deployment {deployment_name} in namespace {namespace}: {str(e)}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=e.status, detail=e.body)
 
     except Exception as e:
         logger.error(f"An error occurred while fetching deployment details: {str(e)}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail="An internal error occurred")
-
+        handle_general_exception(e)
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
@@ -265,14 +261,13 @@ async def create_deployment(
                                     detail=f"Deployment {deployment_name} already exists in namespace {namespace}")
             else:
                 logger.error(f"Error creating deployment {deployment_name} in namespace {namespace}: {str(e)}")
-                raise HTTPException(status_code=500, detail="Internal server error")
+                raise HTTPException(status_code=e.status, detail=e.body)
     except HTTPException as http_exc:
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise http_exc
     except Exception as e:
         logger.error(f"An error occurred while creating the deployment: {str(e)}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail="An internal error occurred")
+        handle_general_exception(e)
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
@@ -374,14 +369,13 @@ async def update_deployment(
                                     detail=f"Deployment {deployment_name} not found in namespace {namespace}")
             else:
                 logger.error(f"Error updating deployment {deployment_name} in namespace {namespace}: {str(e)}")
-                raise HTTPException(status_code=500, detail="Internal server error")
+                raise HTTPException(status_code=e.status, detail=e.body)
     except HTTPException as http_exc:
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise http_exc
     except Exception as e:
         logger.error(f"An error occurred while updating the deployment: {str(e)}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail="An internal error occurred")
+        handle_general_exception(e)
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
@@ -413,7 +407,8 @@ async def delete_deployment(
         try:
             deployment = apps_v1.read_namespaced_deployment(name=deployment_name, namespace=namespace)
             apps_v1.delete_namespaced_deployment(name=deployment_name, namespace=namespace)
-            logger.info(f"User {current_user.username} successfully deleted deployment {deployment_name} in namespace {namespace}")
+            logger.info(f"User {current_user.username} successfully deleted deployment {deployment_name} in namespace"
+                        f" {namespace}")
 
             # Log the change with resource_name and project_name, including additional details
             namespace_obj = db.query(NamespaceModel).filter_by(name=namespace).first()
@@ -433,17 +428,17 @@ async def delete_deployment(
         except client.exceptions.ApiException as e:
             if e.status == 404:
                 logger.error(f"Deployment {deployment_name} not found in namespace {namespace}")
-                raise HTTPException(status_code=404, detail=f"Deployment {deployment_name} not found in namespace {namespace}")
+                raise HTTPException(status_code=404, detail=f"Deployment {deployment_name} not found in namespace "
+                                                            f"{namespace}")
             else:
                 logger.error(f"Error deleting deployment {deployment_name} in namespace {namespace}: {str(e)}")
-                raise HTTPException(status_code=500, detail="Internal server error")
+                raise HTTPException(status_code=e.status, detail=e.body)
     except HTTPException as http_exc:
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
         raise http_exc
     except Exception as e:
         logger.error(f"An error occurred while deleting the deployment: {str(e)}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail="An internal error occurred")
+        handle_general_exception(e)
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
@@ -464,7 +459,8 @@ async def get_deployment_revisions(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is fetching revision history for deployment {deployment_name} in namespace {namespace}")
+        logger.info(f"User {current_user.username} is fetching revision history for deployment {deployment_name} "
+                    f"in namespace {namespace}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
@@ -494,19 +490,21 @@ async def get_deployment_revisions(
 
         revision_history.sort(key=lambda x: int(x["revision"]), reverse=True)
 
-        logger.info(f"User {current_user.username} successfully fetched revision history for deployment {deployment_name} in namespace {namespace}")
+        logger.info(f"User {current_user.username} successfully fetched revision history for deployment "
+                    f"{deployment_name} in namespace {namespace}")
         return {"revisions": revision_history}
     except client.exceptions.ApiException as e:
         if e.status == 404:
             logger.error(f"Deployment {deployment_name} not found in namespace {namespace}")
-            raise HTTPException(status_code=404, detail=f"Deployment {deployment_name} not found in namespace {namespace}")
+            raise HTTPException(status_code=404, detail=f"Deployment {deployment_name} "
+                                                        f"not found in namespace {namespace}")
         else:
-            logger.error(f"Error fetching revision history for deployment {deployment_name} in namespace {namespace}: {str(e)}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            logger.error(f"Error fetching revision history for deployment {deployment_name} "
+                         f"in namespace {namespace}: {str(e)}")
+            raise HTTPException(status_code=e.status, detail=e.body)
     except Exception as e:
         logger.error(f"An error occurred while fetching revision history: {str(e)}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail="An internal error occurred")
+        handle_general_exception(e)
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
@@ -531,7 +529,8 @@ async def deployment_rollout(
     deployment = None  # Initialize deployment here
 
     try:
-        logger.info(f"User {current_user.username} is performing rollout action {action} on deployment {deployment_name} in namespace {namespace}")
+        logger.info(f"User {current_user.username} is performing rollout action {action} on deployment "
+                    f"{deployment_name} in namespace {namespace}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
@@ -569,7 +568,8 @@ async def deployment_rollout(
             scale.spec.replicas = original_replicas
             apps_v1.patch_namespaced_deployment_scale(name=deployment_name, namespace=namespace, body=scale)
 
-        logger.info(f"User {current_user.username} successfully performed rollout action {action} on deployment {deployment_name} in namespace {namespace}")
+        logger.info(f"User {current_user.username} successfully performed rollout action {action} on deployment "
+                    f"{deployment_name} in namespace {namespace}")
 
         # Log the change
         log_change(
@@ -600,8 +600,7 @@ async def deployment_rollout(
         raise http_exc
     except Exception as e:
         logger.error(f"An error occurred while performing rollout action: {str(e)}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail="An internal error occurred")
+        handle_general_exception(e)
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
