@@ -68,3 +68,55 @@ async def list_configmaps(
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
         IN_PROGRESS.labels(endpoint=endpoint).dec()
+
+@router.get("/configmap", response_model=dict)
+async def get_configmap_details(
+    request: Request,
+    namespace: str = Query(..., description="The namespace of the ConfigMap"),
+    configmap_name: str = Query(..., description="The name of the ConfigMap"),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
+    current_user_roles: List[str] = Depends(get_current_user_roles)
+):
+    start_time = time.time()
+    method = "GET"
+    endpoint = "/configmap"
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
+    try:
+        logger.info(f"User {current_user.username} is fetching details for ConfigMap {configmap_name} in namespace {namespace}")
+
+        if not is_admin(current_user_roles):
+            _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
+            if not namespace_obj:
+                raise HTTPException(status_code=403, detail="Not enough permissions to access this namespace")
+
+        core_v1 = client.CoreV1Api()
+        configmap = core_v1.read_namespaced_config_map(name=configmap_name, namespace=namespace)
+
+        configmap_details = {
+            "name": configmap.metadata.name,
+            "namespace": configmap.metadata.namespace,
+            "data": configmap.data,
+            "created_at": configmap.metadata.creation_timestamp
+        }
+
+        logger.info(f"User {current_user.username} successfully fetched details for ConfigMap {configmap_name} in namespace {namespace}")
+        return configmap_details
+
+    except client.exceptions.ApiException as e:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        if e.status == 404:
+            logger.error(f"ConfigMap {configmap_name} not found in namespace {namespace}")
+            raise HTTPException(status_code=404, detail=f"ConfigMap {configmap_name} not found in namespace {namespace}")
+        else:
+            handle_k8s_exception(e)
+
+    except Exception as e:
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        handle_general_exception(e)
+
+    finally:
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
