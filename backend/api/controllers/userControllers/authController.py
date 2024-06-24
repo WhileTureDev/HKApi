@@ -3,7 +3,7 @@
 import os
 import logging
 import time
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
@@ -39,7 +39,7 @@ def login_for_access_token(
         if not user:
             logger.warning(f"Login failed for user: {form_data.username}")
             raise HTTPException(
-                status_code=400,
+                status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
@@ -55,7 +55,7 @@ def login_for_access_token(
     except Exception as e:
         logger.error(f"An error occurred during login: {str(e)}")
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail="An internal error occurred")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)

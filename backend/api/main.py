@@ -50,6 +50,16 @@ create_database_if_not_exists()
 # Ensure this runs only once and in a single-threaded context
 create_tables()
 
+def create_default_user_role(db: Session):
+    user_role = db.query(Role).filter(Role.name == "user").first()
+    if not user_role:
+        new_role = Role(name="user")
+        db.add(new_role)
+        db.commit()
+        db.refresh(new_role)
+        logger.info("Default 'user' role created")
+    else:
+        logger.info("'user' role already exists")
 
 def create_initial_admin(db: Session):
     admin_username = "admin"
@@ -80,9 +90,9 @@ def create_initial_admin(db: Session):
         db.add(user_role)
         db.commit()
 
-
-# Initialize the database session and create the initial admin
+# Initialize the database session and create the initial admin and default user role
 with next(get_db()) as db:
+    create_default_user_role(db)
     create_initial_admin(db)
 
 app.state.limiter = limiter
