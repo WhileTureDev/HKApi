@@ -5,7 +5,7 @@ import logging
 import time
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Form, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Form, status, Request
 from kubernetes import client, config
 from kubernetes.client import ApiException
 from sqlalchemy.orm import Session
@@ -211,6 +211,42 @@ async def update_configmap(
             "updated_at": updated_configmap.metadata.creation_timestamp
         }
     except ApiException as e:
+        handle_k8s_exception(e)
+    except Exception as e:
+        handle_general_exception(e)
+    finally:
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
+
+@router.delete("/configmap", response_model=dict)
+async def delete_configmap(
+    request: Request,
+    namespace: str = Query(..., description="The namespace of the ConfigMap"),
+    name: str = Query(..., description="The name of the ConfigMap"),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user),
+    current_user_roles: List[str] = Depends(get_current_user_roles)
+):
+    start_time = time.time()
+    method = request.method
+    endpoint = request.url.path
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
+    try:
+        logger.info(f"User {current_user.username} is deleting ConfigMap {name} in namespace {namespace}")
+
+        if not is_admin(current_user_roles):
+            _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
+            if not namespace_obj:
+                raise HTTPException(status_code=403, detail="Not enough permissions to access this namespace")
+
+        core_v1 = client.CoreV1Api()
+        core_v1.delete_namespaced_config_map(name=name, namespace=namespace)
+
+        logger.info(f"User {current_user.username} successfully deleted ConfigMap {name} in namespace {namespace}")
+        return {"message": f"ConfigMap {name} deleted successfully"}
+    except client.exceptions.ApiException as e:
         handle_k8s_exception(e)
     except Exception as e:
         handle_general_exception(e)
