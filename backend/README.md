@@ -58,16 +58,6 @@ This project is a Kubernetes API platform that allows developers to create and m
 ## Usage
 Start the application and open your browser to `http://your-kubernetes-cluster-url`. You can use the API to manage projects, deployments, and namespaces.
 
-## Documentation
-- [Getting Started](docs/getting_started.md)
-- [API Endpoints](docs/api_endpoints.md)
-- [Authentication](docs/authentication.md)
-- [Database Schema](docs/database_schema.md)
-- [Helm Integration](docs/helm_integration.md)
-- [Pods](docs/pods.md)
-- [Deployments](docs/deployments.md)
-- [Contributing](docs/contributing.md)
-- [License](docs/license.md)
 
 
 ## Postman
