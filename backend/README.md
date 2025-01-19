@@ -1,5 +1,23 @@
 # Kubernetes API Platform
 
+
+## Table of Contents
+- [Overview](#overview)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Documentation](#documentation)
+- [License](#license)
+- [Contributing](#contributing)
+- [Support](#support)
+- [Acknowledgements](#acknowledgements)
+- [Authors](#authors)
+- [Feedback](#feedback)
+- [Resources](#resources)
+- [FAQ](#faq)
+- [Changelog](#changelog)
+- [Roadmap](#roadmap)
+- [Security](#security)
+- [Postman](docs/postman.md)
 ## Overview
 This project is a Kubernetes API platform that allows developers to create and manage temporary environments in a Kubernetes cluster. It provides a user interface for deploying and managing Helm charts.
 
@@ -26,7 +44,7 @@ This project is a Kubernetes API platform that allows developers to create and m
      RATE_LIMIT=20/minute
 
 6. Deploy the API using Helm:
-   helm install helm-hkapi ./helm-hkapi
+   helm install helm-hkapi ./helm-hkapi --namespace hkapi
 
 ## Usage
 Start the application and open your browser to `http://your-kubernetes-cluster-url`. You can use the API to manage projects, deployments, and namespaces.
@@ -41,3 +59,8 @@ Start the application and open your browser to `http://your-kubernetes-cluster-u
 - [Deployments](docs/deployments.md)
 - [Contributing](docs/contributing.md)
 - [License](docs/license.md)
+
+
+## Postman
+For testing the API, you can use Postman to send requests to the server. Postman is a popular API client that makes it easy to test and debug APIs. You can use it to send requests to the server and view the responses.
+
