@@ -18,6 +18,15 @@
 - [Roadmap](#roadmap)
 - [Security](#security)
 - [Postman](docs/postman.md)
+- [API Endpoints](docs/api_endpoints.md)
+- [Authentication](docs/authentication.md)
+- [Database Schema](docs/database_schema.md)
+- [Helm Integration](docs/helm_integration.md)
+- [Pods](docs/pods.md)
+- [Deployments](docs/deployments.md)
+- [Contributing](docs/contributing.md)
+- [Getting Started](docs/getting_started.md)
+- [Create Release](docs/create_release.md)
 ## Overview
 This project is a Kubernetes API platform that allows developers to create and manage temporary environments in a Kubernetes cluster. It provides a user interface for deploying and managing Helm charts.
 
