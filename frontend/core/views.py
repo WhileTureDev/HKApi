@@ -8,6 +8,9 @@ from django.conf import settings
 import logging
 from django.views.decorators.csrf import csrf_protect
 import random
+import json
+import yaml
+from django.http import JsonResponse
 
 logger = logging.getLogger(__name__)
 
@@ -385,6 +388,53 @@ def delete_namespace(request, namespace_id):
             logger.error(f"Unexpected error in delete_namespace: {str(e)}")
 
     return redirect('dashboard')
+
+@login_required
+def create_deployment(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        # Get form data
+        namespace_name = request.POST.get('namespace_name')
+        deployment_name = request.POST.get('release_name')
+        yaml_config = request.POST.get('values')
+        
+        # Basic validation
+        if not all([namespace_name, deployment_name, yaml_config]):
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+        
+        # Validate YAML format
+        try:
+            import yaml
+            yaml.safe_load(yaml_config)
+        except yaml.YAMLError as e:
+            return JsonResponse({'error': f'Invalid YAML format: {str(e)}'}, status=400)
+        
+        # Make API request to create deployment
+        api_url = f'{settings.API_BASE_URL}/api/v1/deployments'
+        headers = {
+            'Authorization': f'Bearer {request.session.get("access_token")}',
+            'Content-Type': 'application/json'
+        }
+        
+        data = {
+            'namespace': namespace_name,
+            'deployment_name': deployment_name,
+            'yaml_file': yaml_config
+        }
+        
+        response = requests.post(api_url, json=data, headers=headers, verify=False)
+        
+        if response.status_code == 201:
+            messages.success(request, 'Deployment created successfully')
+            return JsonResponse({'message': 'Deployment created successfully'})
+        else:
+            error_msg = response.json().get('detail', 'Failed to create deployment')
+            return JsonResponse({'error': error_msg}, status=response.status_code)
+            
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 def logout_view(request):
     # Clear the session
