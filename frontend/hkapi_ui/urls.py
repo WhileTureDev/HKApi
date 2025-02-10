@@ -30,4 +30,9 @@ urlpatterns = [
     path('projects/<int:project_id>/delete/', views.delete_project, name='delete_project'),
     path('namespaces/create/', views.create_namespace, name='create_namespace'),
     path('namespaces/<int:namespace_id>/delete/', views.delete_namespace, name='delete_namespace'),
+    path('api/v1/helm/releases', views.list_helm_releases, name='list_helm_releases'),
+    path('api/v1/helm/releases/create', views.create_helm_release, name='create_helm_release'),
+    path('api/v1/helm/releases/<str:release_name>', views.get_helm_release, name='get_helm_release'),
+    path('api/v1/helm/releases/<str:release_name>/delete', views.delete_helm_release, name='delete_helm_release'),
+    path('api/v1/helm/releases/<str:release_name>/rollback', views.rollback_helm_release, name='rollback_helm_release'),
 ]

@@ -158,6 +158,8 @@ def dashboard(request):
             logger.debug(f"Projects response: {projects}")
             return render(request, 'core/dashboard.html', {
                 'projects': projects,
+                'api_url': settings.API_URL,
+                'request': request,  # Pass request to template for token access
                 'username': request.session.get('username')
             })
         else:
@@ -433,6 +435,179 @@ def create_deployment(request):
             error_msg = response.json().get('detail', 'Failed to create deployment')
             return JsonResponse({'error': error_msg}, status=response.status_code)
             
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def create_helm_release(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    try:
+        # Get query parameters from request
+        release_name = request.GET.get('release_name')
+        chart_name = request.GET.get('chart_name')
+        chart_repo_url = request.GET.get('chart_repo_url')
+        namespace = request.GET.get('namespace')
+        project = request.GET.get('project')
+        version = request.GET.get('version')
+        debug = request.GET.get('debug', 'false')
+
+        # Get values from request body
+        data = json.loads(request.body)
+        values = data.get('values', {})
+
+        # Validate required fields
+        if not all([release_name, chart_name, chart_repo_url, namespace, project]):
+            logger.error("Missing required fields")
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+
+        logger.info(f"Creating Helm release with params: release_name={release_name}, chart_name={chart_name}, namespace={namespace}")
+
+        # Make API request to create Helm release
+        response = requests.post(
+            f"{settings.API_URL}/api/v1/helm/releases",
+            params={
+                'release_name': release_name,
+                'chart_name': chart_name,
+                'chart_repo_url': chart_repo_url,
+                'namespace': namespace,
+                'project': project,
+                'version': version,
+                'debug': debug
+            },
+            json={'values': values},
+            headers={'Authorization': f"Bearer {request.session.get('token')}"}
+        )
+
+        response_data = response.json()
+        if response.status_code == 201:
+            logger.info(f"Successfully created Helm release {release_name}")
+            return JsonResponse(response_data)
+        else:
+            logger.error(f"Failed to create Helm release: {response_data}")
+            return JsonResponse(response_data, status=response.status_code)
+
+    except Exception as e:
+        logger.error(f"Error creating Helm release: {str(e)}", exc_info=True)
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def list_helm_releases(request):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    try:
+        namespace = request.GET.get('namespace')
+        params = {'namespace': namespace} if namespace else {}
+
+        response = requests.get(
+            f"{settings.API_URL}/api/v1/helm/releases",
+            params=params,
+            headers={'Authorization': f"Bearer {request.session.get('token')}"}
+        )
+
+        if response.status_code == 200:
+            return JsonResponse(response.json(), safe=False)
+        else:
+            return JsonResponse({'error': response.json().get('detail', 'Failed to list releases')}, 
+                              status=response.status_code)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def get_helm_release(request, release_name):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    try:
+        namespace = request.GET.get('namespace')
+        if not namespace:
+            return JsonResponse({'error': 'Namespace is required'}, status=400)
+
+        # Get release status
+        status_response = requests.get(
+            f"{settings.API_URL}/api/v1/helm/releases/{release_name}/status",
+            params={'namespace': namespace},
+            headers={'Authorization': f"Bearer {request.session.get('token')}"}
+        )
+
+        # Get release values
+        values_response = requests.get(
+            f"{settings.API_URL}/api/v1/helm/releases/{release_name}/values",
+            params={'namespace': namespace},
+            headers={'Authorization': f"Bearer {request.session.get('token')}"}
+        )
+
+        if status_response.status_code == 200 and values_response.status_code == 200:
+            return JsonResponse({
+                'status': status_response.json(),
+                'values': values_response.json()
+            })
+        else:
+            error_response = status_response if status_response.status_code != 200 else values_response
+            return JsonResponse({'error': error_response.json().get('detail', 'Failed to get release details')}, 
+                              status=error_response.status_code)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def delete_helm_release(request, release_name):
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    try:
+        namespace = request.GET.get('namespace')
+        if not namespace:
+            return JsonResponse({'error': 'Namespace is required'}, status=400)
+
+        response = requests.delete(
+            f"{settings.API_URL}/api/v1/helm/releases/{release_name}",
+            params={'namespace': namespace},
+            headers={'Authorization': f"Bearer {request.session.get('token')}"}
+        )
+
+        if response.status_code == 204:
+            return JsonResponse({'message': 'Release deleted successfully'})
+        else:
+            return JsonResponse({'error': response.json().get('detail', 'Failed to delete release')}, 
+                              status=response.status_code)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def rollback_helm_release(request, release_name):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        namespace = data.get('namespace')
+        revision = data.get('revision')
+        options = data.get('options', {})
+
+        if not all([namespace, revision]):
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+
+        response = requests.post(
+            f"{settings.API_URL}/api/v1/helm/releases/{release_name}/rollback",
+            params={
+                'namespace': namespace,
+                'revision': revision
+            },
+            json=options,
+            headers={'Authorization': f"Bearer {request.session.get('token')}"}
+        )
+
+        if response.status_code == 200:
+            return JsonResponse(response.json())
+        else:
+            return JsonResponse({'error': response.json().get('detail', 'Failed to rollback release')}, 
+                              status=response.status_code)
+
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 

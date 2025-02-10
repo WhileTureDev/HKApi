@@ -32,9 +32,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3001",  # Local development frontend
+        "http://localhost:8000",  # Django development server
         "https://hkapi.dailytoolset.com",  # Production frontend
         "http://hkapi.dailytoolset.com",   # HTTP version
         "https://localhost:3001",          # HTTPS local development
+        "https://localhost:8000",          # HTTPS Django development
     ],
     allow_credentials=True,
     allow_methods=["*"],
