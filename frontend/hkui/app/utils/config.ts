@@ -1,5 +1,5 @@
 // Deprecated: Keeping for potential future use
-export const API_URL = 'http://hkapi.dailytoolset.com';
+export const API_URL = '/api/proxy';
 
 export function getApiEndpoint(path: string): string {
   // Remove leading slash from path if present, and ensure it starts with a slash

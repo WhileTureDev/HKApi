@@ -7,10 +7,10 @@ from utils.database import get_db
 from models.userModel import User
 from models.roleModel import Role
 from models.userRoleModel import UserRole
-from utils.shared_utils import verify_password, decode_access_token
+from utils.shared_utils import verify_password, decode_access_token, check_token_expiration
 from typing import List
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/token")
 
 def authenticate_user(db: Session, username: str, password: str):
     user = db.query(User).filter(User.username == username).first()
@@ -26,18 +26,40 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    expired_token_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Token has expired",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
     try:
+        # First check if token is expired
+        is_expired, error = check_token_expiration(token)
+        if is_expired:
+            logging.warning(f"Token validation failed: {error}")
+            raise expired_token_exception
+            
+        # If not expired, decode the token
         token_data = decode_access_token(token)
         if token_data is None:
             raise credentials_exception
+            
         user = db.query(User).filter(User.username == token_data.username).first()
         if user is None:
             raise credentials_exception
-    except JWTError:
+            
+        return user
+        
+    except JWTError as e:
+        logging.error(f"JWT error: {str(e)}")
         raise credentials_exception
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-    return user
+        logging.error(f"Unexpected error in get_current_user: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 def get_current_active_user(current_user: User = Depends(get_current_user)):
     if current_user.disabled:

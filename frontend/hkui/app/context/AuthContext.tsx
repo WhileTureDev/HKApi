@@ -1,9 +1,6 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
-
-const API_URL = 'http://hkapi.dailytoolset.com';
 
 interface User {
   id: string;
@@ -13,122 +10,130 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   loading: boolean;
+  isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
 
   const checkAuth = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
+      console.log('Checking auth...');
+      const storedToken = localStorage.getItem('token');
+      
+      if (!storedToken) {
+        console.log('No token found');
+        setUser(null);
+        setToken(null);
         setLoading(false);
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/v1/token`, {
-        method: 'POST',
+      const response = await fetch('/api/auth/check', {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Bearer ${storedToken}`,
+          'Content-Type': 'application/json',
         },
-        body: new URLSearchParams({
-          token: token,
-        }),
-        credentials: 'include',
       });
 
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      } else {
+      console.log('Auth check response:', response.status);
+
+      if (!response.ok) {
+        console.log('Auth check failed');
         localStorage.removeItem('token');
+        setUser(null);
+        setToken(null);
+        setLoading(false);
+        return;
       }
+
+      const data = await response.json();
+      console.log('Auth check successful:', data);
+      setUser(data.user);
+      setToken(storedToken);
     } catch (error) {
-      console.error('Auth check failed:', error);
-      localStorage.removeItem('token');
+      console.error('Auth check error:', error);
+      setUser(null);
+      setToken(null);
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    console.log('Auth context mounted');
+    checkAuth();
+  }, []);
+
   const login = async (username: string, password: string) => {
     try {
-      const formData = new URLSearchParams();
-      formData.append('username', username);
-      formData.append('password', password);
-      formData.append('grant_type', 'password');
-
-      const response = await fetch(`${API_URL}/api/v1/token`, {
+      console.log('Logging in...');
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: formData,
-        credentials: 'include',
+        body: JSON.stringify({ username, password }),
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Login failed');
+        console.log('Login failed:', response.status);
+        throw new Error('Login failed');
       }
 
-      const { access_token } = await response.json();
-      localStorage.setItem('token', access_token);
+      const data = await response.json();
+      console.log('Login successful:', data);
       
-      // Set token in cookies for server-side authentication
-      document.cookie = `token=${access_token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Strict; ${process.env.NODE_ENV === 'production' ? 'Secure' : ''}`;
-
-      // Fetch user data after successful login
-      const userResponse = await fetch(`${API_URL}/api/v1/users/me`, {
-        headers: {
-          'Authorization': `Bearer ${access_token}`
-        }
-      });
-
-      if (userResponse.ok) {
-        const userData = await userResponse.json();
-        setUser(userData);
-        console.log('Attempting to redirect to dashboard');
-        try {
-          router.push('/dashboard');
-          console.log('Redirection to dashboard successful');
-        } catch (redirectError) {
-          console.error('Redirection error:', redirectError);
-          // Fallback redirection method
-          window.location.href = '/dashboard';
-        }
-      } else {
-        throw new Error('Failed to fetch user data');
+      if (!data.token) {
+        console.error('No token received');
+        throw new Error('No token received');
       }
+
+      localStorage.setItem('token', data.token);
+      await checkAuth();
+      window.location.href = '/dashboard';
     } catch (error) {
-      localStorage.removeItem('token');
+      console.error('Login error:', error);
       throw error;
     }
   };
 
   const logout = async () => {
-    localStorage.removeItem('token');
-    
-    // Clear token cookie
-    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    
-    setUser(null);
-    router.push('/');
+    try {
+      console.log('Logging out...');
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      localStorage.removeItem('token');
+      setUser(null);
+      setToken(null);
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        loading,
+        isAuthenticated: !!user && !!token,
+        login,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -136,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

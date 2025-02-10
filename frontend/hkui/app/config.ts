@@ -1,5 +1,5 @@
 // Environment variables with defaults
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://hkapi.dailytoolset.com';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/proxy';
 
 // Other configuration variables can be added here
 export const config = {

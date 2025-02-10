@@ -6,6 +6,11 @@ interface LoginData {
     password: string;
 }
 
+interface TokenResponse {
+    access_token: string;
+    token_type: string;
+}
+
 export async function POST(request: Request) {
     try {
         const body: LoginData = await request.json();
@@ -21,6 +26,7 @@ export async function POST(request: Request) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json',
             },
             body: new URLSearchParams({
                 username: body.username,
@@ -36,27 +42,28 @@ export async function POST(request: Request) {
             );
         }
 
-        const data = await response.json();
-        
-        // Set the token in an HTTP-only cookie
-        const cookieResponse = NextResponse.json(
-            { success: true },
-            { status: 200 }
-        );
-        
+        const data: TokenResponse = await response.json();
+
+        // Create the response with token in body
+        const cookieResponse = NextResponse.json({ 
+            success: true,
+            token: data.access_token 
+        });
+
+        // Set the token as an HTTP-only cookie
         cookieResponse.cookies.set('token', data.access_token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            sameSite: 'lax',
             path: '/',
-            maxAge: 7200 // 2 hours
+            maxAge: 60 * 60 * 24 // 24 hours
         });
 
         return cookieResponse;
     } catch (error) {
-        console.error('Error during login:', error);
+        console.error('Login error:', error);
         return NextResponse.json(
-            { error: 'Authentication failed' },
+            { error: 'Login failed' },
             { status: 500 }
         );
     }

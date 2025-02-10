@@ -1,32 +1,28 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { useAuth } from '../context/AuthContext';
+import Link from 'next/link';
 
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const justRegistered = searchParams?.get('registered') === 'true';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
-      console.log('Attempting login');
       await login(username, password);
-      console.log('Login successful, redirecting to dashboard');
-      router.push('/dashboard');
-    } catch (err) {
-      console.error('Login error:', err);
-      setError(err instanceof Error ? err.message : 'Login failed');
+      // Redirect is handled by login function
+    } catch (error) {
+      setError('Invalid username or password');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -38,83 +34,67 @@ export default function Login() {
             Sign in to your account
           </h2>
         </div>
-        {justRegistered && (
-          <div className="rounded-md bg-green-50 p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-green-800">
-                  Account created successfully! Please sign in.
-                </p>
-              </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <label htmlFor="username" className="sr-only">
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="sr-only">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+              />
             </div>
           </div>
-        )}
-        <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              {error && (
-                <div className="rounded-md bg-red-50 p-4">
-                  <div className="text-sm text-red-700">{error}</div>
+
+          {error && (
+            <div className="text-red-500 text-sm text-center">{error}</div>
+          )}
+
+          <div>
+            <button
+              type="submit"
+              disabled={loading}
+              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
+                loading
+                  ? 'bg-blue-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+              }`}
+            >
+              {loading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Signing in...
                 </div>
+              ) : (
+                'Sign in'
               )}
-
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                  Username
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="username"
-                    name="username"
-                    type="text"
-                    autoComplete="username"
-                    required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <button
-                  type="submit"
-                  className="flex w-full justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                  Sign in
-                </button>
-              </div>
-            </form>
+            </button>
           </div>
-        </div>
-        <div className="text-sm text-center">
-          <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-            Don't have an account? Create one here
-          </Link>
-        </div>
+        </form>
       </div>
     </div>
   );

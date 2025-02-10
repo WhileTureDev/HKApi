@@ -85,16 +85,8 @@ def list_projects(
     try:
         logger.info(f"User {current_user.username} is listing all their projects")
         projects = call_database_operation(lambda: db.query(ProjectModel).filter(ProjectModel.owner_id == current_user.id).all())
-        if not projects:
-            logger.warning(f"No projects found for user {current_user.username}")
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No projects found")
         logger.info(f"Found {len(projects)} projects for user {current_user.username}")
         return projects
-    except HTTPException as http_exc:
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise
     except Exception as e:
         logger.error(f"An error occurred while listing projects: {str(e)}")
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
