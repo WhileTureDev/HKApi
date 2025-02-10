@@ -2,6 +2,18 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
 
 ## Getting Started
 
+### Environment Configuration
+
+1. Copy the environment example file to create your local environment file:
+   ```bash
+   cp .env.example .env.local
+   ```
+
+2. Update the environment variables in `.env.local` as needed:
+   - `NEXT_PUBLIC_API_URL`: The base URL for the API (defaults to http://hkapi.dailytoolset.com)
+
+### Development Server
+
 First, run the development server:
 
 ```bash
@@ -19,6 +31,51 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+
+## Authentication
+
+The application includes a complete authentication system with user registration and login functionality. For detailed documentation, see [Authentication Documentation](./docs/authentication.md).
+
+### Features
+
+- Secure user registration with password requirements
+- User login with token-based authentication
+- Form validation with real-time feedback
+- Secure token storage using HTTP-only cookies
+- Password strength validation
+- Email format validation
+- Username format validation
+
+### Getting Started with Authentication
+
+1. **User Registration**
+   - Visit `/signup` to create a new account
+   - Fill in required information:
+     - Username (letters, numbers, underscores, hyphens)
+     - Email (valid email format)
+     - Password (meets security requirements)
+     - Optional: Full Name
+
+2. **User Login**
+   - Visit `/login`
+   - Enter credentials
+   - Successful login redirects to dashboard
+
+### Security Features
+
+- Password requirements:
+  - Minimum 8 characters
+  - At least one uppercase letter
+  - At least one lowercase letter
+  - At least one number
+  - At least one special character
+
+- Secure token storage:
+  - HTTP-only cookies
+  - Secure flag in production
+  - Strict same-site policy
+
+For more detailed information about the authentication system, including API documentation, error handling, and troubleshooting, please refer to the [Authentication Documentation](./docs/authentication.md).
 
 ## Learn More
 
