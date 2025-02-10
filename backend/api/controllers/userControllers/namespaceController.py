@@ -69,6 +69,43 @@ def create_kubernetes_namespace(namespace_name: str):
             detail=f"Failed to create Kubernetes namespace: {str(e)}"
         )
 
+@router.get("/", response_model=List[NamespaceSchema])
+def list_namespaces(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user)
+):
+    """
+    List namespaces owned by the current user
+    """
+    start_time = time.time()
+    method = request.method
+    endpoint = request.url.path
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
+    try:
+        namespaces = db.query(NamespaceModel).filter(
+            NamespaceModel.owner_id == current_user.id
+        ).all()
+
+        logger.info(f"Found {len(namespaces)} namespaces for user {current_user.username}")
+
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        return namespaces
+
+    except Exception as e:
+        logger.error(f"Error listing namespaces: {str(e)}")
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while listing namespaces"
+        )
+    finally:
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
+
 @router.post("/", response_model=NamespaceSchema)
 def create_namespace(
     request: Request,
@@ -155,43 +192,6 @@ def create_namespace(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while creating the namespace"
-        )
-    finally:
-        IN_PROGRESS.labels(endpoint=endpoint).dec()
-
-@router.get("/", response_model=List[NamespaceSchema])
-def list_namespaces(
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
-):
-    """
-    List namespaces owned by the current user
-    """
-    start_time = time.time()
-    method = request.method
-    endpoint = request.url.path
-    IN_PROGRESS.labels(endpoint=endpoint).inc()
-
-    try:
-        namespaces = db.query(NamespaceModel).filter(
-            NamespaceModel.owner_id == current_user.id
-        ).all()
-
-        logger.info(f"Found {len(namespaces)} namespaces for user {current_user.username}")
-
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
-        return namespaces
-
-    except Exception as e:
-        logger.error(f"Error listing namespaces: {str(e)}")
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while listing namespaces"
         )
     finally:
         IN_PROGRESS.labels(endpoint=endpoint).dec()

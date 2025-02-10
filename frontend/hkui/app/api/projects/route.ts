@@ -25,7 +25,7 @@ export async function GET() {
             );
         }
 
-        const response = await fetch(`${config.apiBaseUrl}/projects/`, {
+        const response = await fetch(`${config.apiBaseUrl}/api/v1/projects/`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
             );
         }
 
-        const response = await fetch(`${config.apiBaseUrl}/projects/`, {
+        const response = await fetch(`${config.apiBaseUrl}/api/v1/projects/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

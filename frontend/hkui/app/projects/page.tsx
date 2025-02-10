@@ -33,6 +33,7 @@ export default function ProjectsPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const { user } = useAuth();
   const router = useRouter();
 
@@ -48,7 +49,7 @@ export default function ProjectsPage() {
   const fetchProjects = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/projects`, {
+      const response = await fetch(`${API_URL}/api/v1/projects/`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -70,7 +71,7 @@ export default function ProjectsPage() {
   const handleDeleteProject = async (projectId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/projects/${projectId}`, {
+      const response = await fetch(`${API_URL}/api/v1/projects/${projectId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -90,19 +91,33 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleCreateProject = async () => {
+  const createProjectWithNamespace = async (formData: {
+    name: string;
+    description: string;
+  }) => {
     try {
-      const token = localStorage.getItem('token');
+      // Fetch current user's information
+      const userResponse = await fetch(`${API_URL}/api/v1/users/me`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!userResponse.ok) {
+        throw new Error('Failed to fetch user information');
+      }
+
+      const user = await userResponse.json();
       
-      // Generate a unique namespace name
-      const namespaceName = `${formData.name.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(2, 8)}`;
+      // Generate unique namespace name
+      const namespaceName = `${user.username.toLowerCase()}-${formData.name.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(2, 8)}`;
       
       // First, create the project
-      const projectResponse = await fetch(`${API_URL}/projects`, {
+      const projectResponse = await fetch(`${API_URL}/api/v1/projects/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
           name: formData.name,
@@ -111,18 +126,17 @@ export default function ProjectsPage() {
       });
 
       if (!projectResponse.ok) {
-        const errorData = await projectResponse.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to create project');
+        throw new Error('Failed to create project');
       }
 
       const newProject = await projectResponse.json();
       
       // Then, create the namespace
-      const namespaceResponse = await fetch(`${API_URL}/namespaces`, {
+      const namespaceResponse = await fetch(`${API_URL}/api/v1/namespaces/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
           name: namespaceName,
@@ -131,31 +145,29 @@ export default function ProjectsPage() {
       });
 
       if (!namespaceResponse.ok) {
-        const errorData = await namespaceResponse.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Failed to create namespace');
+        throw new Error('Failed to create namespace');
       }
 
-      const newNamespace = await namespaceResponse.json();
+      // Refresh projects list
+      await fetchProjects();
       
-      // Update the project list with the new project and its namespace
-      setProjects(prevProjects => [
-        ...prevProjects, 
-        { 
-          ...newProject, 
-          namespace: {
-            id: newNamespace.id,
-            name: newNamespace.name
-          }
-        }
-      ]);
-
       // Reset form and close modal
-      setFormData({ name: '', description: '' });
       setShowNewProjectForm(false);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred while creating the project';
-      setError(errorMessage);
+      setFormData({ name: '', description: '' });
+      
+      // Show success message
+      setSuccessMessage(`Project ${formData.name} and namespace ${namespaceName} created successfully`);
+    } catch (error) {
+      console.error('Error creating project and namespace:', error);
+      setFormError(error instanceof Error ? error.message : 'An error occurred');
     }
+  };
+
+  const handleCreateProject = async () => {
+    setIsSubmitting(true);
+    setFormError('');
+    await createProjectWithNamespace(formData);
+    setIsSubmitting(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -177,38 +189,7 @@ export default function ProjectsPage() {
       return;
     }
 
-    setIsSubmitting(true);
-    setFormError('');
-
-    try {
-      const response = await fetch(`${API_URL}/projects`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          description: formData.description.trim()
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create project');
-      }
-
-      // Reset form and close dialog
-      setFormData({ name: '', description: '' });
-      setShowNewProjectForm(false);
-      
-      // Refresh projects list
-      await fetchProjects();
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Failed to create project');
-    } finally {
-      setIsSubmitting(false);
-    }
+    await handleCreateProject();
   };
 
   return (
@@ -236,6 +217,12 @@ export default function ProjectsPage() {
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
             <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">
+            <p className="text-sm text-green-600">{successMessage}</p>
           </div>
         )}
 
