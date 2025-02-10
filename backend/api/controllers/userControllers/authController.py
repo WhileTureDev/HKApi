@@ -30,7 +30,7 @@ def login_for_access_token(
 ):
     start_time = time.time()
     method = request.method
-    endpoint = request.url.path
+    endpoint = "/api/v1/auth/token"
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
@@ -49,13 +49,13 @@ def login_for_access_token(
         )
         logger.info(f"Login successful for user: {form_data.username}")
         return {"access_token": access_token, "token_type": "bearer"}
-    except HTTPException as http_exc:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise http_exc
     except Exception as e:
-        logger.error(f"An error occurred during login: {str(e)}")
+        logger.error(f"Authentication error: {str(e)}")
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication service error"
+        )
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)

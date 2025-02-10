@@ -37,10 +37,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const response = await fetch(`${API_URL}/users/me`, {
+      const response = await fetch(`${API_URL}/api/v1/auth/token`, {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          token: token,
+        }),
+        credentials: 'include',
       });
 
       if (response.ok) {
@@ -64,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       formData.append('password', password);
       formData.append('grant_type', 'password');
 
-      const response = await fetch(`${API_URL}/token`, {
+      const response = await fetch(`${API_URL}/api/v1/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -82,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('token', access_token);
 
       // Fetch user data after successful login
-      const userResponse = await fetch(`${API_URL}/users/me`, {
+      const userResponse = await fetch(`${API_URL}/api/v1/users/me`, {
         headers: {
           'Authorization': `Bearer ${access_token}`
         }

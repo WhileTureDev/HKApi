@@ -4,7 +4,7 @@ import logging
 import time
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from kubernetes import client, config
 from sqlalchemy.orm import Session
 
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # Load Kubernetes configuration
 config.load_incluster_config()
 
-@router.get("/pods", response_model=dict)
+@router.get("/", response_model=dict)
 async def list_pods(
     namespace: str = Query(..., description="The namespace to list pods from"),
     db: Session = Depends(get_db),
@@ -61,43 +61,32 @@ async def list_pods(
         # Remove keys with null values for each pod
         pod_list = [{k: v for k, v in pod.items() if v is not None} for pod in pod_list]
 
-        logger.info(f"User {current_user.username} successfully listed pods in namespace {namespace}")
-        return {"pods": pod_list}
-
-    except client.exceptions.ApiException as e:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        if e.status == 404:
-            logger.error(f"Namespace {namespace} not found")
-            raise HTTPException(status_code=404, detail=f"Namespace {namespace} not found")
-        else:
-            logger.error(f"Error listing pods in namespace {namespace}: {str(e)}")
-            raise HTTPException(status_code=e.status, detail=e.body)
-
-    except Exception as e:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        logger.error(f"An error occurred while listing pods: {str(e)}")
-        raise HTTPException(status_code=500, detail="An internal error occurred")
-
-    finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        return {"pods": pod_list}
+
+    except Exception as e:
+        logger.error(f"Error listing pods: {str(e)}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=500, detail=f"Error listing pods: {str(e)}")
+    finally:
         IN_PROGRESS.labels(endpoint=endpoint).dec()
 
-@router.get("/pod", response_model=dict)
+@router.get("/{pod_name}", response_model=dict)
 async def get_pod_details(
     namespace: str = Query(..., description="The namespace of the pod"),
-    pod_name: str = Query(..., description="The name of the pod"),
+    pod_name: str = Path(..., description="The name of the pod"),
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_active_user),
     current_user_roles: List[str] = Depends(get_current_user_roles)
 ):
     start_time = time.time()
     method = "GET"
-    endpoint = "/pod"
+    endpoint = "/pods/{pod_name}"
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is fetching details for pod {pod_name} in namespace {namespace}")
+        logger.info(f"User {current_user.username} is retrieving details for pod {pod_name}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
@@ -106,49 +95,30 @@ async def get_pod_details(
 
         core_v1 = client.CoreV1Api()
         pod = core_v1.read_namespaced_pod(name=pod_name, namespace=namespace)
-
+        
         pod_details = {
             "name": pod.metadata.name,
             "namespace": pod.metadata.namespace,
             "status": pod.status.phase,
             "node_name": pod.spec.node_name,
             "start_time": pod.status.start_time,
-            "containers": [
-                {
-                    "name": container.name,
-                    "image": container.image,
-                    "ready": status.ready if pod.status.container_statuses else False,
-                    "restart_count": status.restart_count if pod.status.container_statuses else 0
-                } for container, status in zip(pod.spec.containers, pod.status.container_statuses or [])
-            ],
+            "containers": [{"name": container.name, "image": container.image} for container in pod.spec.containers],
             "host_ip": pod.status.host_ip,
             "pod_ip": pod.status.pod_ip
         }
 
-        logger.info(f"User {current_user.username} successfully fetched details for pod {pod_name} in namespace "
-                    f"{namespace}")
-        return pod_details
-
-    except client.exceptions.ApiException as e:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        if e.status == 404:
-            logger.error(f"Pod {pod_name} not found in namespace {namespace}")
-            raise HTTPException(status_code=404, detail=f"Pod {pod_name} not found in namespace {namespace}")
-        else:
-            logger.error(f"Error reading pod {pod_name} in namespace {namespace}: {str(e)}")
-            raise HTTPException(status_code=e.status, detail=e.body)
-
-    except Exception as e:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        logger.error(f"An error occurred while fetching pod details: {str(e)}")
-        raise HTTPException(status_code=500, detail="An internal error occurred")
-
-    finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        return {"pod": pod_details}
+
+    except client.exceptions.ApiException as e:
+        logger.error(f"Error retrieving pod details: {str(e)}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=e.status, detail=f"Error retrieving pod: {str(e)}")
+    finally:
         IN_PROGRESS.labels(endpoint=endpoint).dec()
 
-@router.post("/pod")
+@router.post("/", response_model=dict)
 async def create_pod(
     namespace: str,
     pod_name: str,
@@ -159,16 +129,16 @@ async def create_pod(
 ):
     start_time = time.time()
     method = "POST"
-    endpoint = "/pod"
+    endpoint = "/pods"
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is creating pod {pod_name} in namespace {namespace}")
+        logger.info(f"User {current_user.username} is creating a pod in namespace {namespace}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
             if not namespace_obj:
-                raise HTTPException(status_code=403, detail="Not enough permissions to access this namespace")
+                raise HTTPException(status_code=403, detail="Not enough permissions to create pod in this namespace")
 
         core_v1 = client.CoreV1Api()
         pod_manifest = {
@@ -186,8 +156,7 @@ async def create_pod(
             }
         }
 
-        pod = core_v1.create_namespaced_pod(namespace=namespace, body=pod_manifest)
-        logger.info(f"User {current_user.username} successfully created pod {pod_name} in namespace {namespace}")
+        created_pod = core_v1.create_namespaced_pod(namespace=namespace, body=pod_manifest)
 
         # Log the change with resource_name and project_name, including additional details
         namespace_obj = db.query(NamespaceModel).filter_by(name=namespace).first()
@@ -197,51 +166,24 @@ async def create_pod(
             current_user.id,
             action="create",
             resource="pod",
-            resource_id=pod.metadata.uid,  # Use pod.metadata.uid as resource_id
+            resource_id=created_pod.metadata.uid,  # Use created_pod.metadata.uid as resource_id
             resource_name=pod_name,
             project_name=project_obj.name if project_obj else "N/A",
             details=f"Pod {pod_name} created in namespace {namespace}"
         )
 
-        pod_details = {
-            "name": pod.metadata.name,
-            "namespace": pod.metadata.namespace,
-            "status": pod.status.phase,
-            "node_name": pod.spec.node_name,
-            "start_time": pod.status.start_time,
-            "containers": [{"name": container.name, "image": container.image} for container in pod.spec.containers],
-            "host_ip": pod.status.host_ip,
-            "pod_ip": pod.status.pod_ip
-        }
-
-        # Remove keys with null values
-        pod_details = {k: v for k, v in pod_details.items() if v is not None}
-
-        return pod_details
-    except client.exceptions.ApiException as e:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        if e.status == 409:
-            logger.error(f"Pod {pod_name} already exists in namespace {namespace}: {e}")
-            raise HTTPException(status_code=409, detail=f"Pod {pod_name} already exists in namespace {namespace}")
-        elif e.status == 404:
-            logger.error(f"Namespace {namespace} not found")
-            raise HTTPException(status_code=404, detail=f"Namespace {namespace} not found")
-        else:
-            logger.error(f"Error creating pod {pod_name} in namespace {namespace}: {e}")
-            raise HTTPException(status_code=e.status, detail=e.body)
-    except HTTPException as http_exc:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise http_exc
-    except Exception as e:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        logger.error(f"An error occurred while creating the pod: {str(e)}")
-        raise HTTPException(status_code=500, detail="An internal error occurred")
-    finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        return {"pod": {"name": created_pod.metadata.name, "status": "Created"}}
+
+    except client.exceptions.ApiException as e:
+        logger.error(f"Error creating pod: {str(e)}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=e.status, detail=f"Error creating pod: {str(e)}")
+    finally:
         IN_PROGRESS.labels(endpoint=endpoint).dec()
 
-@router.put("/pod")
+@router.put("/{pod_name}", response_model=dict)
 async def update_pod(
     namespace: str,
     pod_name: str,
@@ -252,7 +194,7 @@ async def update_pod(
 ):
     start_time = time.time()
     method = "PUT"
-    endpoint = "/pod"
+    endpoint = "/pods/{pod_name}"
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
@@ -292,8 +234,7 @@ async def update_pod(
             "status": updated_pod.status.phase,
             "node_name": updated_pod.spec.node_name,
             "start_time": updated_pod.status.start_time,
-            "containers": [{"name": container.name, "image": container.image} for container
-                           in updated_pod.spec.containers],
+            "containers": [{"name": container.name, "image": container.image} for container in updated_pod.spec.containers],
             "host_ip": updated_pod.status.host_ip,
             "pod_ip": updated_pod.status.pod_ip
         }
@@ -301,28 +242,18 @@ async def update_pod(
         # Remove keys with null values
         updated_pod_details = {k: v for k, v in updated_pod_details.items() if v is not None}
 
-        return updated_pod_details
-    except client.exceptions.ApiException as e:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        if e.status == 404:
-            logger.error(f"Pod {pod_name} not found in namespace {namespace}: {e}")
-            raise HTTPException(status_code=404, detail=f"Pod {pod_name} not found in namespace {namespace}")
-        else:
-            logger.error(f"Error updating pod {pod_name} in namespace {namespace}: {e}")
-            raise HTTPException(status_code=e.status, detail=e.body)
-    except HTTPException as http_exc:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise http_exc
-    except Exception as e:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        logger.error(f"An error occurred while updating the pod: {str(e)}")
-        raise HTTPException(status_code=500, detail="An internal error occurred")
-    finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        return {"pod": updated_pod_details}
+
+    except client.exceptions.ApiException as e:
+        logger.error(f"Error updating pod: {str(e)}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=e.status, detail=f"Error updating pod: {str(e)}")
+    finally:
         IN_PROGRESS.labels(endpoint=endpoint).dec()
 
-@router.delete("/pod")
+@router.delete("/{pod_name}", response_model=dict)
 async def delete_pod(
     namespace: str,
     pod_name: str,
@@ -332,20 +263,20 @@ async def delete_pod(
 ):
     start_time = time.time()
     method = "DELETE"
-    endpoint = "/pod"
+    endpoint = "/pods/{pod_name}"
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is deleting pod {pod_name} in namespace {namespace}")
+        logger.info(f"User {current_user.username} is deleting pod {pod_name}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
             if not namespace_obj:
-                raise HTTPException(status_code=403, detail="Not enough permissions to access this namespace")
+                raise HTTPException(status_code=403, detail="Not enough permissions to delete pod in this namespace")
 
         core_v1 = client.CoreV1Api()
+        # Delete the pod
         core_v1.delete_namespaced_pod(name=pod_name, namespace=namespace)
-        logger.info(f"User {current_user.username} successfully deleted pod {pod_name} in namespace {namespace}")
 
         # Log the change with resource_name and project_name, including additional details
         namespace_obj = db.query(NamespaceModel).filter_by(name=namespace).first()
@@ -361,31 +292,21 @@ async def delete_pod(
             details=f"Pod {pod_name} deleted in namespace {namespace}"
         )
 
-        return {"message": f"Pod {pod_name} deleted successfully"}
-    except client.exceptions.ApiException as e:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        if e.status == 404:
-            logger.error(f"Pod {pod_name} not found in namespace {namespace}: {e}")
-            raise HTTPException(status_code=404, detail=f"Pod {pod_name} not found in namespace {namespace}")
-        else:
-            logger.error(f"Error deleting pod {pod_name} in namespace {namespace}: {e}")
-            raise HTTPException(status_code=e.status, detail=e.body)
-    except HTTPException as http_exc:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise http_exc
-    except Exception as e:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        logger.error(f"An error occurred while deleting the pod: {str(e)}")
-        raise HTTPException(status_code=500, detail="An internal error occurred")
-    finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        return {"status": "Deleted", "pod_name": pod_name}
+
+    except client.exceptions.ApiException as e:
+        logger.error(f"Error deleting pod: {str(e)}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=e.status, detail=f"Error deleting pod: {str(e)}")
+    finally:
         IN_PROGRESS.labels(endpoint=endpoint).dec()
 
-@router.get("/pod/logs", response_model=dict)
+@router.get("/{pod_name}/logs", response_model=dict)
 async def get_pod_logs(
-    namespace: str = Query(..., description="The namespace of the pod"),
-    pod_name: str = Query(..., description="The name of the pod"),
+    namespace: str,
+    pod_name: str,
     container: Optional[str] = Query(None, description="The name of the container (optional)"),
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_active_user),
@@ -393,7 +314,7 @@ async def get_pod_logs(
 ):
     start_time = time.time()
     method = "GET"
-    endpoint = "/pod/logs"
+    endpoint = "/pods/{pod_name}/logs"
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
@@ -413,23 +334,13 @@ async def get_pod_logs(
         logger.info(f"User {current_user.username} successfully fetched logs for pod {pod_name} "
                     f"in namespace {namespace}")
 
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
         return {"logs": logs}
 
     except client.exceptions.ApiException as e:
+        logger.error(f"Error fetching logs for pod: {str(e)}")
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        if e.status == 404:
-            logger.error(f"Pod {pod_name} not found in namespace {namespace}")
-            raise HTTPException(status_code=404, detail=f"Pod {pod_name} not found in namespace {namespace}")
-        else:
-            logger.error(f"Error fetching logs for pod {pod_name} in namespace {namespace}: {str(e)}")
-            raise HTTPException(status_code=e.status, detail=e.body)
-
-    except Exception as e:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        logger.error(f"An error occurred while fetching pod logs: {str(e)}")
-        raise HTTPException(status_code=500, detail="An internal error occurred")
-
+        raise HTTPException(status_code=e.status, detail=f"Error fetching logs for pod: {str(e)}")
     finally:
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
         IN_PROGRESS.labels(endpoint=endpoint).dec()

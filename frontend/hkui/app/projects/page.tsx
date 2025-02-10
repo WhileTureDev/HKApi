@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/navigation';
+import Breadcrumbs from '../components/shared/Breadcrumbs';
+import AuthenticatedLayout from '../components/layouts/AuthenticatedLayout';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 const API_URL = 'http://hkapi.dailytoolset.com';
@@ -14,19 +16,18 @@ interface Project {
   created_at: string;
   owner_id: number;
   updated_at: string;
+  namespace?: {
+    id: number;
+    name: string;
+  };
 }
 
-interface FormData {
-  name: string;
-  description: string;
-}
-
-export default function Projects() {
+export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showNewProjectForm, setShowNewProjectForm] = useState(false);
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState({
     name: '',
     description: ''
   });
@@ -47,7 +48,7 @@ export default function Projects() {
   const fetchProjects = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/projects/`, {
+      const response = await fetch(`${API_URL}/projects`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -89,6 +90,74 @@ export default function Projects() {
     }
   };
 
+  const handleCreateProject = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Generate a unique namespace name
+      const namespaceName = `${formData.name.toLowerCase().replace(/\s+/g, '-')}-${Math.random().toString(36).substring(2, 8)}`;
+      
+      // First, create the project
+      const projectResponse = await fetch(`${API_URL}/projects`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description
+        })
+      });
+
+      if (!projectResponse.ok) {
+        const errorData = await projectResponse.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to create project');
+      }
+
+      const newProject = await projectResponse.json();
+      
+      // Then, create the namespace
+      const namespaceResponse = await fetch(`${API_URL}/namespaces`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: namespaceName,
+          project_id: newProject.id
+        })
+      });
+
+      if (!namespaceResponse.ok) {
+        const errorData = await namespaceResponse.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to create namespace');
+      }
+
+      const newNamespace = await namespaceResponse.json();
+      
+      // Update the project list with the new project and its namespace
+      setProjects(prevProjects => [
+        ...prevProjects, 
+        { 
+          ...newProject, 
+          namespace: {
+            id: newNamespace.id,
+            name: newNamespace.name
+          }
+        }
+      ]);
+
+      // Reset form and close modal
+      setFormData({ name: '', description: '' });
+      setShowNewProjectForm(false);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while creating the project';
+      setError(errorMessage);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -112,7 +181,7 @@ export default function Projects() {
     setFormError('');
 
     try {
-      const response = await fetch(`${API_URL}/projects/`, {
+      const response = await fetch(`${API_URL}/projects`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -142,74 +211,100 @@ export default function Projects() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Projects</h1>
-        <button
-          onClick={() => setShowNewProjectForm(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          New Project
-        </button>
-      </div>
-
-      {projects.length === 0 ? (
-        <div className="text-gray-500">No projects found. Create a new project to get started!</div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map(project => (
-            <div 
-              key={project.id} 
-              className="bg-white shadow-md rounded-lg p-6 hover:shadow-lg transition-shadow"
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">{project.name}</h2>
-                <button 
-                  onClick={() => handleDeleteProject(project.id)}
-                  className="text-red-500 hover:text-red-700 transition-colors"
-                  title="Delete Project"
-                >
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="h-6 w-6" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
-                    />
-                  </svg>
-                </button>
-              </div>
-              
-              {project.description && (
-                <p className="text-gray-600 mb-4">{project.description}</p>
-              )}
-              
-              <div className="text-sm text-gray-500">
-                Created: {new Date(project.created_at).toLocaleDateString()}
-              </div>
-            </div>
-          ))}
+    <AuthenticatedLayout>
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <Breadcrumbs
+            items={[
+              { href: '/dashboard', label: 'Dashboard' },
+              { href: '/projects', label: 'Projects' },
+            ]}
+          />
         </div>
-      )}
+
+        <div className="mb-6 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
+          <button
+            onClick={() => setShowNewProjectForm(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            New Project
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <LoadingSpinner />
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">No projects found</h3>
+            <p className="mt-2 text-sm text-gray-500">
+              Get started by creating a new project.
+            </p>
+            <div className="mt-6">
+              <button
+                onClick={() => setShowNewProjectForm(true)}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-600 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Create Project
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projects.map(project => (
+              <div 
+                key={project.id} 
+                className="bg-white shadow-md rounded-lg p-6 hover:shadow-lg transition-shadow"
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold text-gray-900">{project.name}</h2>
+                  <button 
+                    onClick={() => handleDeleteProject(project.id)}
+                    className="text-red-500 hover:text-red-700 transition-colors"
+                    title="Delete Project"
+                  >
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="h-6 w-6" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
+                      />
+                    </svg>
+                  </button>
+                </div>
+                
+                {project.description && (
+                  <p className="text-gray-600 mb-4">{project.description}</p>
+                )}
+                
+                {project.namespace && (
+                  <p className="text-gray-600 mb-4">Namespace: {project.namespace.name}</p>
+                )}
+                
+                <div className="text-sm text-gray-500">
+                  Created: {new Date(project.created_at).toLocaleDateString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* New Project Form Modal */}
       {showNewProjectForm && (
@@ -284,7 +379,7 @@ export default function Projects() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? 'Creating...' : 'Create Project'}
                 </button>
@@ -293,6 +388,6 @@ export default function Projects() {
           </div>
         </div>
       )}
-    </div>
+    </AuthenticatedLayout>
   );
 }

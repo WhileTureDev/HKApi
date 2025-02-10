@@ -14,17 +14,17 @@ We have integrated Prometheus to collect and expose metrics related to API reque
 
 A health check endpoint has been implemented to allow for the regular monitoring of the application's health status. This endpoint performs a basic database connectivity check and responds with the application's status.
 
-Endpoint: /health
+Endpoint: /api/v1/health
 - Method: GET
 - Response:
   - 200 OK if the application is healthy
   - 500 Internal Server Error if there is an issue with the database connection
 
 ```python
-@router.get("/health", response_model=dict)
+@router.get("/api/v1/health", response_model=dict)
 async def health_check(db: Session = Depends(get_db)):
     start_time = time.time()
-    endpoint = "/health"
+    endpoint = "/api/v1/health"
     method = "GET"
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
