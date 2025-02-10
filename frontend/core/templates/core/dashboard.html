@@ -4,18 +4,18 @@
 {% block title %}Dashboard - HKApi{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>My Projects</h2>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createProjectModal">
-            <i class="bi bi-plus-circle"></i> Create Project
+        <h2 class="hud-title">My Projects</h2>
+        <button type="button" class="btn btn-hud" data-bs-toggle="modal" data-bs-target="#createProjectModal">
+            <i class="bi bi-plus"></i> New Project
         </button>
     </div>
 
     {% if messages %}
     <div class="messages">
         {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show rounded-3" role="alert">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
@@ -23,45 +23,48 @@
     </div>
     {% endif %}
 
-    <div class="row">
+    <div class="row g-4">
         {% if projects %}
             {% for project in projects %}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
+            <div class="col-md-4">
+                <div class="card hud-card h-100">
                     <div class="card-body">
-                        <h5 class="card-title">{{ project.name }}</h5>
-                        <p class="card-text">{{ project.description|default:"No description available" }}</p>
-                        <div class="text-muted small mb-2">
-                            Created: {{ project.created_at|date:"M d, Y" }}
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="hud-status {% if project.namespaces %}active{% else %}inactive{% endif %}"></span>
+                            <h5 class="card-title mb-0">{{ project.name }}</h5>
+                        </div>
+                        <p class="card-text text-secondary">{{ project.description|default:"No description available" }}</p>
+                        <div class="text-secondary small mb-3">
+                            Created {{ project.created_at|date:"M d, Y" }}
                         </div>
                         
                         <!-- Namespaces Section -->
-                        <div class="mt-3">
-                            <h6 class="mb-2">Namespaces</h6>
+                        <div class="mt-4">
+                            <h6 class="mb-3 text-secondary fw-semibold">Namespaces</h6>
                             {% if project.namespaces %}
                                 {% for namespace in project.namespaces %}
-                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="namespace-item">
                                     <span class="text-monospace">{{ namespace.name }}</span>
-                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                    <button type="button" class="btn btn-hud btn-sm"
                                             onclick="confirmDeleteNamespace('{{ namespace.id }}', '{{ namespace.name }}', '{{ project.id }}')">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </div>
                                 {% endfor %}
                             {% else %}
-                                <p class="text-muted small">No namespaces available</p>
+                                <p class="text-secondary small">No namespaces available</p>
                             {% endif %}
                         </div>
                     </div>
-                    <div class="card-footer bg-transparent">
-                        <div class="btn-group w-100" role="group">
-                            <a href="#" class="btn btn-outline-primary">View</a>
-                            <a href="#" class="btn btn-outline-secondary">Edit</a>
-                            <button type="button" class="btn btn-outline-danger" 
+                    <div class="card-footer bg-transparent border-0 pt-0">
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-hud flex-grow-1">View Details</button>
+                            <button class="btn btn-hud btn-secondary flex-grow-1">Edit</button>
+                            <button type="button" class="btn btn-hud btn-secondary" 
                                     onclick="confirmDelete('{{ project.id }}', '{{ project.name }}', {{ project.namespaces|length }})"
                                     {% if project.namespaces %}disabled{% endif %}
                                     title="{% if project.namespaces %}Cannot delete project with active namespaces{% endif %}">
-                                Delete
+                                <i class="bi bi-trash"></i>
                             </button>
                         </div>
                     </div>
@@ -70,8 +73,13 @@
             {% endfor %}
         {% else %}
         <div class="col-12">
-            <div class="alert alert-info" role="alert">
-                You don't have any projects yet. Click the "Create Project" button to get started!
+            <div class="card hud-card">
+                <div class="card-body text-center py-5">
+                    <p class="text-secondary mb-4">You don't have any projects yet.</p>
+                    <button type="button" class="btn btn-hud" data-bs-toggle="modal" data-bs-target="#createProjectModal">
+                        <i class="bi bi-plus"></i> Create Your First Project
+                    </button>
+                </div>
             </div>
         </div>
         {% endif %}
@@ -79,39 +87,41 @@
 </div>
 
 <!-- Create Project Modal -->
-<div class="modal fade" id="createProjectModal" tabindex="-1" aria-labelledby="createProjectModalLabel" aria-hidden="true">
+<div class="modal fade modal-hud" id="createProjectModal" tabindex="-1" aria-labelledby="createProjectModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="createProjectModalLabel">Create New Project</h5>
+                <h5 class="modal-title hud-title" id="createProjectModalLabel">Create New Project</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="POST" action="{% url 'create_project' %}" id="createProjectForm">
                 {% csrf_token %}
                 <div class="modal-body">
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <label for="projectName" class="form-label">Project Name</label>
-                        <input type="text" class="form-control" id="projectName" name="name" required 
+                        <input type="text" class="form-control hud-input" id="projectName" name="name" required 
                                pattern="[a-z0-9][a-z0-9-]*[a-z0-9]" maxlength="40"
-                               title="Must contain only lowercase letters, numbers, or hyphens. Cannot start or end with a hyphen.">
+                               title="Must contain only lowercase letters, numbers, or hyphens. Cannot start or end with a hyphen."
+                               placeholder="Enter project name">
                         <div id="projectNameFeedback" class="invalid-feedback"></div>
-                        <small class="form-text text-muted">
-                            Project name must:
-                            <ul>
-                                <li>Use only lowercase letters, numbers, and hyphens</li>
-                                <li>Start and end with a letter or number</li>
-                                <li>Be between 1-40 characters</li>
+                        <div class="form-text mt-2">
+                            Project name requirements:
+                            <ul class="mb-0 mt-1">
+                                <li>Lowercase letters, numbers, and hyphens only</li>
+                                <li>Must start and end with a letter or number</li>
+                                <li>Maximum 40 characters</li>
                             </ul>
-                        </small>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="projectDescription" class="form-label">Description</label>
-                        <textarea class="form-control" id="projectDescription" name="description" rows="3"></textarea>
+                        <textarea class="form-control hud-input" id="projectDescription" name="description" 
+                                  rows="3" placeholder="Describe your project"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary" id="createProjectButton">Create Project</button>
+                    <button type="button" class="btn btn-hud btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-hud" id="createProjectButton">Create Project</button>
                 </div>
             </form>
         </div>
@@ -119,27 +129,27 @@
 </div>
 
 <!-- Delete Project Modal -->
-<div class="modal fade" id="deleteProjectModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade modal-hud" id="deleteProjectModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Delete Project</h5>
+                <h5 class="modal-title hud-title">Delete Project</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Are you sure you want to delete project "<span id="deleteProjectName"></span>"?</p>
+                <p>Are you sure you want to delete "<span id="deleteProjectName" class="fw-semibold"></span>"?</p>
                 <p id="namespaceWarning" class="text-danger" style="display: none;">
                     Cannot delete project with active namespaces. Please delete all namespaces first.
                 </p>
-                <p id="deleteConfirmation" style="display: none;">
+                <p id="deleteConfirmation" class="text-secondary" style="display: none;">
                     This action cannot be undone.
                 </p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-hud btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <form id="deleteProjectForm" method="POST" style="display: inline;">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-danger" id="deleteProjectButton">Delete</button>
+                    <button type="submit" class="btn btn-hud" id="deleteProjectButton">Delete Project</button>
                 </form>
             </div>
         </div>
@@ -147,22 +157,22 @@
 </div>
 
 <!-- Delete Namespace Modal -->
-<div class="modal fade" id="deleteNamespaceModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade modal-hud" id="deleteNamespaceModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Delete Namespace</h5>
+                <h5 class="modal-title hud-title">Delete Namespace</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                Are you sure you want to delete namespace "<span id="deleteNamespaceName"></span>"?
-                This action cannot be undone.
+                <p>Are you sure you want to delete namespace "<span id="deleteNamespaceName" class="fw-semibold"></span>"?</p>
+                <p class="text-secondary">This action cannot be undone.</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-hud btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <form id="deleteNamespaceForm" method="POST" style="display: inline;">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">Delete</button>
+                    <button type="submit" class="btn btn-hud">Delete Namespace</button>
                 </form>
             </div>
         </div>
@@ -176,7 +186,6 @@ function confirmDelete(projectId, projectName, namespaceCount) {
     document.getElementById('deleteProjectName').textContent = projectName;
     document.getElementById('deleteProjectForm').action = "{% url 'delete_project' 0 %}".replace('0', projectId);
     
-    // Show/hide appropriate messages and control delete button
     const namespaceWarning = document.getElementById('namespaceWarning');
     const deleteConfirmation = document.getElementById('deleteConfirmation');
     const deleteButton = document.getElementById('deleteProjectButton');
@@ -200,15 +209,14 @@ function confirmDeleteNamespace(namespaceId, namespaceName, projectId) {
     new bootstrap.Modal(document.getElementById('deleteNamespaceModal')).show();
 }
 
-// Add validation for project name
+// Project name validation
 document.addEventListener('DOMContentLoaded', function() {
     const projectNameInput = document.getElementById('projectName');
     const projectNameFeedback = document.getElementById('projectNameFeedback');
     const createProjectButton = document.getElementById('createProjectButton');
-    const maxLength = 40; // Maximum length for project name
+    const maxLength = 40;
 
     function validateProjectName(name) {
-        // Kubernetes naming convention rules
         const kubeNameRegex = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
         const errors = [];
 
