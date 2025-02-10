@@ -111,21 +111,30 @@ async def list_projects(
     try:
         logger.info(f"User {current_user.username} is listing all their projects")
         
-        # Get all projects with owner and namespaces information eagerly loaded
+        # Optimize query to fetch all related data in a single query
         projects = db.query(ProjectModel)\
             .filter(ProjectModel.owner_id == current_user.id)\
-            .join(UserModel)\
             .options(
                 joinedload(ProjectModel.owner),
-                joinedload(ProjectModel.namespaces)
+                joinedload(ProjectModel.namespaces),
+                joinedload(ProjectModel.user_projects)
             )\
             .all()
         
         logger.info(f"Successfully fetched {len(projects)} projects for user {current_user.username}")
 
-        # Convert to list of Project models
+        # Convert to list of Project models with proper owner information
         result = []
         for project in projects:
+            owner_data = None
+            if project.owner:
+                owner_data = UserBase(
+                    id=project.owner.id,
+                    username=project.owner.username,
+                    email=project.owner.email,
+                    full_name=project.owner.full_name
+                )
+            
             result.append(Project(
                 id=project.id,
                 name=project.name,
@@ -133,12 +142,7 @@ async def list_projects(
                 owner_id=project.owner_id,
                 created_at=project.created_at,
                 updated_at=project.updated_at,
-                owner=UserBase(
-                    id=project.owner.id,
-                    username=project.owner.username,
-                    email=project.owner.email,
-                    full_name=project.owner.full_name
-                ) if project.owner else None,
+                owner=owner_data,
                 namespaces=project.namespaces
             ))
         return result
@@ -147,7 +151,7 @@ async def list_projects(
         logger.error(f"Error fetching projects: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred while fetching projects"
+            detail=f"An error occurred while fetching projects: {str(e)}"
         )
 
 @router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
