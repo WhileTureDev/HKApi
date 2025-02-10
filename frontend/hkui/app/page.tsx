@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './context/AuthContext';
 import Image from 'next/image';
@@ -11,10 +11,19 @@ export default function HomePage() {
   const [error, setError] = useState('');
   const { login, user } = useAuth();
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
 
-  // If already logged in, redirect to dashboard
-  if (user) {
-    router.push('/dashboard');
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
+
+  if (!isMounted) {
     return null;
   }
 

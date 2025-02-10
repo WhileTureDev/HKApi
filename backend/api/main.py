@@ -30,7 +30,11 @@ app = FastAPI()
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3001"],  # Add your frontend URL
+    allow_origins=[
+        "http://localhost:3001",  # Local development frontend
+        "https://hkapi.dailytoolset.com",  # Production frontend
+        "http://hkapi.dailytoolset.com"  # Alternate protocol
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

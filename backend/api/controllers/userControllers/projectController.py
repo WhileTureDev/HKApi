@@ -2,7 +2,7 @@
 
 import logging
 import time
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import List
@@ -38,30 +38,37 @@ def create_project(
         existing_project = call_database_operation(lambda: db.query(ProjectModel).filter(ProjectModel.name == project.name).first())
         if existing_project:
             logger.warning(f"Project with name {project.name} already exists")
-            raise HTTPException(status_code=400, detail="Project with this name already exists")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Project with this name already exists")
 
         new_project = ProjectModel(
             name=project.name,
             description=project.description,
             owner_id=current_user.id,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(),
+            updated_at=datetime.now()
         )
         call_database_operation(lambda: db.add(new_project))
         call_database_operation(lambda: db.commit())
         call_database_operation(lambda: db.refresh(new_project))
-        logger.info(f"Project {project.name} created successfully")
-        return new_project
-    except HTTPException as http_exc:
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise http_exc
-    except Exception as e:
-        logger.error(f"An error occurred while creating the project: {str(e)}")
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail="An internal error occurred")
-    finally:
+        logger.info(f"Project {new_project.name} created by user {current_user.username}")
+
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        return new_project
+
+    except HTTPException as http_exc:
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise
+
+    except Exception as e:
+        logger.error(f"An error occurred while creating the project: {str(e)}")
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
+    finally:
         IN_PROGRESS.labels(endpoint=endpoint).dec()
 
 @router.get("/projects/", response_model=List[ProjectSchema])
@@ -80,17 +87,87 @@ def list_projects(
         projects = call_database_operation(lambda: db.query(ProjectModel).filter(ProjectModel.owner_id == current_user.id).all())
         if not projects:
             logger.warning(f"No projects found for user {current_user.username}")
-            raise HTTPException(status_code=404, detail="No projects found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No projects found")
         logger.info(f"Found {len(projects)} projects for user {current_user.username}")
         return projects
     except HTTPException as http_exc:
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise http_exc
+        raise
     except Exception as e:
         logger.error(f"An error occurred while listing projects: {str(e)}")
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=500, detail="An internal error occurred")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
     finally:
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
+
+@router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(
+    request: Request,
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_active_user)
+):
+    start_time = time.time()
+    method = request.method
+    endpoint = request.url.path
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
+    try:
+        logger.info(f"User {current_user.username} is attempting to delete project {project_id}")
+
+        # Get the project
+        project = call_database_operation(
+            lambda: db.query(ProjectModel)
+            .filter(ProjectModel.id == project_id)
+            .first()
+        )
+
+        # Check if project exists
+        if not project:
+            logger.warning(f"Project {project_id} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found"
+            )
+
+        # Check if user is the owner
+        if project.owner_id != current_user.id:
+            logger.warning(f"User {current_user.username} attempted to delete project {project_id} but is not the owner")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the project owner can delete this project"
+            )
+
+        # Delete the project
+        call_database_operation(lambda: db.delete(project))
+        call_database_operation(lambda: db.commit())
+
+        logger.info(f"Project {project_id} successfully deleted by user {current_user.username}")
+
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        return None
+
+    except HTTPException as e:
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise
+
+    except Exception as e:
+        logger.error(f"Unexpected error while deleting project: {str(e)}")
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while deleting the project"
+        )
+    finally:
         IN_PROGRESS.labels(endpoint=endpoint).dec()
