@@ -25,4 +25,6 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('dashboard/', views.dashboard, name='dashboard'),
+    path('projects/create/', views.create_project, name='create_project'),
+    path('projects/<int:project_id>/delete/', views.delete_project, name='delete_project'),
 ]

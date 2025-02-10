@@ -137,3 +137,82 @@ def dashboard(request):
         logger.error(f"Unexpected error in dashboard: {str(e)}")
         messages.error(request, "An unexpected error occurred")
         return render(request, 'core/dashboard.html', {'projects': []})
+
+@login_required
+def create_project(request):
+    if request.method == 'POST':
+        try:
+            # Get the token from session
+            token = request.session.get('token')
+            if not token:
+                messages.error(request, 'Authentication token not found')
+                return redirect('login')
+
+            # Get project data from form
+            name = request.POST.get('name')
+            description = request.POST.get('description')
+
+            # Create project via API
+            response = requests.post(
+                f"{settings.API_URL}/api/v1/projects/",
+                json={
+                    'name': name,
+                    'description': description
+                },
+                headers={
+                    'accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Authorization': f'Bearer {token}'
+                }
+            )
+
+            if response.status_code == 201:
+                messages.success(request, 'Project created successfully!')
+            else:
+                error_detail = response.json().get('detail', 'Failed to create project')
+                messages.error(request, f"Error: {error_detail}")
+                logger.error(f"Project creation failed. Status: {response.status_code}, Response: {response.text}")
+
+        except requests.RequestException as e:
+            messages.error(request, f"Unable to connect to API service: {str(e)}")
+            logger.error(f"API service error: {str(e)}")
+        except Exception as e:
+            messages.error(request, "An unexpected error occurred")
+            logger.error(f"Unexpected error in create_project: {str(e)}")
+
+    return redirect('dashboard')
+
+@login_required
+def delete_project(request, project_id):
+    if request.method == 'POST':
+        try:
+            # Get the token from session
+            token = request.session.get('token')
+            if not token:
+                messages.error(request, 'Authentication token not found')
+                return redirect('login')
+
+            # Delete project via API
+            response = requests.delete(
+                f"{settings.API_URL}/api/v1/projects/{project_id}",
+                headers={
+                    'accept': 'application/json',
+                    'Authorization': f'Bearer {token}'
+                }
+            )
+
+            if response.status_code == 204:  # No Content
+                messages.success(request, 'Project deleted successfully!')
+            else:
+                error_detail = response.json().get('detail', 'Failed to delete project')
+                messages.error(request, f"Error: {error_detail}")
+                logger.error(f"Project deletion failed. Status: {response.status_code}, Response: {response.text}")
+
+        except requests.RequestException as e:
+            messages.error(request, f"Unable to connect to API service: {str(e)}")
+            logger.error(f"API service error: {str(e)}")
+        except Exception as e:
+            messages.error(request, "An unexpected error occurred")
+            logger.error(f"Unexpected error in delete_project: {str(e)}")
+
+    return redirect('dashboard')
