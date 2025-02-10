@@ -91,6 +91,45 @@ export default function ProjectsPage() {
     }
   };
 
+  const handleDeleteNamespace = async (namespaceId: number) => {
+    try {
+      const response = await fetch(`${API_URL}/api/v1/namespaces/delete/${namespaceId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete namespace');
+      }
+
+      // Refresh namespaces list
+      await fetchNamespaces();
+    } catch (error) {
+      console.error('Error deleting namespace:', error);
+    }
+  };
+
+  const fetchNamespaces = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/v1/namespaces/list`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch namespaces');
+      }
+
+      const namespaces = await response.json();
+      setNamespaces(namespaces);
+    } catch (error) {
+      console.error('Error fetching namespaces:', error);
+    }
+  };
+
   const createProjectWithNamespace = async (formData: {
     name: string;
     description: string;
@@ -132,7 +171,7 @@ export default function ProjectsPage() {
       const newProject = await projectResponse.json();
       
       // Then, create the namespace
-      const namespaceResponse = await fetch(`${API_URL}/api/v1/namespaces/`, {
+      const namespaceResponse = await fetch(`${API_URL}/api/v1/namespaces/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
