@@ -10,7 +10,7 @@ from models.userRoleModel import UserRole
 from utils.shared_utils import verify_password, decode_access_token, check_token_expiration
 from typing import List
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 def authenticate_user(db: Session, username: str, password: str):
     user = db.query(User).filter(User.username == username).first()

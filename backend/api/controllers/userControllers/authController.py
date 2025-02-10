@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 access_token_expire_minutes = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 
 
-@router.post("/token", response_model=Token)
+@router.post("/auth/token", response_model=Token)
 def login_for_access_token(
     request: Request,
     db: Session = Depends(get_db),

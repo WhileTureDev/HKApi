@@ -16,71 +16,95 @@ def index(request):
 
 @csrf_protect
 def login_view(request):
-    # Clear any existing session data
-    request.session.flush()
-    
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
         
-        # Try to authenticate with the FastAPI backend
         try:
-            logger.info(f"Attempting to authenticate user {username} with API at {settings.API_URL}")
+            # Clear any existing session data
+            request.session.flush()
+            
             response = requests.post(
-                f"{settings.API_URL}/api/v1/token",
+                f"{settings.API_URL}/api/v1/auth/token",
                 data={
                     'username': username,
                     'password': password,
-                    'grant_type': 'password',
+                    'grant_type': 'password'
                 },
                 headers={
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'accept': 'application/json'
+                    'accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 }
             )
             
-            logger.debug(f"Auth response status: {response.status_code}")
-            logger.debug(f"Auth response: {response.text}")
-            
             if response.status_code == 200:
-                # Store the token in the session
                 token_data = response.json()
-                access_token = token_data.get('access_token')
-                
-                if not access_token:
-                    logger.error("No access token in response")
-                    messages.error(request, "Authentication failed: No access token received")
-                    return render(request, 'core/login.html')
-                
-                request.session['token'] = access_token
-                logger.info("Successfully obtained access token")
-                
-                # Create a local user for Django's authentication
-                from django.contrib.auth.models import User
-                user, created = User.objects.get_or_create(
-                    username=username,
-                    defaults={'email': f"{username}@example.com"}
-                )
-                if created:
-                    user.set_password(password)
-                    user.save()
-                    logger.info(f"Created new local user for {username}")
-                
-                login(request, user)
-                messages.success(request, 'Successfully logged in!')
+                request.session['token'] = token_data.get('access_token')
+                request.session['username'] = username  # Store username in session
+                messages.success(request, 'Login successful!')
                 return redirect('dashboard')
             else:
                 error_detail = response.json().get('detail', 'Invalid credentials')
                 messages.error(request, f"Login failed: {error_detail}")
                 logger.error(f"Login failed for user {username}. Status: {response.status_code}, Response: {response.text}")
+                request.session.flush()
+                
         except requests.RequestException as e:
-            messages.error(request, f"Unable to connect to authentication service: {str(e)}")
-            logger.error(f"Authentication service error: {str(e)}")
+            messages.error(request, f"Unable to connect to API service: {str(e)}")
+            logger.error(f"API service error: {str(e)}")
+            request.session.flush()
         except Exception as e:
-            logger.error(f"Unexpected error during login: {str(e)}")
             messages.error(request, "An unexpected error occurred")
-    
+            logger.error(f"Unexpected error in login: {str(e)}")
+            request.session.flush()
+            
     return render(request, 'core/login.html')
+
+@csrf_protect
+def signup_view(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        full_name = request.POST.get('full_name')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        confirm_password = request.POST.get('confirm_password')
+
+        # Validate passwords match
+        if password != confirm_password:
+            messages.error(request, "Passwords do not match")
+            return render(request, 'core/signup.html')
+
+        try:
+            # Create user via API
+            response = requests.post(
+                f"{settings.API_URL}/api/v1/users/",
+                json={
+                    'username': username,
+                    'full_name': full_name,
+                    'email': email,
+                    'password': password,
+                    'disabled': False
+                },
+                headers={'accept': 'application/json', 'Content-Type': 'application/json'}
+            )
+
+            if response.status_code in [200, 201]:  # Success
+                logger.info(f"User created successfully: {username}")
+                messages.success(request, "Account created successfully! Please log in.")
+                return redirect('login')
+            else:
+                error_detail = response.json().get('detail', 'Failed to create account')
+                messages.error(request, f"Error: {error_detail}")
+                logger.error(f"User creation failed. Status: {response.status_code}, Response: {response.text}")
+
+        except requests.RequestException as e:
+            messages.error(request, f"Unable to connect to API service: {str(e)}")
+            logger.error(f"API service error: {str(e)}")
+        except Exception as e:
+            messages.error(request, "An unexpected error occurred")
+            logger.error(f"Unexpected error in signup: {str(e)}")
+
+    return render(request, 'core/signup.html')
 
 @login_required
 def dashboard(request):

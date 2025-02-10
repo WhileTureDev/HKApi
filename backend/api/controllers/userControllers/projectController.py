@@ -40,6 +40,7 @@ def create_project(
             logger.warning(f"Project with name {project.name} already exists")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Project with this name already exists")
 
+        # Create project without relationships first
         new_project = ProjectModel(
             name=project.name,
             description=project.description,
@@ -47,9 +48,12 @@ def create_project(
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
+        
+        # Add and commit project first
         call_database_operation(lambda: db.add(new_project))
         call_database_operation(lambda: db.commit())
         call_database_operation(lambda: db.refresh(new_project))
+        
         logger.info(f"Project {new_project.name} created by user {current_user.username}")
 
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
