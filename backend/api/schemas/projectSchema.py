@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
 from datetime import datetime
+from schemas.namespaceSchema import Namespace as NamespaceSchema
 
 
 class UserBase(BaseModel):
@@ -28,9 +29,10 @@ class Project(ProjectBase):
     created_at: datetime
     updated_at: datetime
     owner: Optional[UserBase] = None
+    namespaces: List[NamespaceSchema] = []
 
     class Config:
-        from_attributes = True  # This replaces orm_mode in newer versions
+        from_attributes = True
 
 
 class ProjectResponse(Project):

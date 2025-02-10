@@ -111,11 +111,14 @@ async def list_projects(
     try:
         logger.info(f"User {current_user.username} is listing all their projects")
         
-        # Get all projects with owner information eagerly loaded
+        # Get all projects with owner and namespaces information eagerly loaded
         projects = db.query(ProjectModel)\
             .filter(ProjectModel.owner_id == current_user.id)\
             .join(UserModel)\
-            .options(joinedload(ProjectModel.owner))\
+            .options(
+                joinedload(ProjectModel.owner),
+                joinedload(ProjectModel.namespaces)
+            )\
             .all()
         
         logger.info(f"Successfully fetched {len(projects)} projects for user {current_user.username}")
@@ -135,7 +138,8 @@ async def list_projects(
                     username=project.owner.username,
                     email=project.owner.email,
                     full_name=project.owner.full_name
-                ) if project.owner else None
+                ) if project.owner else None,
+                namespaces=project.namespaces
             ))
         return result
 

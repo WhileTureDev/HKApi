@@ -34,6 +34,24 @@
                         <div class="text-muted small mb-2">
                             Created: {{ project.created_at|date:"M d, Y" }}
                         </div>
+                        
+                        <!-- Namespaces Section -->
+                        <div class="mt-3">
+                            <h6 class="mb-2">Namespaces</h6>
+                            {% if project.namespaces %}
+                                {% for namespace in project.namespaces %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-monospace">{{ namespace.name }}</span>
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                            onclick="confirmDeleteNamespace('{{ namespace.id }}', '{{ namespace.name }}', '{{ project.id }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted small">No namespaces available</p>
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="card-footer bg-transparent">
                         <div class="btn-group w-100" role="group">
@@ -87,7 +105,7 @@
     </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
+<!-- Delete Project Modal -->
 <div class="modal fade" id="deleteProjectModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -109,6 +127,29 @@
         </div>
     </div>
 </div>
+
+<!-- Delete Namespace Modal -->
+<div class="modal fade" id="deleteNamespaceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Namespace</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete namespace "<span id="deleteNamespaceName"></span>"?
+                This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteNamespaceForm" method="POST" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -117,6 +158,12 @@ function confirmDelete(projectId, projectName) {
     document.getElementById('deleteProjectName').textContent = projectName;
     document.getElementById('deleteProjectForm').action = "{% url 'delete_project' 0 %}".replace('0', projectId);
     new bootstrap.Modal(document.getElementById('deleteProjectModal')).show();
+}
+
+function confirmDeleteNamespace(namespaceId, namespaceName, projectId) {
+    document.getElementById('deleteNamespaceName').textContent = namespaceName;
+    document.getElementById('deleteNamespaceForm').action = "{% url 'delete_namespace' 0 %}".replace('0', namespaceId);
+    new bootstrap.Modal(document.getElementById('deleteNamespaceModal')).show();
 }
 </script>
 {% endblock %}

@@ -28,4 +28,6 @@ urlpatterns = [
     path('dashboard/', views.dashboard, name='dashboard'),
     path('projects/create/', views.create_project, name='create_project'),
     path('projects/<int:project_id>/delete/', views.delete_project, name='delete_project'),
+    path('namespaces/create/', views.create_namespace, name='create_namespace'),
+    path('namespaces/<int:namespace_id>/delete/', views.delete_namespace, name='delete_namespace'),
 ]

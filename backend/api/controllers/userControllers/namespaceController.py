@@ -107,7 +107,7 @@ def create_namespace(
     db.refresh(new_namespace)
     return new_namespace
 
-@router.delete("/delete/{namespace_id}", response_model=NamespaceSchema)
+@router.delete("/delete/{namespace_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_namespace(
     namespace_id: int,
     db: Session = Depends(get_db),
@@ -157,4 +157,6 @@ def delete_namespace(
     # Delete namespace from database
     db.delete(namespace)
     db.commit()
-    return namespace
+    
+    # Return None for 204 No Content
+    return None

@@ -7,6 +7,7 @@ import requests
 from django.conf import settings
 import logging
 from django.views.decorators.csrf import csrf_protect
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +178,7 @@ def create_project(request):
         name = request.POST.get('name')
         description = request.POST.get('description')
         token = request.session.get('token')
+        username = request.session.get('username')
 
         if not token:
             messages.error(request, "Authentication token not found. Please login again.")
@@ -203,12 +205,12 @@ def create_project(request):
                 return redirect('dashboard')
 
             # Create project with explicit owner_id
-            response = requests.post(
+            project_response = requests.post(
                 f"{settings.API_URL}/api/v1/projects/",
                 json={
                     'name': name,
                     'description': description,
-                    'owner_id': user_id  # Explicitly set the owner_id
+                    'owner_id': user_id
                 },
                 headers={
                     'Authorization': f'Bearer {token}',
@@ -216,37 +218,38 @@ def create_project(request):
                 }
             )
 
-            # Check response
-            if response.status_code in [200, 201]:
-                project_data = response.json()
-                if project_data.get('owner_id') == user_id:
-                    messages.success(request, f"Project '{name}' created successfully!")
-                    logger.info(f"Project created with owner_id {user_id}: {name}")
-                else:
-                    logger.warning(f"Project created but owner_id mismatch. Expected: {user_id}, Got: {project_data.get('owner_id')}")
-                    messages.success(request, f"Project '{name}' created successfully, but ownership verification pending.")
-            else:
-                # Verify if project was created despite error
-                verify_response = requests.get(
-                    f"{settings.API_URL}/api/v1/projects/",
-                    headers={'Authorization': f'Bearer {token}'}
+            # Check project creation response
+            if project_response.status_code in [200, 201]:
+                project_data = project_response.json()
+                project_id = project_data.get('id')
+
+                # Generate unique namespace name
+                unique_id = ''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=6))
+                namespace_name = f"{username}-{name}-{unique_id}".lower().replace(' ', '-').replace('_', '-')
+
+                # Create namespace with correct endpoint and payload
+                namespace_response = requests.post(
+                    f"{settings.API_URL}/api/v1/namespaces/create",
+                    json={
+                        'name': namespace_name,
+                        'project_id': project_id
+                    },
+                    headers={
+                        'Authorization': f'Bearer {token}',
+                        'Content-Type': 'application/json'
+                    }
                 )
-                
-                if verify_response.status_code == 200:
-                    projects = verify_response.json()
-                    # Check if our project exists in the latest projects with correct owner
-                    latest_project = next((p for p in projects if p['name'] == name and p.get('owner_id') == user_id), None)
-                    if latest_project:
-                        messages.success(request, f"Project '{name}' was created successfully!")
-                        logger.info(f"Project created despite error response. Owner ID verified: {user_id}")
-                    else:
-                        error_detail = response.json().get('detail', 'Unknown error occurred')
-                        messages.error(request, f"Failed to create project: {error_detail}")
-                        logger.error(f"Project creation failed. Status: {response.status_code}, Response: {response.text}")
+
+                if namespace_response.status_code in [200, 201]:
+                    messages.success(request, f"Project '{name}' created successfully with namespace '{namespace_name}'!")
+                    logger.info(f"Project and namespace created: {name}, {namespace_name}")
                 else:
-                    error_detail = response.json().get('detail', 'Unknown error occurred')
-                    messages.error(request, f"Failed to create project: {error_detail}")
-                    logger.error(f"Project creation failed. Status: {response.status_code}, Response: {response.text}")
+                    messages.warning(request, f"Project created but namespace creation failed. Please try adding a namespace manually.")
+                    logger.error(f"Namespace creation failed. Status: {namespace_response.status_code}, Response: {namespace_response.text}")
+            else:
+                error_detail = project_response.json().get('detail', 'Unknown error occurred')
+                messages.error(request, f"Failed to create project: {error_detail}")
+                logger.error(f"Project creation failed. Status: {project_response.status_code}, Response: {project_response.text}")
 
         except requests.RequestException as e:
             messages.error(request, f"Failed to connect to API: {str(e)}")
@@ -289,6 +292,97 @@ def delete_project(request, project_id):
         except Exception as e:
             messages.error(request, "An unexpected error occurred")
             logger.error(f"Unexpected error in delete_project: {str(e)}")
+
+    return redirect('dashboard')
+
+@login_required
+def create_namespace(request):
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        project_id = request.POST.get('project_id')
+        token = request.session.get('token')
+
+        if not token:
+            messages.error(request, "Authentication token not found. Please login again.")
+            return redirect('login')
+
+        try:
+            # Get user information first
+            user_response = requests.get(
+                f"{settings.API_URL}/api/v1/users/me",
+                headers={'Authorization': f'Bearer {token}'}
+            )
+            
+            if user_response.status_code != 200:
+                messages.error(request, "Failed to get user information")
+                return redirect('dashboard')
+
+            user_data = user_response.json()
+            user_id = user_data.get('id')
+
+            # Create namespace
+            response = requests.post(
+                f"{settings.API_URL}/api/v1/namespaces/create",
+                json={
+                    'name': name,
+                    'project_id': project_id
+                },
+                headers={
+                    'Authorization': f'Bearer {token}',
+                    'Content-Type': 'application/json'
+                }
+            )
+
+            if response.status_code in [200, 201]:
+                messages.success(request, f"Namespace '{name}' created successfully!")
+                logger.info(f"Namespace created: {name}")
+            else:
+                error_detail = response.json().get('detail', 'Unknown error occurred')
+                messages.error(request, f"Failed to create namespace: {error_detail}")
+                logger.error(f"Namespace creation failed. Status: {response.status_code}, Response: {response.text}")
+
+        except requests.RequestException as e:
+            messages.error(request, f"Failed to connect to API: {str(e)}")
+            logger.error(f"API connection error: {str(e)}")
+        except Exception as e:
+            messages.error(request, "An unexpected error occurred")
+            logger.error(f"Unexpected error in create_namespace: {str(e)}")
+
+    return redirect('dashboard')
+
+@login_required
+def delete_namespace(request, namespace_id):
+    if request.method == 'POST':
+        token = request.session.get('token')
+        if not token:
+            messages.error(request, "Authentication token not found. Please login again.")
+            return redirect('login')
+
+        try:
+            # Delete namespace with correct endpoint
+            response = requests.delete(
+                f"{settings.API_URL}/api/v1/namespaces/delete/{namespace_id}",
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+            # Expect 204 No Content for successful deletion
+            if response.status_code == 204:
+                messages.success(request, "Namespace deleted successfully!")
+                logger.info(f"Namespace {namespace_id} deleted successfully")
+            else:
+                try:
+                    error_detail = response.json().get('detail', 'Unknown error occurred')
+                except ValueError:
+                    error_detail = 'Unknown error occurred'
+                messages.error(request, f"Failed to delete namespace: {error_detail}")
+                logger.error(f"Namespace deletion failed. Status: {response.status_code}, Response: {response.text}")
+
+        except requests.RequestException as e:
+            messages.error(request, f"Failed to connect to API: {str(e)}")
+            logger.error(f"API connection error: {str(e)}")
+        except Exception as e:
+            messages.error(request, "An unexpected error occurred")
+            logger.error(f"Unexpected error in delete_namespace: {str(e)}")
 
     return redirect('dashboard')
 
