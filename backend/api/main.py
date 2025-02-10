@@ -4,6 +4,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from controllers.logControllers import changeLogController
 from controllers.helmControllers import helmRepositoryController, helmController
 from controllers.userControllers import userController, projectController, authController
@@ -25,6 +26,15 @@ from controllers.k8sControllers import deploymentController
 from controllers.k8sControllers import configMapController
 
 app = FastAPI()
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3001"],  # Add your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Initialize logging
 logging.config.dictConfig(LOGGING_CONFIG)

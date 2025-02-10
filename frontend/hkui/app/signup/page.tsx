@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { validatePassword, validateEmail, validateUsername } from '@/app/utils/validation';
-import styles from '@/app/styles/Auth.module.css';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 interface FormData {
@@ -124,139 +123,159 @@ export default function SignUp() {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.formCard}>
-        <h1>Create an Account</h1>
-        <form onSubmit={handleSubmit} className={styles.form} autoComplete="on">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Create your account
+          </h2>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit} autoComplete="on">
+          <div className="rounded-md shadow-sm space-y-4">
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username"
+                required
+                value={formData.username}
+                onChange={handleChange}
+                className={`appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm ${errors.username ? 'border-red-500' : ''}`}
+                placeholder="Choose a username"
+              />
+              {errors.username && (
+                <p className="mt-2 text-sm text-red-600">{errors.username}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="full_name" className="block text-sm font-medium text-gray-700">
+                Full Name
+              </label>
+              <input
+                id="full_name"
+                name="full_name"
+                type="text"
+                autoComplete="name"
+                required
+                value={formData.full_name}
+                onChange={handleChange}
+                className={`appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm ${errors.full_name ? 'border-red-500' : ''}`}
+                placeholder="Enter your full name"
+              />
+              {errors.full_name && (
+                <p className="mt-2 text-sm text-red-600">{errors.full_name}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                className={`appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm ${errors.email ? 'border-red-500' : ''}`}
+                placeholder="Enter your email"
+              />
+              {errors.email && (
+                <p className="mt-2 text-sm text-red-600">{errors.email}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                className={`appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm ${errors.password ? 'border-red-500' : ''}`}
+                placeholder="Create a password"
+              />
+              {errors.password && (
+                <div className="mt-2 text-sm text-red-600">
+                  {errors.password.map((error, index) => (
+                    <p key={index}>{error}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700">
+                Confirm Password
+              </label>
+              <input
+                id="confirm_password"
+                name="confirm_password"
+                type="password"
+                autoComplete="new-password"
+                required
+                value={formData.confirm_password}
+                onChange={handleChange}
+                className={`appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm ${errors.confirm_password ? 'border-red-500' : ''}`}
+                placeholder="Confirm your password"
+              />
+              {errors.confirm_password && (
+                <p className="mt-2 text-sm text-red-600">{errors.confirm_password}</p>
+              )}
+            </div>
+          </div>
+
           {errors.submit && (
-            <div className={styles.errorMessage}>
-              <svg className={styles.errorIcon} viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-              <span>{errors.submit}</span>
+            <div className="rounded-md bg-red-50 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">
+                    {errors.submit}
+                  </h3>
+                </div>
+              </div>
             </div>
           )}
 
-          <div className={styles.formGroup}>
-            <label htmlFor="username">Username</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              autoComplete="username"
-              value={formData.username}
-              onChange={handleChange}
-              required
-              className={`${errors.username ? styles.inputError : ''} text-gray-900`}
-              placeholder="Choose a username"
-              style={{ color: '#1f2937' }}
-            />
-            {errors.username && (
-              <p className={styles.errorText}>{errors.username}</p>
-            )}
+          <div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <span className="flex items-center">
+                  <LoadingSpinner size="small" />
+                  <span className="ml-2">Creating Account...</span>
+                </span>
+              ) : (
+                'Create Account'
+              )}
+            </button>
           </div>
 
-          <div className={styles.formGroup}>
-            <label htmlFor="full_name">Full Name</label>
-            <input
-              type="text"
-              id="full_name"
-              name="full_name"
-              autoComplete="name"
-              value={formData.full_name}
-              onChange={handleChange}
-              required
-              className={`${errors.full_name ? styles.inputError : ''} text-gray-900`}
-              placeholder="Enter your full name"
-              style={{ color: '#1f2937' }}
-            />
-            {errors.full_name && (
-              <p className={styles.errorText}>{errors.full_name}</p>
-            )}
-          </div>
-
-          <div className={styles.formGroup}>
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              autoComplete="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              className={`${errors.email ? styles.inputError : ''} text-gray-900`}
-              placeholder="Enter your email"
-              style={{ color: '#1f2937' }}
-            />
-            {errors.email && (
-              <p className={styles.errorText}>{errors.email}</p>
-            )}
-          </div>
-
-          <div className={styles.formGroup}>
-            <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              autoComplete="new-password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className={`${errors.password ? styles.inputError : ''} text-gray-900`}
-              placeholder="Create a password"
-              style={{ color: '#1f2937' }}
-            />
-            {errors.password && (
-              <div className={styles.errorList}>
-                {errors.password.map((error, index) => (
-                  <p key={index} className={styles.errorText}>{error}</p>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className={styles.formGroup}>
-            <label htmlFor="confirm_password">Confirm Password</label>
-            <input
-              type="password"
-              id="confirm_password"
-              name="confirm_password"
-              autoComplete="new-password"
-              value={formData.confirm_password}
-              onChange={handleChange}
-              required
-              className={`${errors.confirm_password ? styles.inputError : ''} text-gray-900`}
-              placeholder="Confirm your password"
-              style={{ color: '#1f2937' }}
-            />
-            {errors.confirm_password && (
-              <p className={styles.errorText}>{errors.confirm_password}</p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className={`${styles.submitButton} ${loading ? styles.loading : ''}`}
-          >
-            {loading ? (
-              <span className={styles.loadingWrapper}>
-                <LoadingSpinner size="small" />
-                <span>Creating Account...</span>
-              </span>
-            ) : (
-              'Create Account'
-            )}
-          </button>
-
-          <p className={styles.switchAuthMode}>
-            Already have an account?{' '}
-            <Link href="/login">
-              Sign in here
+          <div className="text-sm text-center">
+            <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+              Already have an account? Sign in here
             </Link>
-          </p>
+          </div>
         </form>
       </div>
     </div>

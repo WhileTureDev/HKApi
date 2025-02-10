@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { config } from '@/app/config';
+import { mockDeployments } from '../mock/data';
 
 interface Deployment {
     id: string;
@@ -8,34 +8,25 @@ interface Deployment {
     status: 'pending' | 'successful' | 'failed';
     timestamp: string;
     logs?: string[];
+    namespace: string;
 }
 
 // GET /api/deployments
 export async function GET(request: Request) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const projectId = searchParams.get('projectId');
+  // Simulate network latency
+  await new Promise(resolve => setTimeout(resolve, 500));
 
-        const response = await fetch(`${config.apiBaseUrl}/deployments/${projectId ? `?projectId=${projectId}` : ''}`, {
-            headers: {
-                // TODO: Add proper authentication token
-                'Authorization': 'Bearer YOUR_TOKEN_HERE'
-            }
-        });
+  const { searchParams } = new URL(request.url);
+  const namespace = searchParams.get('namespace');
 
-        if (!response.ok) {
-            throw new Error('Failed to fetch deployments');
-        }
+  if (namespace) {
+    const filteredDeployments = mockDeployments.filter(
+      deployment => deployment.namespace === namespace
+    );
+    return NextResponse.json(filteredDeployments);
+  }
 
-        const deployments = await response.json();
-        return NextResponse.json(deployments);
-    } catch (error) {
-        console.error('Error fetching deployments:', error);
-        return NextResponse.json(
-            { error: 'Failed to fetch deployments' },
-            { status: 500 }
-        );
-    }
+  return NextResponse.json(mockDeployments);
 }
 
 // POST /api/deployments

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { config } from '@/app/config';
+import { cookies } from 'next/headers';
 
 // Types matching backend schema
 interface Project {
@@ -14,14 +15,27 @@ interface Project {
 // GET /api/projects
 export async function GET() {
     try {
+        const cookieStore = cookies();
+        const token = cookieStore.get('token')?.value;
+        
+        if (!token) {
+            return NextResponse.json(
+                { error: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+
         const response = await fetch(`${config.apiBaseUrl}/projects/`, {
             headers: {
-                // TODO: Add proper authentication token
-                'Authorization': 'Bearer YOUR_TOKEN_HERE'
+                'Authorization': `Bearer ${token}`
             }
         });
 
         if (!response.ok) {
+            // If no projects found, return empty array instead of error
+            if (response.status === 404) {
+                return NextResponse.json([]);
+            }
             throw new Error('Failed to fetch projects');
         }
 
@@ -39,6 +53,16 @@ export async function GET() {
 // POST /api/projects
 export async function POST(request: Request) {
     try {
+        const cookieStore = cookies();
+        const token = cookieStore.get('token')?.value;
+        
+        if (!token) {
+            return NextResponse.json(
+                { error: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+
         const body = await request.json();
         
         if (!body.name) {
@@ -52,8 +76,7 @@ export async function POST(request: Request) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                // TODO: Add proper authentication token
-                'Authorization': 'Bearer YOUR_TOKEN_HERE'
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
                 name: body.name,
@@ -63,6 +86,13 @@ export async function POST(request: Request) {
 
         if (!response.ok) {
             const error = await response.json();
+            // Handle specific error cases from backend
+            if (response.status === 400 && error.detail === 'Project with this name already exists') {
+                return NextResponse.json(
+                    { error: 'A project with this name already exists' },
+                    { status: 400 }
+                );
+            }
             return NextResponse.json(
                 { error: error.detail || 'Failed to create project' },
                 { status: response.status }
