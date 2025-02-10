@@ -77,26 +77,40 @@ def list_projects(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_active_user)
 ):
-    start_time = time.time()
-    method = request.method
-    endpoint = request.url.path
-    IN_PROGRESS.labels(endpoint=endpoint).inc()
-
     try:
         logger.info(f"User {current_user.username} is listing all their projects")
-        projects = call_database_operation(lambda: db.query(ProjectModel).filter(ProjectModel.owner_id == current_user.id).all())
-        logger.info(f"Found {len(projects)} projects for user {current_user.username}")
-        return projects
+        # Only select the fields we need, avoiding relationship loading
+        projects = (
+            db.query(
+                ProjectModel.id,
+                ProjectModel.name,
+                ProjectModel.description,
+                ProjectModel.created_at,
+                ProjectModel.updated_at,
+                ProjectModel.owner_id,
+            )
+            .filter(ProjectModel.owner_id == current_user.id)
+            .all()
+        )
+        
+        # Convert to list of Project objects
+        project_list = [
+            {
+                "id": p.id,
+                "name": p.name,
+                "description": p.description,
+                "created_at": p.created_at,
+                "updated_at": p.updated_at,
+                "owner_id": p.owner_id,
+            }
+            for p in projects
+        ]
+        
+        logger.info(f"Found {len(project_list)} projects for user {current_user.username}")
+        return project_list
     except Exception as e:
         logger.error(f"An error occurred while listing projects: {str(e)}")
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
-        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
-    finally:
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
-        IN_PROGRESS.labels(endpoint=endpoint).dec()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_project(

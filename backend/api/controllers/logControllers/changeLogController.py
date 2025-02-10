@@ -205,6 +205,97 @@ async def get_change_logs_for_resource(
         REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
         IN_PROGRESS.labels(endpoint=endpoint).dec()
 
+@router.get("/projects/{project_name}/changelogs", response_model=List[ChangeLogSchema])
+async def get_project_change_logs(
+        project_name: str,
+        request: Request,
+        db: Session = Depends(get_db),
+        current_user: UserModel = Depends(get_current_active_user)
+):
+    start_time = time.time()
+    method = request.method
+    endpoint = request.url.path
+    IN_PROGRESS.labels(endpoint=endpoint).inc()
+
+    try:
+        # Get the project and verify user has access
+        project = call_database_operation(
+            lambda: db.query(ProjectModel)
+            .filter(ProjectModel.name == project_name)
+            .first()
+        )
+        
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # Check if user has access to this project
+        user_namespace = call_database_operation(
+            lambda: db.query(NamespaceModel)
+            .filter(NamespaceModel.project_id == project.id)
+            .filter(NamespaceModel.user_id == current_user.id)
+            .first()
+        )
+
+        if not user_namespace:
+            raise HTTPException(status_code=403, detail="Not enough permissions for this project")
+
+        # Get all changelogs for this project
+        change_logs = call_database_operation(
+            lambda: db.query(ChangeLogModel)
+            .filter(ChangeLogModel.project_name == project_name)
+            .all()
+        )
+
+        logger.debug(f"Fetched {len(change_logs)} change logs for project {project_name}")
+
+        result = []
+        for log in change_logs:
+            try:
+                user = call_database_operation(
+                    lambda: db.query(UserModel)
+                    .filter(UserModel.id == log.user_id)
+                    .first()
+                )
+                resource_name, _ = get_resource_details(db, log.resource, log.resource_id)
+                result.append({
+                    "id": log.id,
+                    "user_id": log.user_id,
+                    "user_name": user.username if user else "Unknown",
+                    "action": log.action,
+                    "resource": log.resource,
+                    "resource_id": log.resource_id,
+                    "resource_name": resource_name if resource_name else "Unknown",
+                    "project_name": project_name,
+                    "timestamp": log.timestamp,
+                    "details": log.details
+                })
+            except Exception as e:
+                logger.error(f"Error processing log entry {log.id}: {e}")
+                result.append({
+                    "id": log.id,
+                    "user_id": log.user_id,
+                    "user_name": "Unknown",
+                    "action": log.action,
+                    "resource": log.resource,
+                    "resource_id": log.resource_id,
+                    "resource_name": "Unknown",
+                    "project_name": project_name,
+                    "timestamp": log.timestamp,
+                    "details": log.details
+                })
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error querying project change logs: {e}")
+        ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
+        raise HTTPException(status_code=500, detail=f"Error querying project change logs: {str(e)}")
+    finally:
+        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
+        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
+        IN_PROGRESS.labels(endpoint=endpoint).dec()
+
 def get_resource_id_by_name(db: Session, resource: str, resource_name: str) -> Optional[int]:
     try:
         if resource == 'project':
