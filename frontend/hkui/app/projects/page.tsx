@@ -20,6 +20,7 @@ interface Project {
     id: number;
     name: string;
   };
+  namespaces?: any[];
 }
 
 export default function ProjectsPage() {
@@ -48,10 +49,10 @@ export default function ProjectsPage() {
 
   const fetchProjects = async () => {
     try {
-      const token = localStorage.getItem('token');
+      setLoading(true);
       const response = await fetch(`${API_URL}/api/v1/projects/`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
 
@@ -59,12 +60,42 @@ export default function ProjectsPage() {
         throw new Error('Failed to fetch projects');
       }
 
-      const data = await response.json();
-      setProjects(data);
+      const projectsData = await response.json();
+      
+      // Fetch namespaces for each project
+      const projectsWithNamespaces = await Promise.all(
+        projectsData.map(async (project: any) => ({
+          ...project,
+          namespaces: await fetchProjectNamespaces(project.id)
+        }))
+      );
+
+      setProjects(projectsWithNamespaces);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      setError(error instanceof Error ? error.message : 'An error occurred');
+    } finally {
       setLoading(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      setLoading(false);
+    }
+  };
+
+  const fetchProjectNamespaces = async (projectId: number) => {
+    try {
+      const response = await fetch(`${API_URL}/api/v1/namespaces/list`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch namespaces');
+      }
+
+      const allNamespaces = await response.json();
+      return allNamespaces.filter((ns: any) => ns.project_id === projectId);
+    } catch (error) {
+      console.error('Error fetching project namespaces:', error);
+      return [];
     }
   };
 
@@ -294,33 +325,33 @@ export default function ProjectsPage() {
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-semibold text-gray-900">{project.name}</h2>
                   <button 
-                    onClick={() => handleDeleteProject(project.id)}
-                    className="text-red-500 hover:text-red-700 transition-colors"
+                    className="text-red-500 hover:text-red-700 transition-colors" 
                     title="Delete Project"
+                    onClick={() => handleDeleteProject(project.id)}
                   >
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      className="h-6 w-6" 
-                      fill="none" 
-                      viewBox="0 0 24 24" 
-                      stroke="currentColor"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" 
-                      />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                     </svg>
                   </button>
                 </div>
-                
                 {project.description && (
                   <p className="text-gray-600 mb-4">{project.description}</p>
                 )}
                 
-                {project.namespace && (
-                  <p className="text-gray-600 mb-4">Namespace: {project.namespace.name}</p>
+                {project.namespaces && project.namespaces.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Namespace:</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {project.namespaces.map((namespace) => (
+                        <span 
+                          key={namespace.id} 
+                          className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded"
+                        >
+                          {namespace.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 
                 <div className="text-sm text-gray-500">
