@@ -22,7 +22,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose, onLoginSuccess }) => {
     const handleLogin = async (e: { preventDefault: () => void; }) => {
         e.preventDefault();
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/token`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/token`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',

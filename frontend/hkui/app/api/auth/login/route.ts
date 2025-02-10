@@ -17,7 +17,7 @@ export async function POST(request: Request) {
             );
         }
 
-        const response = await fetch(`${config.apiBaseUrl}/token`, {
+        const response = await fetch(`${config.apiBaseUrl}/api/v1/token`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',

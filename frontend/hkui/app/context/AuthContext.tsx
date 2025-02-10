@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/v1/auth/token`, {
+      const response = await fetch(`${API_URL}/api/v1/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       formData.append('password', password);
       formData.append('grant_type', 'password');
 
-      const response = await fetch(`${API_URL}/api/v1/auth/login`, {
+      const response = await fetch(`${API_URL}/api/v1/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -85,6 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { access_token } = await response.json();
       localStorage.setItem('token', access_token);
+      
+      // Set token in cookies for server-side authentication
+      document.cookie = `token=${access_token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Strict; ${process.env.NODE_ENV === 'production' ? 'Secure' : ''}`;
 
       // Fetch user data after successful login
       const userResponse = await fetch(`${API_URL}/api/v1/users/me`, {
@@ -96,7 +99,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (userResponse.ok) {
         const userData = await userResponse.json();
         setUser(userData);
-        router.push('/dashboard');
+        console.log('Attempting to redirect to dashboard');
+        try {
+          router.push('/dashboard');
+          console.log('Redirection to dashboard successful');
+        } catch (redirectError) {
+          console.error('Redirection error:', redirectError);
+          // Fallback redirection method
+          window.location.href = '/dashboard';
+        }
       } else {
         throw new Error('Failed to fetch user data');
       }
@@ -108,6 +119,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     localStorage.removeItem('token');
+    
+    // Clear token cookie
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    
     setUser(null);
     router.push('/');
   };

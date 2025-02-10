@@ -29,6 +29,7 @@ def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends()
 ):
     start_time = time.time()
+    logger.info(f"Received authentication request: Method={request.method}, URL={request.url}, Headers={dict(request.headers)}")
     method = request.method
     endpoint = "/api/v1/auth/token"
     IN_PROGRESS.labels(endpoint=endpoint).inc()

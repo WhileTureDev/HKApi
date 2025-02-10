@@ -20,9 +20,12 @@ export default function Login() {
     setError('');
 
     try {
+      console.log('Attempting login');
       await login(username, password);
+      console.log('Login successful, redirecting to dashboard');
       router.push('/dashboard');
     } catch (err) {
+      console.error('Login error:', err);
       setError(err instanceof Error ? err.message : 'Login failed');
     }
   };
