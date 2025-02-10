@@ -11,6 +11,7 @@ import random
 import json
 import yaml
 from django.http import JsonResponse
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +157,35 @@ def dashboard(request):
         if response.status_code == 200:
             projects = response.json()
             logger.debug(f"Projects response: {projects}")
+            
+            # Convert date strings to datetime objects
+            for project in projects:
+                if 'created_at' in project:
+                    try:
+                        project['created_at'] = datetime.strptime(project['created_at'], "%Y-%m-%dT%H:%M:%S.%f")
+                    except ValueError as e:
+                        logger.error(f"Date conversion error: {str(e)}")
+                        messages.error(request, "Invalid date format in project data.")
+                if 'updated_at' in project:
+                    try:
+                        project['updated_at'] = datetime.strptime(project['updated_at'], "%Y-%m-%dT%H:%M:%S.%f")
+                    except ValueError as e:
+                        logger.error(f"Date conversion error: {str(e)}")
+                        messages.error(request, "Invalid date format in project data.")
+                for namespace in project.get('namespaces', []):
+                    if 'created_at' in namespace:
+                        try:
+                            namespace['created_at'] = datetime.strptime(namespace['created_at'], "%Y-%m-%dT%H:%M:%S.%f")
+                        except ValueError as e:
+                            logger.error(f"Date conversion error: {str(e)}")
+                            messages.error(request, "Invalid date format in namespace data.")
+                    if 'updated_at' in namespace:
+                        try:
+                            namespace['updated_at'] = datetime.strptime(namespace['updated_at'], "%Y-%m-%dT%H:%M:%S.%f")
+                        except ValueError as e:
+                            logger.error(f"Date conversion error: {str(e)}")
+                            messages.error(request, "Invalid date format in namespace data.")
+            
             return render(request, 'core/dashboard.html', {
                 'projects': projects,
                 'api_url': settings.API_URL,

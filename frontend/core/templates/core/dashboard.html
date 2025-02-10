@@ -15,7 +15,7 @@
     {% if messages %}
     <div class="messages">
         {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show rounded-3" role="alert">
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
@@ -23,47 +23,45 @@
     </div>
     {% endif %}
 
-    <div class="row g-4">
-        {% if projects %}
-            {% for project in projects %}
-            <div class="col-md-4">
-                <div class="card hud-card h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <span class="hud-status {% if project.namespaces %}active{% else %}inactive{% endif %}"></span>
-                            <h5 class="card-title mb-0">{{ project.name }}</h5>
-                        </div>
-                        <p class="card-text text-secondary">{{ project.description|default:"No description available" }}</p>
-                        <div class="text-secondary small mb-3">
-                            Created {{ project.created_at|date:"M d, Y" }}
-                        </div>
-                        
-                        <!-- Namespaces Section -->
-                        <div class="mt-4">
-                            <h6 class="mb-3 text-secondary fw-semibold">Namespaces</h6>
-                            {% if project.namespaces %}
-                                {% for namespace in project.namespaces %}
-                                <div class="namespace-item">
-                                    <span class="text-monospace">{{ namespace.name }}</span>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for project in projects %}
+        <div class="col">
+            <div class="card h-100 bg-dark text-light border-secondary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">{{ project.name }}</h5>
+                        <span class="badge bg-secondary">{{ project.namespaces|length }} namespace{{ project.namespaces|length|pluralize }}</span>
+                    </div>
+
+                    <p class="card-text text-muted">
+                        <small>Created {{ project.created_at|timesince }} ago</small>
+                    </p>
+
+                    {% if project.namespaces %}
+                    <div class="namespaces mb-3">
+                        {% for namespace in project.namespaces %}
+                        <div class="namespace-item mb-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="text-monospace flex-grow-1">{{ namespace.name }}</span>
+                                <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-hud btn-sm"
                                             onclick="confirmDeleteNamespace('{{ namespace.id }}', '{{ namespace.name }}', '{{ project.id }}')">
                                         <i class="bi bi-trash"></i>
                                     </button>
-                                    <button type="button" class="btn btn-hud btn-sm"
-                                            onclick="createHelmRelease('{{ namespace.name }}', '{{ project.name }}')">
-                                        <i class="bi bi-cloud-upload"></i> Deploy
-                                    </button>
                                 </div>
-                                {% endfor %}
-                            {% else %}
-                                <p class="text-secondary small">No namespaces available</p>
-                            {% endif %}
+                            </div>
                         </div>
+                        {% endfor %}
                     </div>
+                    {% endif %}
+
                     <div class="card-footer bg-transparent border-0 pt-0">
                         <div class="d-flex gap-2">
                             <button class="btn btn-hud flex-grow-1">View Details</button>
-                            <button class="btn btn-hud btn-secondary flex-grow-1">Edit</button>
+                            <button type="button" class="btn btn-hud btn-sm"
+                                    onclick="window.createHelmRelease('{{ project.name }}', '{{ project.name }}')">
+                                <i class="bi bi-cloud-upload"></i> Deploy
+                            </button>
                             <button type="button" class="btn btn-hud btn-secondary" 
                                     onclick="confirmDelete('{{ project.id }}', '{{ project.name }}', {{ project.namespaces|length }})"
                                     {% if project.namespaces %}disabled{% endif %}
@@ -74,58 +72,36 @@
                     </div>
                 </div>
             </div>
-            {% endfor %}
-        {% else %}
-        <div class="col-12">
-            <div class="card hud-card">
-                <div class="card-body text-center py-5">
-                    <p class="text-secondary mb-4">You don't have any projects yet.</p>
-                    <button type="button" class="btn btn-hud" data-bs-toggle="modal" data-bs-target="#createProjectModal">
-                        <i class="bi bi-plus"></i> Create Your First Project
-                    </button>
-                </div>
-            </div>
         </div>
-        {% endif %}
+        {% endfor %}
     </div>
 </div>
 
 <!-- Create Project Modal -->
-<div class="modal fade modal-hud" id="createProjectModal" tabindex="-1" aria-labelledby="createProjectModalLabel" aria-hidden="true">
+<div class="modal fade" id="createProjectModal" tabindex="-1" aria-labelledby="createProjectModalLabel" aria-hidden="true">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title hud-title" id="createProjectModalLabel">Create New Project</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="createProjectModalLabel">Create New Project</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{% url 'create_project' %}" id="createProjectForm">
+            <form method="post" action="{% url 'create_project' %}" novalidate>
                 {% csrf_token %}
                 <div class="modal-body">
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label for="projectName" class="form-label">Project Name</label>
-                        <input type="text" class="form-control hud-input" id="projectName" name="name" required 
-                               pattern="[a-z0-9][a-z0-9-]*[a-z0-9]" maxlength="40"
-                               title="Must contain only lowercase letters, numbers, or hyphens. Cannot start or end with a hyphen."
-                               placeholder="Enter project name">
-                        <div id="projectNameFeedback" class="invalid-feedback"></div>
-                        <div class="form-text mt-2">
-                            Project name requirements:
-                            <ul class="mb-0 mt-1">
-                                <li>Lowercase letters, numbers, and hyphens only</li>
-                                <li>Must start and end with a letter or number</li>
-                                <li>Maximum 40 characters</li>
-                            </ul>
+                        <input type="text" class="form-control" id="projectName" name="name" required
+                               pattern="^[a-z0-9][a-z0-9-]*[a-z0-9]$"
+                               title="Project name must contain only lowercase letters, numbers, or hyphens, and cannot start or end with a hyphen">
+                        <div class="invalid-feedback" id="projectNameFeedback"></div>
+                        <div class="form-text text-muted">
+                            Only lowercase letters, numbers, and hyphens are allowed. Cannot start or end with a hyphen.
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="projectDescription" class="form-label">Description</label>
-                        <textarea class="form-control hud-input" id="projectDescription" name="description" 
-                                  rows="3" placeholder="Describe your project"></textarea>
-                    </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-hud btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-hud" id="createProjectButton">Create Project</button>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="createProjectButton">Create Project</button>
                 </div>
             </form>
         </div>
@@ -133,27 +109,28 @@
 </div>
 
 <!-- Delete Project Modal -->
-<div class="modal fade modal-hud" id="deleteProjectModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="deleteProjectModal" tabindex="-1" aria-labelledby="deleteProjectModalLabel" aria-hidden="true">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title hud-title">Delete Project</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="deleteProjectModalLabel">Delete Project</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Are you sure you want to delete "<span id="deleteProjectName" class="fw-semibold"></span>"?</p>
-                <p id="namespaceWarning" class="text-danger" style="display: none;">
-                    Cannot delete project with active namespaces. Please delete all namespaces first.
-                </p>
-                <p id="deleteConfirmation" class="text-secondary" style="display: none;">
-                    This action cannot be undone.
-                </p>
+                <div id="namespaceWarning" style="display: none;">
+                    <p class="text-danger">Cannot delete project "<span id="deleteProjectName"></span>" because it has active namespaces.</p>
+                    <p>Please delete all namespaces first.</p>
+                </div>
+                <div id="deleteConfirmation">
+                    <p>Are you sure you want to delete project "<span id="deleteProjectName"></span>"?</p>
+                    <p class="text-danger">This action cannot be undone.</p>
+                </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-hud btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="deleteProjectForm" method="POST" style="display: inline;">
+            <div class="modal-footer border-secondary">
+                <form method="post" id="deleteProjectForm">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-hud" id="deleteProjectButton">Delete Project</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger" id="deleteProjectButton">Delete Project</button>
                 </form>
             </div>
         </div>
@@ -161,22 +138,22 @@
 </div>
 
 <!-- Delete Namespace Modal -->
-<div class="modal fade modal-hud" id="deleteNamespaceModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="deleteNamespaceModal" tabindex="-1" aria-labelledby="deleteNamespaceModalLabel" aria-hidden="true">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title hud-title">Delete Namespace</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="deleteNamespaceModalLabel">Delete Namespace</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p>Are you sure you want to delete namespace "<span id="deleteNamespaceName" class="fw-semibold"></span>"?</p>
-                <p class="text-secondary">This action cannot be undone.</p>
+                <p>Are you sure you want to delete namespace "<span id="deleteNamespaceName"></span>"?</p>
+                <p class="text-danger">This action cannot be undone.</p>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-hud btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <form id="deleteNamespaceForm" method="POST" style="display: inline;">
+            <div class="modal-footer border-secondary">
+                <form method="post" id="deleteNamespaceForm">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-hud">Delete Namespace</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete Namespace</button>
                 </form>
             </div>
         </div>
@@ -184,147 +161,90 @@
 </div>
 
 <!-- Create Helm Release Modal -->
-<div class="modal fade modal-hud" id="createHelmReleaseModal" tabindex="-1" aria-labelledby="createHelmReleaseModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title hud-title" id="createHelmReleaseModalLabel">Create New Helm Release</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal fade" id="createHelmReleaseModal" tabindex="-1" aria-labelledby="createHelmReleaseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="createHelmReleaseModalLabel">Create Helm Release</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="createHelmReleaseForm">
                 <div class="modal-body">
-                    <div class="mb-4">
-                        <label for="releaseName" class="form-label">Release Name</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-surface border-end-0">
-                                <i class="bi bi-tag"></i>
-                            </span>
-                            <input type="text" class="form-control hud-input border-start-0 ps-0" 
-                                   id="releaseName" name="release_name" required
-                                   placeholder="Enter release name">
-                        </div>
-                        <div class="form-text">
-                            A unique name for this release
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="chartName" class="form-label">Chart Name</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-surface border-end-0">
-                                <i class="bi bi-box"></i>
-                            </span>
-                            <input type="text" class="form-control hud-input border-start-0 ps-0" 
-                                   id="chartName" name="chart_name" required
-                                   placeholder="e.g., bitnami/nginx">
-                        </div>
-                        <div class="form-text">
-                            The name of the Helm chart to deploy
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="chartRepoUrl" class="form-label">Chart Repository URL</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-surface border-end-0">
-                                <i class="bi bi-globe"></i>
-                            </span>
-                            <input type="text" class="form-control hud-input border-start-0 ps-0" 
-                                   id="chartRepoUrl" name="chart_repo_url" required
-                                   placeholder="e.g., https://charts.bitnami.com/bitnami">
-                        </div>
-                        <div class="form-text">
-                            The URL of the Helm chart repository
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="chartVersion" class="form-label">Chart Version (Optional)</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-surface border-end-0">
-                                <i class="bi bi-code-square"></i>
-                            </span>
-                            <input type="text" class="form-control hud-input border-start-0 ps-0" 
-                                   id="chartVersion" name="version"
-                                   placeholder="e.g., 1.0.0">
-                        </div>
-                        <div class="form-text">
-                            The version of the Helm chart to deploy
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="values" class="form-label">Values (YAML)</label>
-                        <textarea class="form-control hud-input" id="values" name="values" rows="12"
-                                  placeholder="# Enter Helm values in YAML format
-image:
-  repository: nginx
-  tag: latest
-service:
-  type: ClusterIP
-  port: 80"></textarea>
-                        <div class="form-text">
-                            Configure the release using YAML values
-                        </div>
-                    </div>
-
                     <input type="hidden" id="namespace" name="namespace">
                     <input type="hidden" id="project" name="project">
+                    
+                    <div class="mb-3">
+                        <label for="releaseName" class="form-label">Release Name</label>
+                        <input type="text" class="form-control" id="releaseName" name="releaseName" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="chartName" class="form-label">Chart Name</label>
+                        <input type="text" class="form-control" id="chartName" name="chartName" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="chartRepoUrl" class="form-label">Chart Repository URL</label>
+                        <input type="url" class="form-control" id="chartRepoUrl" name="chartRepoUrl" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="chartVersion" class="form-label">Version (optional)</label>
+                        <input type="text" class="form-control" id="chartVersion" name="chartVersion">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="values" class="form-label">Values (YAML)</label>
+                        <textarea class="form-control" id="values" name="values" rows="5"></textarea>
+                    </div>
                 </div>
-
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-hud btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-hud">
-                        <i class="bi bi-cloud-upload"></i> Deploy
-                    </button>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Release</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-
-<!-- List Helm Releases Modal -->
-<div class="modal fade modal-hud" id="listHelmReleasesModal" tabindex="-1" aria-labelledby="listHelmReleasesModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title hud-title" id="listHelmReleasesModalLabel">Helm Releases</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div id="helmReleasesList" class="list-group">
-                    <!-- Releases will be populated here -->
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-{% endblock %}
+{% endblock content %}
 
 {% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
 <script>
+// Toast notification system
+if (typeof toast === 'undefined') {
+    const toast = {
+        show: function(message, type) {
+            const toastContainer = document.createElement('div');
+            toastContainer.style.position = 'fixed';
+            toastContainer.style.top = '20px';
+            toastContainer.style.right = '20px';
+            toastContainer.style.zIndex = '1050';
+            
+            const toastEl = document.createElement('div');
+            toastEl.className = `alert alert-${type} alert-dismissible fade show`;
+            toastEl.role = 'alert';
+            toastEl.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            toastContainer.appendChild(toastEl);
+            document.body.appendChild(toastContainer);
+            
+            setTimeout(() => {
+                toastEl.remove();
+                if (toastContainer.children.length === 0) {
+                    toastContainer.remove();
+                }
+            }, 5000);
+        }
+    };
+}
+
 // Global settings
 const API_URL = "{{ api_url }}";
-
-// Get token from Django session
 const token = "{{ request.session.token }}";
-
-// CSRF token handling
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
 
 // Authorization header helper
 function getAuthHeaders() {
@@ -333,6 +253,74 @@ function getAuthHeaders() {
         'Authorization': `Bearer ${token}`
     };
 }
+
+// Initialize Helm release creation modal
+window.createHelmRelease = function(namespaceName, projectName) {
+    document.getElementById('namespace').value = namespaceName;
+    document.getElementById('project').value = projectName;
+    
+    // Generate a default release name
+    const defaultReleaseName = `${namespaceName}-release-${Math.random().toString(36).substring(2, 7)}`;
+    document.getElementById('releaseName').value = defaultReleaseName;
+    
+    const modal = new bootstrap.Modal(document.getElementById('createHelmReleaseModal'));
+    modal.show();
+}
+
+// Handle Helm release form submission
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('createHelmReleaseForm');
+    if (form) {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Parse YAML values
+            const valuesStr = document.getElementById('values').value.trim();
+            let values = {};
+            if (valuesStr) {
+                try {
+                    values = jsyaml.load(valuesStr);
+                } catch (error) {
+                    console.error('YAML parsing error:', error);
+                    alert('Invalid YAML format: ' + error.message);
+                    return;
+                }
+            }
+
+            // Build query parameters
+            const params = new URLSearchParams({
+                release_name: document.getElementById('releaseName').value,
+                chart_name: document.getElementById('chartName').value,
+                chart_repo_url: document.getElementById('chartRepoUrl').value,
+                namespace: document.getElementById('namespace').value,
+                project: document.getElementById('project').value,
+                version: document.getElementById('chartVersion').value || '',
+                debug: 'false'
+            });
+
+            try {
+                const response = await fetch(`${API_URL}/api/v1/helm/releases?${params.toString()}`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ values: values })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    console.log('Release created successfully:', data);
+                    toast.show('Helm release created successfully', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('createHelmReleaseModal')).hide();
+                } else {
+                    console.error('Failed to create Helm release:', data);
+                    toast.show(data.detail || data.error || 'Failed to create Helm release', 'error');
+                }
+            } catch (error) {
+                console.error('Error creating Helm release:', error);
+                toast.show('Error: ' + error.message, 'error');
+            }
+        });
+    }
+});
 
 // Project deletion confirmation
 function confirmDelete(projectId, projectName, namespaceCount) {
@@ -363,209 +351,34 @@ function confirmDeleteNamespace(namespaceId, namespaceName, projectId) {
     new bootstrap.Modal(document.getElementById('deleteNamespaceModal')).show();
 }
 
-// Initialize Helm release creation modal
-function createHelmRelease(namespaceName, projectName) {
-    document.getElementById('namespace').value = namespaceName;
-    document.getElementById('project').value = projectName;
-    
-    // Generate a default release name
-    const defaultReleaseName = `${namespaceName}-release-${Math.random().toString(36).substring(2, 7)}`;
-    document.getElementById('releaseName').value = defaultReleaseName;
-    
-    const modal = new bootstrap.Modal(document.getElementById('createHelmReleaseModal'));
-    modal.show();
-}
-
-// Handle Helm release form submission
-document.getElementById('createHelmReleaseForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    // Parse YAML values
-    const valuesStr = document.getElementById('values').value.trim();
-    let values = {};
-    if (valuesStr) {
-        try {
-            values = jsyaml.load(valuesStr);
-        } catch (e) {
-            console.error('YAML parsing error:', e);
-            toast.show('Invalid YAML format: ' + e.message, 'error');
-            return;
-        }
-    }
-
-    // Build query parameters
-    const params = new URLSearchParams({
-        release_name: document.getElementById('releaseName').value,
-        chart_name: document.getElementById('chartName').value,
-        chart_repo_url: document.getElementById('chartRepoUrl').value,
-        namespace: document.getElementById('namespace').value,
-        project: document.getElementById('project').value,
-        version: document.getElementById('chartVersion').value || '',
-        debug: 'false'
-    });
-
-    console.log('Sending request:', {
-        url: `${API_URL}/api/v1/helm/releases?${params.toString()}`,
-        values: values,
-        headers: getAuthHeaders()
-    });
-
-    try {
-        const response = await fetch(`${API_URL}/api/v1/helm/releases?${params.toString()}`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ values: values })
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-            console.log('Release created successfully:', data);
-            toast.show('Helm release created successfully', 'success');
-            bootstrap.Modal.getInstance(document.getElementById('createHelmReleaseModal')).hide();
-            // Refresh releases list
-            loadHelmReleases(document.getElementById('namespace').value);
-        } else {
-            console.error('Failed to create Helm release:', data);
-            toast.show(data.detail || data.error || 'Failed to create Helm release', 'error');
-        }
-    } catch (error) {
-        console.error('Error creating Helm release:', error);
-        toast.show('Error: ' + error.message, 'error');
-    }
-});
-
-// Update other fetch calls to use getAuthHeaders()
-async function loadHelmReleases(namespace) {
-    try {
-        const response = await fetch(`${API_URL}/api/v1/helm/releases?namespace=${namespace}`, {
-            headers: getAuthHeaders()
-        });
-        const releases = await response.json();
-        
-        const releasesList = document.getElementById('helmReleasesList');
-        releasesList.innerHTML = '';
-        
-        if (releases.length === 0) {
-            releasesList.innerHTML = '<div class="text-center text-muted">No releases found</div>';
-            return;
-        }
-
-        releases.forEach(release => {
-            const releaseItem = document.createElement('div');
-            releaseItem.className = 'list-group-item d-flex justify-content-between align-items-center';
-            releaseItem.innerHTML = `
-                <div>
-                    <h6 class="mb-1">${release.release_name}</h6>
-                    <small class="text-muted">Chart: ${release.chart_name} (${release.version || 'latest'})</small>
-                </div>
-                <div class="btn-group">
-                    <button class="btn btn-hud btn-sm" onclick="viewReleaseDetails('${release.release_name}', '${namespace}')">
-                        <i class="bi bi-info-circle"></i>
-                    </button>
-                    <button class="btn btn-hud btn-sm" onclick="confirmDeleteRelease('${release.release_name}', '${namespace}')">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </div>
-            `;
-            releasesList.appendChild(releaseItem);
-        });
-    } catch (error) {
-        console.error('Error loading releases:', error);
-        toast.show('Error loading releases: ' + error.message, 'error');
-    }
-}
-
-async function viewReleaseDetails(releaseName, namespace) {
-    try {
-        const response = await fetch(`${API_URL}/api/v1/helm/releases/${releaseName}/status?namespace=${namespace}`, {
-            headers: getAuthHeaders()
-        });
-        const data = await response.json();
-        
-        if (response.ok) {
-            // TODO: Show release details in a modal
-            console.log('Release details:', data);
-        } else {
-            console.error('Failed to get release details:', data);
-            toast.show(data.detail || data.error || 'Failed to get release details', 'error');
-        }
-    } catch (error) {
-        console.error('Error getting release details:', error);
-        toast.show('Error: ' + error.message, 'error');
-    }
-}
-
-async function confirmDeleteRelease(releaseName, namespace) {
-    if (confirm(`Are you sure you want to delete the release "${releaseName}"?`)) {
-        try {
-            const response = await fetch(`${API_URL}/api/v1/helm/releases/${releaseName}?namespace=${namespace}`, {
-                method: 'DELETE',
-                headers: getAuthHeaders()
-            });
-            
-            if (response.ok) {
-                toast.show('Release deleted successfully', 'success');
-                loadHelmReleases(namespace);
-            } else {
-                const data = await response.json();
-                console.error('Failed to delete release:', data);
-                toast.show(data.detail || data.error || 'Failed to delete release', 'error');
-            }
-        } catch (error) {
-            console.error('Error deleting release:', error);
-            toast.show('Error: ' + error.message, 'error');
-        }
-    }
-}
-
 // Project name validation
 document.addEventListener('DOMContentLoaded', function() {
     const projectNameInput = document.getElementById('projectName');
     const projectNameFeedback = document.getElementById('projectNameFeedback');
-    const createProjectButton = document.getElementById('createProjectButton');
-    const maxLength = 40;
-
-    function validateProjectName(name) {
-        const kubeNameRegex = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
-        const errors = [];
-
-        if (name.length === 0) {
-            errors.push('Project name is required');
-        } else {
-            if (name.length > maxLength) {
-                errors.push(`Name must be ${maxLength} characters or less`);
+    
+    if (projectNameInput) {
+        projectNameInput.addEventListener('input', function() {
+            const value = this.value;
+            const pattern = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
+            
+            if (!value) {
+                this.setCustomValidity('Project name is required');
+                projectNameFeedback.textContent = 'Project name is required';
+            } else if (value.length < 3) {
+                this.setCustomValidity('Project name must be at least 3 characters long');
+                projectNameFeedback.textContent = 'Project name must be at least 3 characters long';
+            } else if (value.length > 40) {
+                this.setCustomValidity('Project name must not exceed 40 characters');
+                projectNameFeedback.textContent = 'Project name must not exceed 40 characters';
+            } else if (!pattern.test(value)) {
+                this.setCustomValidity('Project name must contain only lowercase letters, numbers, or hyphens, and cannot start or end with a hyphen');
+                projectNameFeedback.textContent = 'Project name must contain only lowercase letters, numbers, or hyphens, and cannot start or end with a hyphen';
+            } else {
+                this.setCustomValidity('');
+                projectNameFeedback.textContent = '';
             }
-            if (name !== name.toLowerCase()) {
-                errors.push('Name must be lowercase');
-            }
-            if (!kubeNameRegex.test(name)) {
-                if (/[^a-z0-9-]/.test(name)) {
-                    errors.push('Name can only contain lowercase letters, numbers, and hyphens');
-                }
-                if (name.startsWith('-') || name.endsWith('-')) {
-                    errors.push('Name cannot start or end with a hyphen');
-                }
-            }
-        }
-        return errors;
+        });
     }
-
-    projectNameInput.addEventListener('input', function() {
-        const name = this.value;
-        const errors = validateProjectName(name);
-        
-        if (errors.length > 0) {
-            this.classList.add('is-invalid');
-            this.classList.remove('is-valid');
-            projectNameFeedback.textContent = errors.join('. ');
-            createProjectButton.disabled = true;
-        } else {
-            this.classList.remove('is-invalid');
-            this.classList.add('is-valid');
-            projectNameFeedback.textContent = '';
-            createProjectButton.disabled = false;
-        }
-    });
 });
 </script>
-{% endblock %}
+{% endblock extra_js %}

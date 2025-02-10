@@ -61,6 +61,7 @@ body {
     font-weight: 600;
     letter-spacing: 0.3px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    justify-content: space-evenly ;
     position: relative;
     overflow: hidden;
 }
@@ -327,9 +328,16 @@ body {
     padding: 16px 20px;
     margin-bottom: 12px;
     display: flex;
+    justify-content: space-evenly;
     align-items: center;
-    justify-content: space-between;
-    transition: all 0.2s ease;
+}
+
+.namespace-item .text-monospace {
+    margin-right: 1rem;
+}
+
+.namespace-item .btn {
+    margin-left: 1rem;
 }
 
 .namespace-item:hover {
