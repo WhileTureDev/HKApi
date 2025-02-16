@@ -80,35 +80,43 @@ def create_default_user_role(db: Session):
         logger.info("'user' role already exists")
 
 def create_initial_admin(db: Session):
+    from sqlalchemy.exc import IntegrityError
+    
     admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
     admin_password = os.getenv("ADMIN_PASSWORD", "admin")
 
-    admin_user = db.query(User).filter(User.email == admin_email).first()
-    if not admin_user:
-        admin_user = User(
-            full_name="Administrator",
-            email=admin_email,
-            hashed_password=get_password_hash(admin_password),
-            disabled=False
-        )
-        db.add(admin_user)
-        db.commit()
-        db.refresh(admin_user)
-
-        admin_role = db.query(Role).filter(Role.name == "admin").first()
-        if not admin_role:
-            admin_role = Role(name="admin")
-            db.add(admin_role)
+    try:
+        admin_user = db.query(User).filter(User.email == admin_email).first()
+        if not admin_user:
+            admin_user = User(
+                email=admin_email,
+                fullname="Administrator",
+                hashed_password=get_password_hash(admin_password),
+                disabled=False
+            )
+            db.add(admin_user)
             db.commit()
-            db.refresh(admin_role)
-            logger.info("Admin role created")
-
-        user_role = UserRole(user_id=admin_user.id, role_id=admin_role.id)
-        db.add(user_role)
-        db.commit()
-        logger.info("Initial admin user created and assigned admin role")
-    else:
-        logger.info("Admin user already exists")
+            logger.info("Initial admin user created")
+        else:
+            logger.info("Admin user already exists")
+            
+        # Ensure admin has admin role
+        admin_role = db.query(Role).filter(Role.name == "admin").first()
+        if admin_role and not db.query(UserRole).filter(
+            UserRole.user_id == admin_user.id,
+            UserRole.role_id == admin_role.id
+        ).first():
+            user_role = UserRole(user_id=admin_user.id, role_id=admin_role.id)
+            db.add(user_role)
+            db.commit()
+            logger.info("Admin role assigned to admin user")
+        
+    except IntegrityError:
+        db.rollback()
+        logger.info("Admin user already exists (caught duplicate)")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating admin user: {str(e)}")
 
 # Initialize the database session and create the initial admin and default user role
 with next(get_db()) as db:

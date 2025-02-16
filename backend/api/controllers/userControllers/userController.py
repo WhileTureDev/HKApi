@@ -39,7 +39,7 @@ def create_user(user: UserCreate, request: Request, db: Session = Depends(get_db
 
         new_user = UserModel(
             email=user.email,
-            full_name=user.full_name,
+            fullname=user.fullname,
             hashed_password=get_password_hash(user.password),
             disabled=user.disabled,
             created_at=datetime.utcnow(),

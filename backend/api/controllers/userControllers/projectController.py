@@ -77,7 +77,7 @@ async def create_project(
                     id=current_user.id,
                     username=current_user.email,
                     email=current_user.email,
-                    full_name=current_user.full_name
+                    fullname=current_user.fullname
                 ),
                 message="Project created successfully"
             )
@@ -132,7 +132,7 @@ async def list_projects(
                     id=project.owner.id,
                     username=project.owner.email,
                     email=project.owner.email,
-                    full_name=project.owner.full_name
+                    fullname=project.owner.fullname
                 )
             
             result.append(Project(

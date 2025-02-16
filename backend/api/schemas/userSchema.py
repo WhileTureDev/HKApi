@@ -5,7 +5,7 @@ from datetime import datetime
 
 class UserBase(BaseModel):
     email: EmailStr = Field(..., alias="email")
-    full_name: Optional[str] = None
+    fullname: Optional[str] = None
     disabled: Optional[bool] = False
 
 

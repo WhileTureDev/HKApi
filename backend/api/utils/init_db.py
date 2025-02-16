@@ -22,7 +22,7 @@ def initialize_db(db: Session):
     if not admin_user:
         admin_user = User(
             email=admin_email,
-            full_name="Administrator",
+            fullname="Administrator",
             hashed_password=get_password_hash(admin_password),
             disabled=False
         )

@@ -60,14 +60,20 @@ def create_tables():
         from models.namespaceModel import Namespace
         from models.deploymentModel import Deployment
         from models.userProjectModel import UserProject
+        from models.roleModel import Role
+        from models.userRoleModel import UserRole
+        from models.changeLogModel import ChangeLog
+        from models.auditLogModel import AuditLog
         
-        # Create all tables
+        # Create all tables without dropping first
         Base.metadata.create_all(bind=app_engine)
         print("All database tables created successfully")
     except Exception as e:
         print(f"Error creating database tables: {str(e)}")
-        raise
 
 # Create database and tables on module import
 create_database_if_not_exists()
-create_tables()
+try:
+    create_tables()
+except Exception as e:
+    print(f"Error during initial table creation: {str(e)}")
