@@ -23,7 +23,7 @@ from controllers.monitorControllers.metricsController import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.post("/users/", response_model=UserSchema)
+@router.post("/users", response_model=UserSchema)
 def create_user(user: UserCreate, request: Request, db: Session = Depends(get_db)):
     start_time = time.time()
     method = request.method
