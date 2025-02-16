@@ -53,4 +53,21 @@ def get_db():
         db.close()
 
 def create_tables():
-    Base.metadata.create_all(bind=app_engine)
+    try:
+        # Import all models to ensure they are registered with Base.metadata
+        from models.userModel import User
+        from models.projectModel import Project
+        from models.namespaceModel import Namespace
+        from models.deploymentModel import Deployment
+        from models.userProjectModel import UserProject
+        
+        # Create all tables
+        Base.metadata.create_all(bind=app_engine)
+        print("All database tables created successfully")
+    except Exception as e:
+        print(f"Error creating database tables: {str(e)}")
+        raise
+
+# Create database and tables on module import
+create_database_if_not_exists()
+create_tables()

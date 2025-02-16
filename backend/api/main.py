@@ -4,9 +4,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from controllers.logControllers import changeLogController
 from controllers.helmControllers import helmRepositoryController, helmController
-from controllers.userControllers import userController, projectController, authController
+from controllers.userControllers import userController, projectController, authController, namespaceController
 from controllers.adminControllers import adminHelmController, auditLogController
 from utils.database import create_database_if_not_exists, create_tables, get_db
 from utils.logging_config import LOGGING_CONFIG
@@ -25,6 +26,23 @@ from controllers.k8sControllers import deploymentController
 from controllers.k8sControllers import configMapController
 
 app = FastAPI()
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3001",  # Local development frontend
+        "http://localhost:8000",  # Django development server
+        "https://hkapi.dailytoolset.com",  # Production frontend
+        "http://hkapi.dailytoolset.com",   # HTTP version
+        "https://localhost:3001",          # HTTPS local development
+        "https://localhost:8000",          # HTTPS Django development
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"]
+)
 
 # Initialize logging
 logging.config.dictConfig(LOGGING_CONFIG)
@@ -98,17 +116,18 @@ with next(get_db()) as db:
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
-# Include routes
-app.include_router(userController.router, tags=["users"])
-app.include_router(authController.router, tags=["auth"])
-app.include_router(projectController.router, tags=["projects"])
-app.include_router(helmController.router, tags=["helm"])
-app.include_router(helmRepositoryController.router, tags=["repositories"])
-app.include_router(changeLogController.router, tags=["changelogs"])
-app.include_router(adminHelmController.router, tags=["admin"])
-app.include_router(auditLogController.router, tags=["auditlogs"])
-app.include_router(health_check_router, tags=["health"])
-app.include_router(metrics_router, tags=["metrics"])
+# Include routes with consistent /api/v1/ prefix
+app.include_router(userController.router, prefix="/api/v1", tags=["users"])
+app.include_router(authController.router, prefix="/api/v1", tags=["auth"])
+app.include_router(projectController.router, prefix="/api/v1", tags=["projects"])
+app.include_router(namespaceController.router, prefix="/api/v1/namespaces", tags=["namespaces"])
+app.include_router(helmController.router, prefix="/api/v1", tags=["helm"])
+app.include_router(helmRepositoryController.router, prefix="/api/v1/helm/repositories", tags=["repositories"])
+app.include_router(changeLogController.router, prefix="/api/v1", tags=["changelogs"])
+app.include_router(adminHelmController.router, prefix="/api/v1", tags=["admin"])
+app.include_router(auditLogController.router, prefix="/api/v1", tags=["auditlogs"])
+app.include_router(health_check_router, prefix="/api/v1", tags=["health"])
+app.include_router(metrics_router, prefix="/api/v1", tags=["metrics"])
 app.include_router(podController.router, prefix="/api/v1", tags=["pods"])
 app.include_router(deploymentController.router, prefix="/api/v1", tags=["deployments"])
 app.include_router(configMapController.router, prefix="/api/v1", tags=["configmaps"])

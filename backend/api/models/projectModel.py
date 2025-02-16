@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Integer, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, joinedload
 from utils.database import Base  # Use absolute import
 
 class Project(Base):
@@ -13,6 +13,6 @@ class Project(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
     owner_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    owner = relationship("User", back_populates="projects")
-    namespaces = relationship("Namespace", back_populates="project")
-    user_projects = relationship("UserProject", back_populates="project")
+    owner = relationship("User", back_populates="projects", lazy='joined')
+    namespaces = relationship("Namespace", back_populates="project", lazy='joined')
+    user_projects = relationship("UserProject", back_populates="project", lazy='joined')

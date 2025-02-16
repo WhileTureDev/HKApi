@@ -39,11 +39,11 @@ spec:
               protocol: TCP
           livenessProbe:
             httpGet:
-              path: /health
+              path: /api/v1/health
               port: http
           readinessProbe:
             httpGet:
-              path: /health
+              path: /api/v1/health
               port: http
           env:
             {{- range $key, $value := .Values.env }}
