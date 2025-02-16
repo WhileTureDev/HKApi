@@ -6,8 +6,8 @@ from utils.shared_utils import get_password_hash
 import os
 
 def initialize_db(db: Session):
-    admin_username = "admin"
-    admin_password = os.getenv("ADMIN_PASSWORD", "default_admin_password")
+    admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
+    admin_password = os.getenv("ADMIN_PASSWORD", "admin")
 
     # Create admin role if it doesn't exist
     admin_role = db.query(Role).filter_by(name="admin").first()
@@ -18,12 +18,11 @@ def initialize_db(db: Session):
         db.refresh(admin_role)
 
     # Create admin user if it doesn't exist
-    admin_user = db.query(User).filter_by(username=admin_username).first()
+    admin_user = db.query(User).filter_by(email=admin_email).first()
     if not admin_user:
         admin_user = User(
-            username=admin_username,
+            email=admin_email,
             full_name="Administrator",
-            email="admin@example.com",
             hashed_password=get_password_hash(admin_password),
             disabled=False
         )

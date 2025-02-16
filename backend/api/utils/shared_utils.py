@@ -14,7 +14,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class TokenData(BaseModel):
-    username: Optional[str] = None
+    email: Optional[str] = None
     exp: Optional[float] = None
 
 def verify_password(plain_password, hashed_password):
@@ -77,14 +77,14 @@ def decode_access_token(token: str) -> Optional[TokenData]:
             
         # If not expired, decode the token
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        email: str = payload.get("sub")
         exp: float = payload.get("exp")
         
-        if username is None:
-            logging.warning("Token has no username")
+        if email is None:
+            logging.warning("Token has no email")
             return None
             
-        return TokenData(username=username, exp=exp)
+        return TokenData(email=email, exp=exp)
         
     except JWTError as e:
         logging.error(f"JWT error decoding token: {str(e)}")

@@ -22,10 +22,11 @@ def check_project_and_namespace_ownership(db: Session, project: Optional[str], n
 
     # Check if the namespace exists under any user
     namespace_obj = db.query(NamespaceModel).filter_by(name=namespace).first()
-    if namespace_obj and namespace_obj.owner_id != current_user.id:
+    namespace_owner = db.query(UserModel).filter_by(id=namespace_obj.owner_id).first()
+    if not is_admin(current_user.roles) and current_user.id != namespace_owner.id:
         # If the namespace exists and does not belong to the current user, raise an exception
-        raise HTTPException(status_code=400,
-                            detail=f'User {current_user.username} does not own the namespace {namespace}')
+        raise HTTPException(status_code=403,
+                            detail=f'User {current_user.email} does not own the namespace {namespace}')
 
     return project_obj, namespace_obj
 

@@ -44,7 +44,7 @@ async def get_all_audit_logs(
                 result.append({
                     "id": log.id,
                     "user_id": log.user_id,
-                    "user_name": user.username if user else "Unknown",
+                    "user_name": user.email if user else "Unknown",
                     "action": log.action,
                     "resource": log.resource,
                     "resource_id": log.resource_id,

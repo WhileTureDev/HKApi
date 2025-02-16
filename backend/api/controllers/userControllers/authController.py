@@ -35,20 +35,22 @@ def login_for_access_token(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"Attempting login for user: {form_data.username}")
-        user = call_database_operation(authenticate_user, db, form_data.username, form_data.password)
+        # Note: OAuth2PasswordRequestForm uses username field for credentials, but we'll treat it as email
+        email = form_data.username  # The form still uses username field as per OAuth2 spec
+        logger.info(f"Attempting login for user: {email}")
+        user = call_database_operation(authenticate_user, db, email, form_data.password)
         if not user:
-            logger.warning(f"Login failed for user: {form_data.username}")
+            logger.warning(f"Login failed for user: {email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect username or password",
+                detail="Incorrect email or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         access_token_expires = timedelta(minutes=access_token_expire_minutes)
         access_token = create_access_token(
-            data={"sub": user.username}, expires_delta=access_token_expires
+            data={"sub": user.email}, expires_delta=access_token_expires
         )
-        logger.info(f"Login successful for user: {form_data.username}")
+        logger.info(f"Login successful for user: {email}")
         return {"access_token": access_token, "token_type": "bearer"}
     except Exception as e:
         logger.error(f"Authentication error: {str(e)}")

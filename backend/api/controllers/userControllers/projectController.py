@@ -36,7 +36,7 @@ async def create_project(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is creating a new project: {project.name}")
+        logger.info(f"User {current_user.email} is creating a new project: {project.name}")
 
         # Check if project with the same name already exists
         existing_project = db.query(ProjectModel).filter(ProjectModel.name == project.name).first()
@@ -59,7 +59,7 @@ async def create_project(
             db.commit()
             db.refresh(new_project)
             
-            logger.info(f"Project {new_project.name} created by user {current_user.username}")
+            logger.info(f"Project {new_project.name} created by user {current_user.email}")
 
             REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
             REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
@@ -75,7 +75,7 @@ async def create_project(
                 updated_at=new_project.updated_at,
                 owner=UserBase(
                     id=current_user.id,
-                    username=current_user.username,
+                    username=current_user.email,
                     email=current_user.email,
                     full_name=current_user.full_name
                 ),
@@ -109,7 +109,7 @@ async def list_projects(
     current_user: UserModel = Depends(get_current_active_user)
 ) -> List[Project]:
     try:
-        logger.info(f"User {current_user.username} is listing all their projects")
+        logger.info(f"User {current_user.email} is listing all their projects")
         
         # Optimize query to fetch all related data in a single query
         projects = db.query(ProjectModel)\
@@ -121,7 +121,7 @@ async def list_projects(
             )\
             .all()
         
-        logger.info(f"Successfully fetched {len(projects)} projects for user {current_user.username}")
+        logger.info(f"Successfully fetched {len(projects)} projects for user {current_user.email}")
 
         # Convert to list of Project models with proper owner information
         result = []
@@ -130,7 +130,7 @@ async def list_projects(
             if project.owner:
                 owner_data = UserBase(
                     id=project.owner.id,
-                    username=project.owner.username,
+                    username=project.owner.email,
                     email=project.owner.email,
                     full_name=project.owner.full_name
                 )
@@ -167,7 +167,7 @@ async def delete_project(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is attempting to delete project {project_id}")
+        logger.info(f"User {current_user.email} is attempting to delete project {project_id}")
 
         # Get the project
         project = db.query(ProjectModel)\
@@ -184,7 +184,7 @@ async def delete_project(
             
         # Check if user has permission to delete the project
         if project.owner_id != current_user.id:
-            logger.warning(f"User {current_user.username} does not have permission to delete project {project_id}")
+            logger.warning(f"User {current_user.email} does not have permission to delete project {project_id}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have permission to delete this project"

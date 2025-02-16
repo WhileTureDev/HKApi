@@ -1,12 +1,11 @@
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 
 
 class UserBase(BaseModel):
-    username: str
+    email: EmailStr = Field(..., alias="email")
     full_name: Optional[str] = None
-    email: EmailStr
     disabled: Optional[bool] = False
 
 

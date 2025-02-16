@@ -80,14 +80,12 @@ def create_default_user_role(db: Session):
         logger.info("'user' role already exists")
 
 def create_initial_admin(db: Session):
-    admin_username = "admin"
-    admin_email = "admin@example.com"
+    admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
     admin_password = os.getenv("ADMIN_PASSWORD", "admin")
 
-    admin_user = db.query(User).filter(User.username == admin_username).first()
+    admin_user = db.query(User).filter(User.email == admin_email).first()
     if not admin_user:
         admin_user = User(
-            username=admin_username,
             full_name="Administrator",
             email=admin_email,
             hashed_password=get_password_hash(admin_password),
@@ -103,10 +101,14 @@ def create_initial_admin(db: Session):
             db.add(admin_role)
             db.commit()
             db.refresh(admin_role)
+            logger.info("Admin role created")
 
         user_role = UserRole(user_id=admin_user.id, role_id=admin_role.id)
         db.add(user_role)
         db.commit()
+        logger.info("Initial admin user created and assigned admin role")
+    else:
+        logger.info("Admin user already exists")
 
 # Initialize the database session and create the initial admin and default user role
 with next(get_db()) as db:
