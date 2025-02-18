@@ -3,13 +3,12 @@ import json
 import tempfile
 import yaml
 from kubernetes import client, config
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from models.helmRepositoryModel import HelmRepository
+from typing import List, Optional, Union, Dict
 from urllib.parse import urlparse
 import os
-from typing import Optional, Union, Dict
 
+# In-memory storage for helm repositories
+helm_repositories = {}
 
 def load_k8s_config():
     try:
@@ -177,10 +176,13 @@ def get_helm_status(release_name: str, namespace: Optional[str] = None) -> dict:
         return {}
 
 
-def configure_helm_repositories_from_db(db: Session):
-    repositories = db.query(HelmRepository).all()
-    for repo in repositories:
-        add_helm_repo(repo.name, repo.url)
+def configure_helm_repositories():
+    """Configure Helm repositories from in-memory storage"""
+    for repo_name, repo_url in helm_repositories.items():
+        try:
+            add_helm_repo(repo_name, repo_url)
+        except Exception as e:
+            print(f"Error configuring repository {repo_name}: {str(e)}")
 
 
 def extract_repo_name_from_url(url: str) -> str:

@@ -1,217 +1,191 @@
-# controllers/helmRepositoryController.py
+# controllers/helmControllers/helmRepositoryController.py
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy.orm import Session
-from typing import List
+from fastapi import APIRouter, HTTPException, Query, Request
+from typing import List, Dict
 from datetime import datetime
-from models.helmRepositoryModel import HelmRepository as HelmRepositoryModel
-from schemas.helmRepositorySchema import HelmRepositoryCreate, HelmRepository as HelmRepositorySchema
-from utils.database import get_db
-from utils.auth import get_current_active_user
-from models.userModel import User as UserModel
-from utils.helm import add_helm_repo, update_helm_repositories, search_helm_charts, list_helm_charts_in_repo
-from utils.circuit_breaker import call_database_operation
+from pydantic import BaseModel
+from utils.helm import (
+    add_helm_repo,
+    update_helm_repositories,
+    search_helm_charts,
+    list_helm_charts_in_repo,
+    helm_repositories,
+    configure_helm_repositories
+)
 from controllers.monitorControllers.metricsController import (
     REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS
 )
 from utils.error_handling import handle_general_exception
-
 import time
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.post("/helm/repositories", response_model=HelmRepositorySchema)
-def create_helm_repository(
+# In-memory storage for repositories
+helm_repositories = {}
+
+class HelmRepository(BaseModel):
+    name: str
+    url: str
+
+REQUEST_COUNT = 0
+REQUEST_LATENCY = 0
+IN_PROGRESS = 0
+ERROR_COUNT = 0
+
+@router.post("/helm/repositories", response_model=Dict[str, str])
+async def create_helm_repository(
     request: Request,
-    repository: HelmRepositoryCreate,
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
+    repository: HelmRepository,
 ):
+    global REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
     start_time = time.time()
     method = request.method
     endpoint = request.url.path
-    IN_PROGRESS.labels(endpoint=endpoint).inc()
+    IN_PROGRESS += 1
 
     try:
-        logger.info(f"User {current_user.email} is creating a new Helm repository: {repository.name}")
-        db_repo = call_database_operation(lambda: db.query(HelmRepositoryModel).filter_by(name=repository.name).first())
-        if db_repo:
-            logger.warning(f"Repository {repository.name} already exists")
-            raise HTTPException(status_code=400, detail="Repository already exists")
-
-        if not add_helm_repo(repository.name, repository.url):
-            logger.error(f"Failed to add Helm repository {repository.name}")
-            raise HTTPException(status_code=500, detail="Failed to add Helm repository")
-
-        new_repository = HelmRepositoryModel(
-            name=repository.name,
-            url=repository.url,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        call_database_operation(lambda: db.add(new_repository))
-        call_database_operation(lambda: db.commit())
-        call_database_operation(lambda: db.refresh(new_repository))
-        logger.info(f"Helm repository {repository.name} created successfully")
-        return new_repository
-    except HTTPException as http_exc:
-        raise http_exc
-    except Exception as e:
-        logger.error(f"Error creating Helm repository: {e}")
-        handle_general_exception(e)
-    finally:
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
-        IN_PROGRESS.labels(endpoint=endpoint).dec()
-
-@router.get("/helm/repositories", response_model=List[HelmRepositorySchema])
-def list_helm_repositories(
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
-):
-    start_time = time.time()
-    method = request.method
-    endpoint = request.url.path
-    IN_PROGRESS.labels(endpoint=endpoint).inc()
-
-    try:
-        logger.info(f"User {current_user.email} is listing all Helm repositories")
-        repositories = call_database_operation(lambda: db.query(HelmRepositoryModel).all())
-        logger.info(f"Found {len(repositories)} repositories")
-        return [HelmRepositorySchema.from_orm(repo) for repo in repositories]
-    except Exception as e:
-        logger.error(f"Error listing Helm repositories: {e}")
-        handle_general_exception(e)
-    finally:
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
-        IN_PROGRESS.labels(endpoint=endpoint).dec()
-
-@router.delete("/helm/repositories/{repo_id}", response_model=HelmRepositorySchema)
-def delete_helm_repository(
-    request: Request,
-    repo_id: int,
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
-):
-    start_time = time.time()
-    method = request.method
-    endpoint = request.url.path
-    IN_PROGRESS.labels(endpoint=endpoint).inc()
-
-    try:
-        logger.info(f"User {current_user.email} is deleting Helm repository with ID {repo_id}")
-        repository = call_database_operation(lambda: db.query(HelmRepositoryModel).filter_by(id=repo_id).first())
-        if not repository:
-            logger.warning(f"Repository with ID {repo_id} not found")
-            raise HTTPException(status_code=404, detail="Repository not found")
-
-        call_database_operation(lambda: db.delete(repository))
-        call_database_operation(lambda: db.commit())
-        logger.info(f"Helm repository with ID {repo_id} deleted successfully")
-        return repository
-    except Exception as e:
-        logger.error(f"Error deleting Helm repository: {e}")
-        handle_general_exception(e)
-    finally:
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
-        IN_PROGRESS.labels(endpoint=endpoint).dec()
-
-@router.get("/helm/charts/search", response_model=List[dict])
-def search_charts(
-    request: Request,
-    term: str = Query(..., description="The search term for the charts"),
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
-):
-    start_time = time.time()
-    method = request.method
-    endpoint = request.url.path
-    IN_PROGRESS.labels(endpoint=endpoint).inc()
-
-    try:
-        logger.info(f"User {current_user.email} is searching for charts with term {term}")
-        # Get all repository names from the database
-        repositories = call_database_operation(lambda: db.query(HelmRepositoryModel.name).all())
-        repo_names = [repo[0] for repo in repositories]
-
-        # Perform the search
-        search_results = search_helm_charts(term, repo_names)
-        if not search_results:
-            logger.warning(f"No charts found matching the search term {term}")
-            raise HTTPException(status_code=404, detail="No charts found matching the search term")
-        logger.info(f"Found {len(search_results)} charts matching the search term {term}")
-        return search_results
-    except Exception as e:
-        logger.error(f"Error searching charts: {e}")
-        handle_general_exception(e)
-    finally:
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
-        IN_PROGRESS.labels(endpoint=endpoint).dec()
-
-@router.post("/helm/repositories/update", response_model=dict)
-def update_repositories(
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
-):
-    start_time = time.time()
-    method = request.method
-    endpoint = request.url.path
-    IN_PROGRESS.labels(endpoint=endpoint).inc()
-
-    try:
-        logger.info(f"User {current_user.email} is updating all Helm repositories")
-        success = update_helm_repositories()
+        logger.info(f"Creating a new Helm repository: {repository.name}")
+        # Add to Helm
+        success = add_helm_repo(repository.name, repository.url)
         if not success:
-            logger.error("Failed to update Helm repositories")
-            raise HTTPException(status_code=500, detail="Failed to update Helm repositories")
-        logger.info("Helm repositories updated successfully")
-        return {"message": "Helm repositories updated successfully"}
+            raise HTTPException(status_code=400, detail="Failed to add Helm repository")
+        
+        # Store in memory
+        helm_repositories[repository.name] = repository.url
+        
+        REQUEST_COUNT += 1
+        REQUEST_LATENCY += time.time() - start_time
+        return {"message": f"Successfully added repository {repository.name}"}
     except Exception as e:
-        logger.error(f"Error updating Helm repositories: {e}")
-        handle_general_exception(e)
+        ERROR_COUNT += 1
+        return handle_general_exception(e, method, endpoint, start_time)
     finally:
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
-        IN_PROGRESS.labels(endpoint=endpoint).dec()
+        IN_PROGRESS -= 1
 
-@router.get("/helm/repositories/charts", response_model=List[dict])
-def list_charts_in_repo(
-    request: Request,
-    repo_name: str = Query(..., description="The name of the repository"),
-    db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
-):
+@router.get("/helm/repositories", response_model=Dict[str, str])
+async def get_helm_repositories(request: Request):
+    global REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
     start_time = time.time()
     method = request.method
     endpoint = request.url.path
-    IN_PROGRESS.labels(endpoint=endpoint).inc()
+    IN_PROGRESS += 1
 
     try:
-        logger.info(f"User {current_user.email} is listing all charts in repository {repo_name}")
-        # Check if the repository exists in the database
-        helm_repo = call_database_operation(lambda: db.query(HelmRepositoryModel).filter_by(name=repo_name).first())
-        if not helm_repo:
-            logger.warning(f"Repository {repo_name} not found")
-            raise HTTPException(status_code=404, detail="Repository not found")
+        logger.info("Getting all Helm repositories")
+        REQUEST_COUNT += 1
+        REQUEST_LATENCY += time.time() - start_time
+        return helm_repositories
+    except Exception as e:
+        ERROR_COUNT += 1
+        return handle_general_exception(e, method, endpoint, start_time)
+    finally:
+        IN_PROGRESS -= 1
 
-        # List all charts in the specified repository
+@router.delete("/helm/repositories/{repo_name}")
+async def delete_helm_repository(
+    request: Request,
+    repo_name: str,
+):
+    global REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
+    start_time = time.time()
+    method = request.method
+    endpoint = request.url.path
+    IN_PROGRESS += 1
+
+    try:
+        logger.info(f"Deleting Helm repository: {repo_name}")
+        if repo_name not in helm_repositories:
+            raise HTTPException(status_code=404, detail=f"Repository {repo_name} not found")
+        
+        try:
+            # Remove from Helm
+            subprocess.run(["helm", "repo", "remove", repo_name], check=True)
+            # Remove from memory
+            del helm_repositories[repo_name]
+            REQUEST_COUNT += 1
+            REQUEST_LATENCY += time.time() - start_time
+            return {"message": f"Successfully deleted repository {repo_name}"}
+        except Exception as e:
+            ERROR_COUNT += 1
+            raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        ERROR_COUNT += 1
+        return handle_general_exception(e, method, endpoint, start_time)
+    finally:
+        IN_PROGRESS -= 1
+
+@router.get("/helm/repositories/{repo_name}/charts")
+async def list_charts_in_repo(
+    request: Request,
+    repo_name: str,
+):
+    global REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
+    start_time = time.time()
+    method = request.method
+    endpoint = request.url.path
+    IN_PROGRESS += 1
+
+    try:
+        logger.info(f"Listing charts in repository: {repo_name}")
+        if repo_name not in helm_repositories:
+            raise HTTPException(status_code=404, detail=f"Repository {repo_name} not found")
         charts = list_helm_charts_in_repo(repo_name)
-        if not charts:
-            logger.warning(f"No charts found in repository {repo_name}")
-            raise HTTPException(status_code=404, detail="No charts found in the repository")
-        logger.info(f"Found {len(charts)} charts in repository {repo_name}")
+        if charts is None:
+            raise HTTPException(status_code=500, detail="Failed to list charts")
+        
+        REQUEST_COUNT += 1
+        REQUEST_LATENCY += time.time() - start_time
         return charts
     except Exception as e:
-        logger.error(f"Error listing charts in repository: {e}")
-        handle_general_exception(e)
+        ERROR_COUNT += 1
+        return handle_general_exception(e, method, endpoint, start_time)
     finally:
-        REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()
-        REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(time.time() - start_time)
-        IN_PROGRESS.labels(endpoint=endpoint).dec()
+        IN_PROGRESS -= 1
+
+@router.get("/helm/repositories/search")
+async def search_charts(
+    request: Request,
+    term: str = Query(..., description="The search term for the charts"),
+):
+    global REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
+    start_time = time.time()
+    method = request.method
+    endpoint = request.url.path
+    IN_PROGRESS += 1
+
+    try:
+        logger.info(f"Searching for Helm charts with term: {term}")
+        search_results = search_helm_charts(term, list(helm_repositories.keys()))
+        
+        REQUEST_COUNT += 1
+        REQUEST_LATENCY += time.time() - start_time
+        return search_results
+    except Exception as e:
+        ERROR_COUNT += 1
+        return handle_general_exception(e, method, endpoint, start_time)
+    finally:
+        IN_PROGRESS -= 1
+
+@router.post("/helm/repositories/update")
+async def update_repositories(request: Request):
+    global REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS, ERROR_COUNT
+    start_time = time.time()
+    method = request.method
+    endpoint = request.url.path
+    IN_PROGRESS += 1
+
+    try:
+        logger.info("Updating all Helm repositories")
+        if not update_helm_repositories():
+            raise HTTPException(status_code=500, detail="Failed to update repositories")
+        
+        REQUEST_COUNT += 1
+        REQUEST_LATENCY += time.time() - start_time
+        return {"message": "Repositories updated successfully"}
+    except Exception as e:
+        ERROR_COUNT += 1
+        return handle_general_exception(e, method, endpoint, start_time)
+    finally:
+        IN_PROGRESS -= 1
