@@ -38,7 +38,7 @@ async def list_pods(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is listing pods in namespace {namespace}")
+        logger.info(f"User {current_user.email} is listing pods in namespace {namespace}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
@@ -86,7 +86,7 @@ async def get_pod_details(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is retrieving details for pod {pod_name}")
+        logger.info(f"User {current_user.email} is retrieving details for pod {pod_name}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
@@ -133,7 +133,7 @@ async def create_pod(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is creating a pod in namespace {namespace}")
+        logger.info(f"User {current_user.email} is creating a pod in namespace {namespace}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
@@ -198,7 +198,7 @@ async def update_pod(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is updating pod {pod_name} in namespace {namespace}")
+        logger.info(f"User {current_user.email} is updating pod {pod_name} in namespace {namespace}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
@@ -212,7 +212,7 @@ async def update_pod(
         pod.spec.containers[0].image = image
 
         updated_pod = core_v1.replace_namespaced_pod(name=pod_name, namespace=namespace, body=pod)
-        logger.info(f"User {current_user.username} successfully updated pod {pod_name} in namespace {namespace}")
+        logger.info(f"User {current_user.email} successfully updated pod {pod_name} in namespace {namespace}")
 
         # Log the change with resource_name and project_name, including additional details
         namespace_obj = db.query(NamespaceModel).filter_by(name=namespace).first()
@@ -267,7 +267,7 @@ async def delete_pod(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is deleting pod {pod_name}")
+        logger.info(f"User {current_user.email} is deleting pod {pod_name}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
@@ -318,7 +318,7 @@ async def get_pod_logs(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is fetching logs for pod {pod_name} in namespace {namespace}")
+        logger.info(f"User {current_user.email} is fetching logs for pod {pod_name} in namespace {namespace}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
@@ -331,7 +331,7 @@ async def get_pod_logs(
         else:
             logs = core_v1.read_namespaced_pod_log(name=pod_name, namespace=namespace)
 
-        logger.info(f"User {current_user.username} successfully fetched logs for pod {pod_name} "
+        logger.info(f"User {current_user.email} successfully fetched logs for pod {pod_name} "
                     f"in namespace {namespace}")
 
         REQUEST_COUNT.labels(method=method, endpoint=endpoint).inc()

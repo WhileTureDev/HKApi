@@ -35,7 +35,7 @@ def create_helm_repository(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is creating a new Helm repository: {repository.name}")
+        logger.info(f"User {current_user.email} is creating a new Helm repository: {repository.name}")
         db_repo = call_database_operation(lambda: db.query(HelmRepositoryModel).filter_by(name=repository.name).first())
         if db_repo:
             logger.warning(f"Repository {repository.name} already exists")
@@ -78,7 +78,7 @@ def list_helm_repositories(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is listing all Helm repositories")
+        logger.info(f"User {current_user.email} is listing all Helm repositories")
         repositories = call_database_operation(lambda: db.query(HelmRepositoryModel).all())
         logger.info(f"Found {len(repositories)} repositories")
         return [HelmRepositorySchema.from_orm(repo) for repo in repositories]
@@ -103,7 +103,7 @@ def delete_helm_repository(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is deleting Helm repository with ID {repo_id}")
+        logger.info(f"User {current_user.email} is deleting Helm repository with ID {repo_id}")
         repository = call_database_operation(lambda: db.query(HelmRepositoryModel).filter_by(id=repo_id).first())
         if not repository:
             logger.warning(f"Repository with ID {repo_id} not found")
@@ -134,7 +134,7 @@ def search_charts(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is searching for charts with term {term}")
+        logger.info(f"User {current_user.email} is searching for charts with term {term}")
         # Get all repository names from the database
         repositories = call_database_operation(lambda: db.query(HelmRepositoryModel.name).all())
         repo_names = [repo[0] for repo in repositories]
@@ -166,7 +166,7 @@ def update_repositories(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is updating all Helm repositories")
+        logger.info(f"User {current_user.email} is updating all Helm repositories")
         success = update_helm_repositories()
         if not success:
             logger.error("Failed to update Helm repositories")
@@ -194,7 +194,7 @@ def list_charts_in_repo(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is listing all charts in repository {repo_name}")
+        logger.info(f"User {current_user.email} is listing all charts in repository {repo_name}")
         # Check if the repository exists in the database
         helm_repo = call_database_operation(lambda: db.query(HelmRepositoryModel).filter_by(name=repo_name).first())
         if not helm_repo:

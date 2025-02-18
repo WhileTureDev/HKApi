@@ -52,7 +52,7 @@ async def list_all_releases(
 
     try:
         if not is_admin(current_user_roles):
-            logger.warning(f"User {current_user.username} attempted to access admin-only endpoint")
+            logger.warning(f"User {current_user.email} attempted to access admin-only endpoint")
             ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
             raise HTTPException(status_code=403, detail="Not authorized")
 

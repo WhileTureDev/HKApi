@@ -12,7 +12,7 @@ class UserBase(BaseModel):
     id: int
     username: str
     email: str
-    full_name: str
+    fullname: str
 
     class Config:
         from_attributes = True

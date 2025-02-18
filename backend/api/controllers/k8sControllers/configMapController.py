@@ -38,7 +38,7 @@ async def list_configmaps(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is listing ConfigMaps in namespace {namespace}")
+        logger.info(f"User {current_user.email} is listing ConfigMaps in namespace {namespace}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
@@ -54,7 +54,7 @@ async def list_configmaps(
             "created_at": configmap.metadata.creation_timestamp
         } for configmap in configmaps.items]
 
-        logger.info(f"User {current_user.username} successfully listed ConfigMaps in namespace {namespace}")
+        logger.info(f"User {current_user.email} successfully listed ConfigMaps in namespace {namespace}")
         return {"configmaps": configmap_list}
 
     except client.exceptions.ApiException as e:
@@ -84,7 +84,7 @@ async def get_configmap_details(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is fetching details for ConfigMap {configmap_name} in namespace {namespace}")
+        logger.info(f"User {current_user.email} is fetching details for ConfigMap {configmap_name} in namespace {namespace}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
@@ -101,7 +101,7 @@ async def get_configmap_details(
             "created_at": configmap.metadata.creation_timestamp
         }
 
-        logger.info(f"User {current_user.username} successfully fetched details for ConfigMap {configmap_name} in namespace {namespace}")
+        logger.info(f"User {current_user.email} successfully fetched details for ConfigMap {configmap_name} in namespace {namespace}")
         return configmap_details
 
     except client.exceptions.ApiException as e:
@@ -136,7 +136,7 @@ async def create_configmap(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is creating a ConfigMap {configmap_name} in namespace {namespace}")
+        logger.info(f"User {current_user.email} is creating a ConfigMap {configmap_name} in namespace {namespace}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
@@ -152,7 +152,7 @@ async def create_configmap(
         )
 
         configmap = core_v1.create_namespaced_config_map(namespace=namespace, body=configmap_body)
-        logger.info(f"User {current_user.username} successfully created ConfigMap {configmap_name} in namespace {namespace}")
+        logger.info(f"User {current_user.email} successfully created ConfigMap {configmap_name} in namespace {namespace}")
 
         return {
             "name": configmap.metadata.name,
@@ -184,7 +184,7 @@ async def update_configmap(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is updating ConfigMap {configmap_name} in namespace {namespace}")
+        logger.info(f"User {current_user.email} is updating ConfigMap {configmap_name} in namespace {namespace}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
@@ -202,7 +202,7 @@ async def update_configmap(
 
         # Update the ConfigMap
         updated_configmap = core_v1.patch_namespaced_config_map(name=configmap_name, namespace=namespace, body=existing_configmap)
-        logger.info(f"User {current_user.username} successfully updated ConfigMap {configmap_name} in namespace {namespace}")
+        logger.info(f"User {current_user.email} successfully updated ConfigMap {configmap_name} in namespace {namespace}")
 
         return {
             "name": updated_configmap.metadata.name,
@@ -234,7 +234,7 @@ async def delete_configmap(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"User {current_user.username} is deleting ConfigMap {name} in namespace {namespace}")
+        logger.info(f"User {current_user.email} is deleting ConfigMap {name} in namespace {namespace}")
 
         if not is_admin(current_user_roles):
             _, namespace_obj = check_project_and_namespace_ownership(db, None, namespace, current_user)
@@ -244,7 +244,7 @@ async def delete_configmap(
         core_v1 = client.CoreV1Api()
         core_v1.delete_namespaced_config_map(name=name, namespace=namespace)
 
-        logger.info(f"User {current_user.username} successfully deleted ConfigMap {name} in namespace {namespace}")
+        logger.info(f"User {current_user.email} successfully deleted ConfigMap {name} in namespace {namespace}")
         return {"message": f"ConfigMap {name} deleted successfully"}
     except client.exceptions.ApiException as e:
         handle_k8s_exception(e)

@@ -38,9 +38,8 @@ def create_user(user: UserCreate, request: Request, db: Session = Depends(get_db
             raise HTTPException(status_code=400, detail="Email already registered")
 
         new_user = UserModel(
-            username=user.username,
-            full_name=user.full_name,
             email=user.email,
+            fullname=user.fullname,
             hashed_password=get_password_hash(user.password),
             disabled=user.disabled,
             created_at=datetime.utcnow(),
@@ -52,7 +51,7 @@ def create_user(user: UserCreate, request: Request, db: Session = Depends(get_db
         logger.info(f"User {user.email} created successfully")
         # Log the change
         log_change(db, new_user.id, action="create", resource="user", resource_id=new_user.id,
-                   resource_name=user.username, project_name="N/A", details=f"User {user.username} created")
+                   resource_name=user.email, project_name="N/A", details=f"User {user.email} created")
         return new_user
     except HTTPException as http_exc:
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
@@ -74,7 +73,7 @@ def read_users_me(request: Request, current_user: UserModel = Depends(get_curren
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"Fetching details for user {current_user.username}")
+        logger.info(f"Fetching details for user {current_user.email}")
         return current_user
     except HTTPException as http_exc:
         ERROR_COUNT.labels(method=method, endpoint=endpoint).inc()
@@ -112,10 +111,10 @@ async def assign_role_to_user(user_id: int, role_id: int, request: Request, db: 
         user_role = UserRoleModel(user_id=user_id, role_id=role_id)
         call_database_operation(lambda: db.add(user_role))
         call_database_operation(lambda: db.commit())
-        logger.info(f"Assigned role {role.name} to user {user.username}")
+        logger.info(f"Assigned role {role.name} to user {user.email}")
         log_change(db, current_user.id, action="assign_role", resource="user_role", resource_id=user_role.id,
-                   resource_name=user.username, project_name="N/A",
-                   details=f"Assigned role {role.name} to user {user.username}")
+                   resource_name=user.email, project_name="N/A",
+                   details=f"Assigned role {role.name} to user {user.email}")
 
         return {"message": "Role assigned successfully"}
     except HTTPException as http_exc:

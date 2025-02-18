@@ -13,7 +13,7 @@ class TokenData(BaseModel):
 
 class User(BaseModel):
     username: str = Form(...)
-    full_name: str = Form(...)
+    fullname: str = Form(...)
     email: str = Form(...)
 
 

@@ -259,7 +259,7 @@ def delete_release(
             ).first()
             if not deployment:
                 logger.error(
-                    f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+                    f"Deployment {release_name} not found for user {current_user.email} in namespace {namespace}")
                 raise HTTPException(status_code=404, detail="Helm release not found")
         else:
             deployment = db.query(DeploymentModel).filter_by(
@@ -372,7 +372,7 @@ async def get_release_values(
             ).first()
             if not deployment:
                 logger.error(
-                    f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+                    f"Deployment {release_name} not found for user {current_user.email} in namespace {namespace}")
                 raise HTTPException(status_code=404, detail="Helm release not found")
         else:
             deployment = db.query(DeploymentModel).filter_by(
@@ -429,7 +429,7 @@ async def rollback_release(
             ).first()
             if not deployment:
                 logger.error(
-                    f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+                    f"Deployment {release_name} not found for user {current_user.email} in namespace {namespace}")
                 raise HTTPException(status_code=404, detail="Helm release not found")
         else:
             deployment = db.query(DeploymentModel).filter_by(
@@ -492,7 +492,7 @@ async def get_release_status(
             ).first()
             if not deployment:
                 logger.error(
-                    f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+                    f"Deployment {release_name} not found for user {current_user.email} in namespace {namespace}")
                 raise HTTPException(status_code=404, detail="Helm release not found")
         else:
             deployment = db.query(DeploymentModel).filter_by(
@@ -547,7 +547,7 @@ async def get_release_history(
             ).first()
             if not deployment:
                 logger.error(
-                    f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+                    f"Deployment {release_name} not found for user {current_user.email} in namespace {namespace}")
                 raise HTTPException(status_code=404, detail="Helm release not found")
         else:
             deployment = db.query(DeploymentModel).filter_by(
@@ -603,7 +603,7 @@ async def get_release_notes(
             ).first()
             if not deployment:
                 logger.error(
-                    f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+                    f"Deployment {release_name} not found for user {current_user.email} in namespace {namespace}")
                 raise HTTPException(status_code=404, detail="Helm release not found")
         else:
             deployment = db.query(DeploymentModel).filter_by(
@@ -658,7 +658,7 @@ async def export_release_values(
             ).first()
             if not deployment:
                 logger.error(
-                    f"Deployment {release_name} not found for user {current_user.username} in namespace {namespace}")
+                    f"Deployment {release_name} not found for user {current_user.email} in namespace {namespace}")
                 raise HTTPException(status_code=404, detail="Helm release not found")
         else:
             deployment = db.query(DeploymentModel).filter_by(
@@ -704,7 +704,7 @@ async def list_all_releases(
     IN_PROGRESS.labels(endpoint=endpoint).inc()
 
     try:
-        logger.info(f"Listing all releases for user {current_user.username}")
+        logger.info(f"Listing all releases for user {current_user.email}")
 
         if not is_admin(current_user_roles):
             deployments = db.query(DeploymentModel).filter_by(owner_id=current_user.id).all()
@@ -712,7 +712,7 @@ async def list_all_releases(
             deployments = db.query(DeploymentModel).all()
 
         if not deployments:
-            logger.warning(f"No releases found for user {current_user.username}")
+            logger.warning(f"No releases found for user {current_user.email}")
             raise HTTPException(status_code=404, detail="No releases found")
 
         releases = [deployment_to_dict(deployment) for deployment in deployments]
