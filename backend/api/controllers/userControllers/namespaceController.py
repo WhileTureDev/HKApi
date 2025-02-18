@@ -66,7 +66,7 @@ def create_kubernetes_namespace(namespace_name: str):
             detail=f"Failed to create Kubernetes namespace: {str(e)}"
         )
 
-@router.get("/list", response_model=List[NamespaceSchema])
+@router.get("/namespaces", response_model=List[NamespaceSchema])
 def list_namespaces(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_active_user)
@@ -79,7 +79,7 @@ def list_namespaces(
     ).all()
     return namespaces
 
-@router.post("/create", response_model=NamespaceSchema)
+@router.post("/namespace", response_model=NamespaceSchema)
 def create_namespace(
     namespace_data: NamespaceCreate,  
     db: Session = Depends(get_db),
@@ -107,7 +107,7 @@ def create_namespace(
     db.refresh(new_namespace)
     return new_namespace
 
-@router.delete("/delete/{namespace_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/namespace/{namespace_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_namespace(
     namespace_id: int,
     db: Session = Depends(get_db),

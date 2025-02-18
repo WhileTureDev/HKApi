@@ -23,7 +23,7 @@ from controllers.monitorControllers.metricsController import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.post("/projects/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 async def create_project(
     request: Request,
     project: ProjectCreate,
@@ -102,7 +102,7 @@ async def create_project(
         IN_PROGRESS.labels(endpoint=endpoint).dec()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal error occurred")
 
-@router.get("/projects/", response_model=List[Project])
+@router.get("/projects", response_model=List[Project])
 async def list_projects(
     request: Request,
     db: Session = Depends(get_db),
@@ -154,7 +154,7 @@ async def list_projects(
             detail=f"An error occurred while fetching projects: {str(e)}"
         )
 
-@router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/projects{project_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_project(
     request: Request,
     project_id: int,
