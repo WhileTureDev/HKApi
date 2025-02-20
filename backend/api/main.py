@@ -25,12 +25,12 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(helmRepositoryController.router, tags=["Helm Repository"])
-app.include_router(helmController.router, tags=["Helm"])
-app.include_router(podController.router, tags=["Pod"])
-app.include_router(deploymentController.router, tags=["Deployment"])
-app.include_router(namespaceController.router, tags=["Namespace"])
-app.include_router(metricsController.router, tags=["Monitoring"])
+app.include_router(helmRepositoryController.router, prefix="/api/v1", tags=["Helm Repository"])
+app.include_router(helmController.router, prefix="/api/v1", tags=["Helm"])
+app.include_router(podController.router, prefix="/api/v1", tags=["Pod"])
+app.include_router(deploymentController.router, prefix="/api/v1", tags=["Deployment"])
+app.include_router(namespaceController.router, prefix="/api/v1", tags=["Namespace"])
+app.include_router(metricsController.router, prefix="/api/v1", tags=["Monitoring"])
 
 @app.on_event("startup")
 async def startup_event():

@@ -53,8 +53,10 @@ This project is a Kubernetes API platform that allows developers to create and m
      RATE_LIMIT=20/minute
 
 6. Deploy the API using Helm:
-   helm install helm-hkapi ./helm-hkapi --namespace hkapi
-
+```shell
+helm upgrade --install helm-hkapi ./helm-hkapi --namespace hkapi
+```
+   
 ## Usage
 Start the application and open your browser to `http://your-kubernetes-cluster-url`. You can use the API to manage projects, deployments, and namespaces.
 
